@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>หน้าหัวหน้า — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+  .lot{padding:14px 0;border-top:1px solid var(--line-2)}
+  .lot:first-child{border-top:0}
+  .lot-top{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  .lot-code{font-family:var(--display);font-size:18px;font-weight:600}
+  .lot-sub{font-size:13.5px;color:var(--ink-2)}
+  .lot-nums{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2);margin-top:6px}
+  .lot-nums b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .lot-nums .bad b{color:var(--alert)}
+  .lot-actions{display:flex;gap:8px;margin-top:10px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav a{
+    padding:8px 14px;border:1px solid var(--line);border-radius:999px;
+    text-decoration:none;color:var(--ink-2);font-size:13.5px;background:var(--surface);
+  }
+  .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">หน้าหัวหน้า</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html" class="on">หน้าหัวหน้า</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <section id="app" hidden>
+    <div class="card">
+      <h2>เปิดล็อตงานใหม่</h2>
+      <div class="msg" id="open-msg" hidden></div>
+      <div class="field">
+        <label for="n-prod">สินค้า</label>
+        <select id="n-prod"></select>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="n-qty">จำนวนที่ปล่อยเข้าสาย (ชิ้น)</label>
+          <input id="n-qty" type="number" inputmode="numeric" min="1" step="1">
+        </div>
+        <div class="field">
+          <label for="n-due">กำหนดส่ง (ถ้ามี)</label>
+          <input id="n-due" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="n-note">หมายเหตุ</label>
+        <input id="n-note" type="text" placeholder="เช่น ออร์เดอร์ลูกค้ารายไหน">
+      </div>
+      <button class="btn btn-primary btn-lg" id="n-go" type="button">เปิดล็อต</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px">
+        <h2 style="margin:0">ล็อตงาน</h2>
+        <div class="tabs" style="margin:0;flex:0 0 auto">
+          <button class="tab" id="t-open" aria-selected="true" type="button">กำลังทำ</button>
+          <button class="tab" id="t-closed" aria-selected="false" type="button">ปิดแล้ว</button>
+        </div>
+      </div>
+      <div class="msg" id="lot-msg" hidden></div>
+      <div id="lots"><p class="hint">กำลังโหลด…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>รีเซ็ต PIN พนักงาน</h2>
+      <div class="msg" id="pin-msg" hidden></div>
+      <div class="two">
+        <div class="field">
+          <label for="s-target">พนักงาน</label>
+          <select id="s-target"></select>
+        </div>
+        <div class="field">
+          <label for="s-pin">PIN ใหม่</label>
+          <input id="s-pin" type="text" inputmode="numeric" placeholder="อย่างน้อย 4 ตัว">
+        </div>
+      </div>
+      <button class="btn" id="s-go" type="button">ตั้ง PIN ใหม่</button>
+    </div>
+
+    <div class="card">
+      <h2>ดาวน์โหลดข้อมูล</h2>
+      <p class="hint" style="margin-bottom:12px">ได้ไฟล์ CSV เปิดด้วย Excel ได้ทันที</p>
+      <div class="two">
+        <div class="field"><label for="e-from">ตั้งแต่</label><input id="e-from" type="date"></div>
+        <div class="field"><label for="e-to">ถึง</label><input id="e-to" type="date"></div>
+      </div>
+      <button class="btn" id="e-go" type="button">ดาวน์โหลด CSV</button>
+    </div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var boot = null, lotFilter = "open";
+
+  $("factory").textContent = J.factory;
+
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      boot = d;
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      $("n-prod").innerHTML = '<option value="">— เลือกสินค้า —</option>' +
+        d.products.map(function (p) {
+          return '<option value="' + J.esc(p.code) + '">' + J.esc(p.code) + " · " +
+            J.esc(p.name) + " (" + J.esc(p.jade) + ")</option>";
+        }).join("");
+      $("s-target").innerHTML = d.employees.map(function (e) {
+        return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+      }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    var d = new Date();
+    $("e-to").value = J.today();
+    $("e-from").value = new Date(d.getFullYear(), d.getMonth() - 1, d.getDate())
+      .toISOString().slice(0, 10);
+    loadLots();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_lots", { p_name: name, p_pin: pin, p_status: "all" }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) {
+      J.msg($("login-msg"), err.message, "err");
+    }).then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  $("n-go").addEventListener("click", function () {
+    var m = J.me.get();
+    var prod = $("n-prod").value, qty = Number($("n-qty").value || 0);
+    if (!prod) { J.msg($("open-msg"), "เลือกสินค้าก่อน", "err"); return; }
+    if (!(qty > 0)) { J.msg($("open-msg"), "ใส่จำนวนที่ปล่อยเข้าสาย", "err"); return; }
+    $("n-go").disabled = true;
+    J.rpc("sup_open_lot", {
+      p_name: m.name, p_pin: m.pin, p_product: prod, p_qty: qty,
+      p_due: $("n-due").value || null, p_note: $("n-note").value || null
+    }).then(function (r) {
+      J.msg($("open-msg"), "เปิดล็อต " + r.code + " แล้ว — แจ้งพนักงานได้เลย", "ok");
+      $("n-qty").value = ""; $("n-note").value = ""; $("n-due").value = "";
+      lotFilter = "open"; setTab(); loadLots();
+    }).catch(function (err) { J.msg($("open-msg"), err.message, "err"); })
+      .then(function () { $("n-go").disabled = false; });
+  });
+
+  function setTab() {
+    $("t-open").setAttribute("aria-selected", String(lotFilter === "open"));
+    $("t-closed").setAttribute("aria-selected", String(lotFilter === "closed"));
+  }
+  $("t-open").addEventListener("click", function () { lotFilter = "open"; setTab(); loadLots(); });
+  $("t-closed").addEventListener("click", function () { lotFilter = "closed"; setTab(); loadLots(); });
+
+  function loadLots() {
+    var m = J.me.get();
+    J.rpc("sup_lots", { p_name: m.name, p_pin: m.pin, p_status: lotFilter }).then(function (list) {
+      if (!list || !list.length) {
+        $("lots").innerHTML = '<p class="hint">' +
+          (lotFilter === "open" ? "ยังไม่มีล็อตที่กำลังทำอยู่" : "ยังไม่มีล็อตที่ปิดแล้ว") + "</p>";
+        return;
+      }
+      $("lots").innerHTML = list.map(function (l) {
+        var done = l.qty_opened ? Math.min(100, l.qc_passed / l.qty_opened * 100) : 0;
+        var late = l.due_date && l.status === "open" && l.due_date < J.today();
+        return '<div class="lot">' +
+          '<div class="lot-top"><span><span class="lot-code">' + J.esc(l.code) + "</span> " +
+            '<span class="lot-sub">' + J.esc(l.product_code) + " · " + J.esc(l.product_name) +
+            " · หยก" + J.esc(l.jade) + "</span></span>" +
+            '<span class="chip ' + (l.status === "closed" ? "idle" : late ? "bad" : "ok") + '">' +
+            (l.status === "closed" ? "ปิดแล้ว" : late ? "เลยกำหนดส่ง" : "กำลังทำ") + "</span></div>" +
+          '<div class="lot-nums">' +
+            "<span>เปิด <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น</span>" +
+            "<span>ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b></span>" +
+            '<span class="bad">เสีย <b>' + J.nf.format(l.total_bad) + "</b></span>" +
+            "<span>อยู่ในสาย <b>" + J.nf.format(l.wip) + "</b></span>" +
+            (l.last_step ? "<span>ล่าสุด: <b>" + J.esc(l.last_step) + "</b> " + J.thDate(l.last_date) + "</span>" : "") +
+            (l.due_date ? "<span>กำหนดส่ง <b>" + J.thDate(l.due_date) + "</b></span>" : "") +
+          "</div>" +
+          '<span class="bar"><i style="width:' + done.toFixed(1) + '%"></i></span>' +
+          (l.note ? '<p class="hint" style="margin:8px 0 0">' + J.esc(l.note) + "</p>" : "") +
+          '<div class="lot-actions"><button class="btn btn-sm ' +
+            (l.status === "open" ? "btn-danger" : "") + '" data-toggle="' + J.esc(l.code) +
+            '" data-reopen="' + (l.status === "closed") + '" type="button">' +
+            (l.status === "open" ? "ปิดล็อต" : "เปิดล็อตใหม่") + "</button></div>" +
+          "</div>";
+      }).join("");
+      Array.prototype.forEach.call($("lots").querySelectorAll("[data-toggle]"), function (b) {
+        b.addEventListener("click", function () {
+          var reopen = b.dataset.reopen === "true";
+          if (!reopen && !confirm("ปิดล็อต " + b.dataset.toggle + "? พนักงานจะลงงานล็อตนี้ไม่ได้อีก")) return;
+          var mm = J.me.get();
+          J.rpc("sup_close_lot", { p_name: mm.name, p_pin: mm.pin, p_lot: b.dataset.toggle, p_reopen: reopen })
+            .then(function () { J.msg($("lot-msg"), reopen ? "เปิดล็อตใหม่แล้ว" : "ปิดล็อตแล้ว", "ok"); loadLots(); })
+            .catch(function (err) { J.msg($("lot-msg"), err.message, "err"); });
+        });
+      });
+    }).catch(function (err) { $("lots").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  $("s-go").addEventListener("click", function () {
+    var m = J.me.get();
+    var t = $("s-target").value, p = $("s-pin").value;
+    if (p.length < 4) { J.msg($("pin-msg"), "PIN ต้องยาวอย่างน้อย 4 ตัว", "err"); return; }
+    J.rpc("sup_set_pin", { p_name: m.name, p_pin: m.pin, p_target: t, p_new_pin: p })
+      .then(function () { $("s-pin").value = ""; J.msg($("pin-msg"), "ตั้ง PIN ใหม่ให้ " + t + " แล้ว", "ok"); })
+      .catch(function (err) { J.msg($("pin-msg"), err.message, "err"); });
+  });
+
+  $("e-go").addEventListener("click", function () {
+    var m = J.me.get();
+    $("e-go").disabled = true;
+    J.rpc("sup_export", { p_name: m.name, p_pin: m.pin, p_from: $("e-from").value || null, p_to: $("e-to").value || null })
+      .then(function (rows) {
+        if (!rows || !rows.length) { alert("ไม่มีข้อมูลในช่วงที่เลือก"); return; }
+        var cols = Object.keys(rows[0]);
+        var esc = function (v) {
+          if (v == null) return "";
+          var s = String(v);
+          return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        };
+        var csv = "\ufeff" + cols.join(",") + "\n" +
+          rows.map(function (r) { return cols.map(function (c) { return esc(r[c]); }).join(","); }).join("\n");
+        var url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "บันทึกการผลิต_" + ($("e-from").value || "all") + "_ถึง_" + ($("e-to").value || "now") + ".csv";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      })
+      .catch(function (err) { alert(err.message); })
+      .then(function () { $("e-go").disabled = false; });
+  });
+
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js — ใส่ PROJECT URL และ ANON KEY จาก Supabase ก่อน", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+</script>
+</body>
+</html>
