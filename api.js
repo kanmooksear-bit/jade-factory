@@ -324,6 +324,30 @@ window.JADE = (function () {
     Array.prototype.forEach.call(list, enhanceTime);
   }
 
+  /* ---------- ย่อรูปก่อนส่ง (ถ่ายจากมือถือมักใหญ่หลายเมกะไบต์) ---------- */
+  function shrinkImage(file, maxPx, quality, cb) {
+    if (!file) { cb(null); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var img = new Image();
+      img.onload = function () {
+        var scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        var c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.width * scale));
+        c.height = Math.max(1, Math.round(img.height * scale));
+        var ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        try { cb(c.toDataURL("image/jpeg", quality)); } catch (e) { cb(null); }
+      };
+      img.onerror = function () { cb(null); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { cb(null); };
+    reader.readAsDataURL(file);
+  }
+
   function enhanceAll() { enhanceDates(); enhanceTimes(); }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enhanceAll);
@@ -339,6 +363,7 @@ window.JADE = (function () {
     thDate: thDate, today: today, nf: nf, esc: esc, msg: msg,
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
+    shrinkImage: shrinkImage,
     factory: CFG.factory || "โรงงานหยก"
   };
 })();
