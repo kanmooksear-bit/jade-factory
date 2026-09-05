@@ -289,6 +289,21 @@
     renderOther(d.other_work || []);
   }
 
+  /* ชิ้น/ชม. ต้องคิดจาก "ชิ้นของรายการที่ลงเวลา" หารด้วย "ชั่วโมงของรายการเดียวกัน"
+     ถ้าเอาชิ้นทั้งหมดมาหารด้วยชั่วโมงเฉพาะที่ลงเวลา ตัวเลขจะพองเกินจริง */
+  function rateFoot(d, mins, recorded) {
+    if (!mins) return "ยังไม่มีใครลงเวลา";
+    var t = d.timed;
+    if (!t || t.pieces == null) {
+      return "ยังเทียบอัตราไม่ได้ (ต้องอัปเดตฐานข้อมูล)";
+    }
+    var tm = Number(t.minutes) || 0, tp = Number(t.pieces) || 0;
+    var tot = Number(t.total) || 0, ent = Number(t.entries) || 0;
+    if (!tm || !tp) return "ลงเวลาไว้ " + ent + " จาก " + tot + " รายการ";
+    return "เฉลี่ย " + J.nf.format(Math.round(tp / (tm / 60))) + " ชิ้น/ชม. · คิดจาก " +
+           ent + " ใน " + tot + " รายการที่ลงเวลา";
+  }
+
   function renderKpis(d) {
     var out = d.output || {}, cnc = d.cnc || {};
     var qc = Number(out.pieces || 0), bad = Number(d.defects || 0);
@@ -308,8 +323,7 @@
       { k: "ออกจาก CNC", v: J.nf.format(cnc.pieces || 0), u: "ชิ้น",
         f: (cnc.runs || 0) + " รอบ · กำลังการผลิตต้นทาง" },
       { k: "ค้างในสายผลิต", v: J.nf.format(wip), u: "ชิ้น", f: openLots + " ล็อตที่ยังเปิดอยู่" },
-      { k: "ชั่วโมงงานที่บันทึก", v: hoursTxt(d.minutes), u: "ชม.",
-        f: mins ? "เฉลี่ย " + J.nf.format(Math.round(recorded / (mins / 60))) + " ชิ้น/ชม." : "ยังไม่มีใครลงเวลา" }
+      { k: "ชั่วโมงงานที่บันทึก", v: hoursTxt(d.minutes), u: "ชม.", f: rateFoot(d, mins, recorded) }
     ];
     $("kpis").innerHTML = tiles.map(function (t) {
       return '<div class="kpi' + (t.bad ? " bad" : "") + '"><span class="k">' + J.esc(t.k) +
@@ -378,10 +392,12 @@
     var max = Math.max.apply(null, rows.map(function (r) { return Number(r.qty) || 0; })) || 1;
     $("byemp").innerHTML = rows.map(function (r) {
       var q = Number(r.qty) || 0, b = Number(r.bad) || 0, mi = Number(r.minutes) || 0;
+      var tq = r.timed_qty == null ? null : Number(r.timed_qty) || 0;
       return '<div class="hrow"><span class="hname">' + J.esc(r.name) + "</span>" +
         '<span class="htrack"><span class="hfill" style="width:' + (q / max * 100).toFixed(1) + '%"></span></span>' +
         '<span class="hval">' + J.nf.format(q) +
-        (mi ? '<b class="rate">' + hoursTxt(mi) + " ชม. · " + rateTxt(q, mi) + "</b>" : "") +
+        (mi ? '<b class="rate">' + hoursTxt(mi) + " ชม." +
+              (tq ? " · " + rateTxt(tq, mi) : "") + "</b>" : "") +
         (b ? "<i>เสีย " + J.nf.format(b) + "</i>" : "") + "</span></div>";
     }).join("");
   }
@@ -420,7 +436,10 @@
   function renderByTime(rows) {
     var list = rows.filter(function (r) { return (Number(r.minutes) || 0) > 0; })
       .map(function (r) {
-        var q = (Number(r.qty) || 0) + (Number(r.bad) || 0), mi = Number(r.minutes) || 0;
+        var mi = Number(r.minutes) || 0;
+        var q = r.timed_qty == null
+          ? (Number(r.qty) || 0) + (Number(r.bad) || 0)
+          : Number(r.timed_qty) || 0;
         return { step: r.step, qty: q, minutes: mi, rate: q / (mi / 60) };
       })
       .sort(function (a, c) { return c.minutes - a.minutes; });
