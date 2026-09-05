@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>แดชบอร์ดการผลิต — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+  .wrap{max-width:1180px}
+  .topbar-in{max-width:1180px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
+         color:var(--ink-2);font-size:13.5px;background:var(--surface)}
+  .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+
+  .range{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+  .range .field{margin:0;min-width:150px}
+  .kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:22px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;
+       display:flex;flex-direction:column;gap:2px}
+  .kpi .k{font-size:11.5px;letter-spacing:.08em;color:var(--ink-3)}
+  .kpi .v{font-family:var(--display);font-size:30px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:12px;font-weight:400;color:var(--ink-3);margin-inline-start:4px}
+  .kpi .f{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .kpi.bad .v{color:var(--alert)}
+
+  section{margin-bottom:28px}
+  .sec-head{display:flex;gap:8px 16px;align-items:baseline;justify-content:space-between;
+            flex-wrap:wrap;margin-bottom:10px}
+  .sec-head h2{font-size:20px}
+  .sec-head .hint{font-size:12.5px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+
+  .daily{display:flex;align-items:flex-end;gap:3px;height:170px;min-width:520px}
+  .dcol{flex:1 1 0;min-width:13px;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+  .dbar{background:var(--jade);border-radius:4px 4px 0 0;min-height:2px}
+  .dval{font-size:10.5px;color:var(--ink-3);text-align:center;height:15px;line-height:15px;font-variant-numeric:tabular-nums}
+  .dstrip{display:flex;gap:3px;height:24px;min-width:520px;margin-top:8px;align-items:flex-start}
+  .dfcol{flex:1 1 0;min-width:13px}
+  .dfbar{display:block;background:var(--alert);border-radius:0 0 4px 4px}
+  .daxis{display:flex;gap:3px;min-width:520px;margin-top:6px}
+  .daxis span{flex:1 1 0;min-width:13px;text-align:center;font-size:10px;color:var(--ink-3);white-space:nowrap}
+  .legend-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--ink-2);margin-bottom:12px}
+  .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;margin-inline-end:6px;vertical-align:-1px}
+
+  .hbars{display:flex;flex-direction:column;gap:9px}
+  .hrow{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center}
+  .hname{font-size:13.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .htrack{display:block;background:var(--surface-2);border-radius:4px;height:20px;overflow:hidden}
+  .hfill{display:block;background:var(--jade);height:100%;border-radius:4px;min-width:2px}
+  .hval{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .hval i{font-style:normal;color:var(--alert);font-size:12px;margin-inline-start:7px}
+
+  .hm td.cell{text-align:center;font-variant-numeric:tabular-nums;font-size:11.5px;
+              padding:6px 8px;border:1px solid var(--surface);border-radius:3px}
+  .hm th.rowh{text-align:start;font-size:13px;color:var(--ink-2);letter-spacing:0}
+  .hm th.colh{font-size:10.5px;writing-mode:vertical-rl;transform:rotate(180deg);height:92px;
+              padding:4px 2px;vertical-align:bottom}
+  .ramp{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-3);margin-top:10px}
+  .ramp i{width:20px;height:11px;display:inline-block;border-radius:2px}
+  .empty{padding:30px 10px;text-align:center;color:var(--ink-3);font-size:14px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">แดชบอร์ดการผลิต</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="reload" type="button">รีเฟรช</button>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="dashboard.html" class="on">แดชบอร์ด</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="range">
+      <div class="field"><label for="r-from">ตั้งแต่</label><input id="r-from" type="date"></div>
+      <div class="field"><label for="r-to">ถึง</label><input id="r-to" type="date"></div>
+      <button class="btn" id="r-go" type="button">ดูข้อมูล</button>
+      <button class="btn btn-ghost" id="r-30" type="button">30 วันล่าสุด</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <section>
+      <div class="sec-head">
+        <h2>ชิ้นงานผ่าน QC รายวัน</h2>
+        <span class="hint">แถบล่างสีแดงคือของเสียในวันนั้น (มาตราส่วนแยก)</span>
+      </div>
+      <div class="panel">
+        <div class="legend-row">
+          <span><i class="swatch" style="background:var(--jade)"></i>ผ่าน QC</span>
+          <span><i class="swatch" style="background:var(--alert)"></i>ของเสียทุกขั้นตอน</span>
+        </div>
+        <div class="scroll">
+          <div class="daily" id="daily"></div>
+          <div class="dstrip" id="defects"></div>
+          <div class="daxis" id="daxis"></div>
+        </div>
+        <p class="hint" id="daily-note" style="margin-top:8px"></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ล็อตที่กำลังทำ</h2>
+        <span class="hint">ของที่ยังอยู่ในสายการผลิต</span>
+      </div>
+      <div class="panel scroll"><table id="lots"></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ปริมาณงานรายคน</h2>
+        <span class="hint">นับทุกขั้นตอนที่ทำ (ชิ้น-ขั้นตอน) · ตัวเลขแดงคือของเสีย</span>
+      </div>
+      <div class="panel"><div class="hbars" id="byemp"></div></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ใครทำขั้นตอนไหน</h2>
+        <span class="hint">ยิ่งเข้มยิ่งมีจำนวนมาก · เลื่อนซ้ายขวาได้</span>
+      </div>
+      <div class="panel">
+        <div class="scroll"><table class="hm" id="heat"></table></div>
+        <div class="ramp" id="ramp"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>สรุปตามสินค้า</h2>
+        <span class="hint">ยอดผลิตนับจากที่ผ่าน QC</span>
+      </div>
+      <div class="panel scroll"><table id="byprod"></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ขั้นตอนที่มีของเสีย</h2>
+        <span class="hint">เรียงตามอัตราของเสียสูงสุด</span>
+      </div>
+      <div class="panel scroll"><table id="bystep"></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>งานอื่น / วันลา</h2>
+        <span class="hint">บันทึกไว้แต่ไม่นับเข้ายอดผลิต</span>
+      </div>
+      <div class="panel scroll"><table id="other"></table></div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js"><\/script>
+<script src="api.js"><\/script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var RAMP = ["#F1F5F1","#DCEAE0","#BCD9C6","#93C3A8","#66A886","#3D8A66","#1E6B4F"];
+  var RAMP_D = ["#171F1B","#1D2E25","#264132","#325742","#427056","#568C6D","#6DAA87"];
+  var dark = matchMedia("(prefers-color-scheme: dark)").matches;
+  function ramp(i) { return (dark ? RAMP_D : RAMP)[i]; }
+
+  $("factory").textContent = J.factory;
+
+  function pctTxt(bad, tot) {
+    if (!tot) return "—";
+    var v = bad / tot * 100;
+    return (v === 0 ? "0" : v < 0.1 ? v.toFixed(2) : v.toFixed(1)) + "%";
+  }
+
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    setLast30();
+    load();
+  }
+
+  function setLast30() {
+    var d = new Date();
+    $("r-to").value = J.today();
+    $("r-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 30)
+      .toISOString().slice(0, 10);
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_dashboard", { p_name: name, p_pin: pin }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+  $("reload").addEventListener("click", load);
+  $("r-go").addEventListener("click", load);
+  $("r-30").addEventListener("click", function () { setLast30(); load(); });
+
+  function load() {
+    var m = J.me.get();
+    J.rpc("sup_dashboard", {
+      p_name: m.name, p_pin: m.pin,
+      p_from: $("r-from").value || null, p_to: $("r-to").value || null
+    }).then(render).catch(function (err) { alert(err.message); });
+  }
+
+  function render(d) {
+    renderKpis(d);
+    renderDaily(d.daily || []);
+    renderLots(d.lots || []);
+    renderByEmp(d.by_employee || []);
+    renderHeat(d.by_emp_step || []);
+    renderByProd(d.by_product || []);
+    renderByStep(d.by_step || []);
+    renderOther(d.other_work || []);
+  }
+
+  function renderKpis(d) {
+    var out = d.output || {}, cnc = d.cnc || {};
+    var qc = Number(out.pieces || 0), bad = Number(d.defects || 0);
+    var wip = (d.lots || []).filter(function (l) { return l.status === "open"; })
+      .reduce(function (a, l) { return a + Number(l.wip || 0); }, 0);
+    var openLots = (d.lots || []).filter(function (l) { return l.status === "open"; }).length;
+    var tiles = [
+      { k: "ผ่าน QC (ยอดผลิตจริง)", v: J.nf.format(qc), u: "ชิ้น",
+        f: (out.lots || 0) + " ล็อตที่มีการตรวจ" },
+      { k: "ของเสียทุกขั้นตอน", v: J.nf.format(bad), u: "ชิ้น",
+        f: "เทียบยอดผ่าน QC " + pctTxt(bad, qc + bad), bad: bad > 0 },
+      { k: "ออกจาก CNC", v: J.nf.format(cnc.pieces || 0), u: "ชิ้น",
+        f: (cnc.runs || 0) + " รอบ · กำลังการผลิตต้นทาง" },
+      { k: "ค้างในสายผลิต", v: J.nf.format(wip), u: "ชิ้น", f: openLots + " ล็อตที่ยังเปิดอยู่" }
+    ];
+    $("kpis").innerHTML = tiles.map(function (t) {
+      return '<div class="kpi' + (t.bad ? " bad" : "") + '"><span class="k">' + J.esc(t.k) +
+        '</span><span class="v">' + t.v + "<small>" + J.esc(t.u) + '</small></span>' +
+        '<span class="f">' + J.esc(t.f) + "</span></div>";
+    }).join("");
+  }
+
+  function renderDaily(rows) {
+    var host = $("daily"), strip = $("defects"), axis = $("daxis");
+    if (!rows.length) {
+      host.innerHTML = '<p class="empty">ยังไม่มีข้อมูลในช่วงนี้</p>';
+      strip.innerHTML = ""; axis.innerHTML = ""; $("daily-note").textContent = "";
+      return;
+    }
+    var maxQ = Math.max.apply(null, rows.map(function (r) { return Number(r.qc) || 0; })) || 1;
+    var maxB = Math.max.apply(null, rows.map(function (r) { return Number(r.bad) || 0; })) || 1;
+    var every = rows.length > 16 ? Math.ceil(rows.length / 12) : 1;
+
+    host.innerHTML = rows.map(function (r) {
+      var v = Number(r.qc) || 0;
+      return '<div class="dcol"><span class="dval">' +
+        (v && (rows.length <= 14 || v === maxQ) ? J.nf.format(v) : "") + "</span>" +
+        '<span class="dbar" style="height:' + Math.max(2, Math.round(v / maxQ * 142)) + 'px"></span></div>';
+    }).join("");
+    strip.innerHTML = rows.map(function (r) {
+      var v = Number(r.bad) || 0;
+      return '<div class="dfcol"><span class="dfbar" style="height:' +
+        (v ? Math.max(3, Math.round(v / maxB * 22)) : 0) + 'px"></span></div>';
+    }).join("");
+    axis.innerHTML = rows.map(function (r, i) {
+      return "<span>" + (i % every === 0 ? J.thDate(r.d, false) : "") + "</span>";
+    }).join("");
+    var top = rows.filter(function (r) { return Number(r.qc) === maxQ; })[0];
+    $("daily-note").textContent = "ผ่าน QC สูงสุด " + J.nf.format(maxQ) + " ชิ้น วันที่ " +
+      J.thDate(top.d) + " · ของเสียสูงสุด " + J.nf.format(maxB) + " ชิ้น/วัน";
+  }
+
+  function renderLots(lots) {
+    var open = lots.filter(function (l) { return l.status === "open"; });
+    if (!open.length) { $("lots").innerHTML = '<tr><td class="empty">ไม่มีล็อตที่กำลังทำอยู่</td></tr>'; return; }
+    $("lots").innerHTML =
+      "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>เปิด</th><th class='num'>ผ่าน QC</th>" +
+      "<th class='num'>เสีย</th><th class='num'>ค้างในสาย</th><th>ขั้นตอนล่าสุด</th><th>กำหนดส่ง</th></tr></thead><tbody>" +
+      open.map(function (l) {
+        var late = l.due_date && l.due_date < J.today();
+        return "<tr><td>" + J.esc(l.code) + "</td><td>" + J.esc(l.product_code) + " " +
+          J.esc(l.product_name) + "</td><td class='num'>" + J.nf.format(l.qty_opened) +
+          "</td><td class='num'>" + J.nf.format(l.qc_passed) + "</td><td class='num'>" +
+          J.nf.format(l.total_bad) + "</td><td class='num'>" + J.nf.format(l.wip) + "</td><td>" +
+          J.esc(l.last_step || "—") + "</td><td>" +
+          (l.due_date ? '<span class="chip ' + (late ? "bad" : "ok") + '">' + J.thDate(l.due_date) + "</span>" : "—") +
+          "</td></tr>";
+      }).join("") + "</tbody>";
+  }
+
+  function renderByEmp(rows) {
+    if (!rows.length) { $("byemp").innerHTML = '<p class="empty">ยังไม่มีข้อมูล</p>'; return; }
+    var max = Math.max.apply(null, rows.map(function (r) { return Number(r.qty) || 0; })) || 1;
+    $("byemp").innerHTML = rows.map(function (r) {
+      var q = Number(r.qty) || 0, b = Number(r.bad) || 0;
+      return '<div class="hrow"><span class="hname">' + J.esc(r.name) + "</span>" +
+        '<span class="htrack"><span class="hfill" style="width:' + (q / max * 100).toFixed(1) + '%"></span></span>' +
+        '<span class="hval">' + J.nf.format(q) + (b ? "<i>เสีย " + J.nf.format(b) + "</i>" : "") + "</span></div>";
+    }).join("");
+  }
+
+  function renderHeat(rows) {
+    if (!rows.length) { $("heat").innerHTML = '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>'; $("ramp").innerHTML = ""; return; }
+    var emps = [], steps = [], m = {}, max = 0;
+    rows.forEach(function (r) {
+      if (emps.indexOf(r.emp) === -1) emps.push(r.emp);
+      if (steps.indexOf(r.step) === -1) steps.push(r.step);
+      m[r.emp + "|" + r.step] = Number(r.qty) || 0;
+      max = Math.max(max, Number(r.qty) || 0);
+    });
+    function lvl(v) {
+      if (!v) return 0;
+      var f = v / max;
+      return f > 0.75 ? 6 : f > 0.5 ? 5 : f > 0.3 ? 4 : f > 0.15 ? 3 : f > 0.05 ? 2 : 1;
+    }
+    $("heat").innerHTML =
+      '<thead><tr><th class="rowh"></th>' + steps.map(function (s) {
+        return '<th class="colh">' + J.esc(s) + "</th>";
+      }).join("") + "</tr></thead><tbody>" +
+      emps.map(function (e) {
+        return '<tr><th class="rowh">' + J.esc(e) + "</th>" + steps.map(function (s) {
+          var v = m[e + "|" + s] || 0, L = lvl(v);
+          var fg = L >= 5 ? (dark ? "#0E1412" : "#FFFFFF") : "var(--ink)";
+          return '<td class="cell" style="background:' + ramp(L) + ";color:" +
+            (v ? fg : "var(--ink-3)") + '">' + (v ? J.nf.format(v) : "·") + "</td>";
+        }).join("") + "</tr>";
+      }).join("") + "</tbody>";
+    $("ramp").innerHTML = "น้อย" + [0,1,2,3,4,5,6].map(function (L) {
+      return '<i style="background:' + ramp(L) + '"></i>';
+    }).join("") + "มาก (สูงสุด " + J.nf.format(max) + " ชิ้น)";
+  }
+
+  function renderByProd(rows) {
+    if (!rows.length) { $("byprod").innerHTML = '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>'; return; }
+    $("byprod").innerHTML =
+      "<thead><tr><th>รหัส</th><th>สินค้า</th><th>ชนิดหยก</th><th class='num'>ผ่าน QC</th>" +
+      "<th class='num'>เสีย</th><th>อัตราเสีย</th><th class='num'>งานทุกขั้นตอน</th></tr></thead><tbody>" +
+      rows.map(function (r) {
+        var qc = Number(r.qc) || 0, bad = Number(r.bad) || 0;
+        var rate = qc + bad > 0 ? bad / (qc + bad) * 100 : 0;
+        var cls = qc + bad === 0 ? "idle" : bad === 0 ? "ok" : rate >= 5 ? "bad" : "warn";
+        return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.name) + "</td><td>" +
+          J.esc(r.jade) + "</td><td class='num'>" + J.nf.format(qc) + "</td><td class='num'>" +
+          J.nf.format(bad) + '</td><td><span class="chip ' + cls + '">' +
+          pctTxt(bad, qc + bad) + "</span></td><td class='num'>" +
+          J.nf.format(Number(r.all_steps) || 0) + "</td></tr>";
+      }).join("") + "</tbody>";
+  }
+
+  function renderByStep(rows) {
+    var list = rows.filter(function (r) { return Number(r.bad) > 0; }).map(function (r) {
+      var q = Number(r.qty) || 0, b = Number(r.bad) || 0;
+      return { step: r.step, qty: q, bad: b, rate: q + b > 0 ? b / (q + b) * 100 : 0 };
+    }).sort(function (a, c) { return c.rate - a.rate; });
+    if (!list.length) { $("bystep").innerHTML = '<tr><td class="empty">ไม่พบของเสียในช่วงนี้</td></tr>'; return; }
+    var maxR = Math.max.apply(null, list.map(function (x) { return x.rate; })) || 1;
+    $("bystep").innerHTML =
+      "<thead><tr><th>ขั้นตอน</th><th class='num'>ชิ้นรวม</th><th class='num'>เสีย</th>" +
+      "<th>อัตราเสีย</th><th></th></tr></thead><tbody>" +
+      list.map(function (x) {
+        return "<tr><td>" + J.esc(x.step) + "</td><td class='num'>" + J.nf.format(x.qty) +
+          "</td><td class='num'>" + J.nf.format(x.bad) + '</td><td><span class="chip ' +
+          (x.rate >= 5 ? "bad" : "warn") + '">' + pctTxt(x.bad, x.qty + x.bad) + "</span></td>" +
+          '<td style="width:34%"><span class="htrack" style="height:12px">' +
+          '<span class="hfill" style="background:var(--alert);width:' +
+          (x.rate / maxR * 100).toFixed(1) + '%"></span></span></td></tr>';
+      }).join("") + "</tbody>";
+  }
+
+  function renderOther(rows) {
+    if (!rows.length) { $("other").innerHTML = '<tr><td class="empty">ไม่มีบันทึกงานอื่นในช่วงนี้</td></tr>'; return; }
+    $("other").innerHTML =
+      "<thead><tr><th>งาน</th><th>พนักงาน</th><th class='num'>จำนวนครั้ง</th></tr></thead><tbody>" +
+      rows.map(function (r) {
+        return "<tr><td>" + J.esc(r.note) + "</td><td>" + J.esc(r.name) +
+          "</td><td class='num'>" + J.nf.format(r.n) + "</td></tr>";
+      }).join("") + "</tbody>";
+  }
+
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js — ใส่ PROJECT URL และ ANON KEY จาก Supabase ก่อน", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+<\/script>
+<\/body>
+<\/html>
