@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>ตั้งค่าโรงงาน — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=4">
+<style>
+  .wrap{max-width:1000px}
+  .topbar-in{max-width:1000px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
+         color:var(--ink-2);font-size:13.5px;background:var(--surface)}
+  .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+
+  .item{display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid var(--line-2)}
+  .item:first-child{border-top:0}
+  .item .thumb{
+    width:52px;height:52px;flex:none;border-radius:6px;border:1px solid var(--line);
+    background:var(--surface-2);object-fit:cover;display:block;
+  }
+  .item .thumb.ph{display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--ink-3);text-align:center;line-height:1.2}
+  .item .main{flex:1;min-width:0}
+  .item .t{font-size:15px}
+  .item .s{font-size:12.5px;color:var(--ink-3)}
+  .item .act{flex:none}
+  .off{opacity:.5}
+
+  .photo-pick{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+  .photo-pick img{width:86px;height:86px;border-radius:8px;border:1px solid var(--line);
+                  background:var(--surface-2);object-fit:cover;display:block;flex:none}
+  .photo-pick .side{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+
+  .ent{padding:12px 0;border-top:1px solid var(--line-2)}
+  .ent:first-child{border-top:0}
+  .ent-top{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  .ent-t{font-size:14.5px}
+  .ent-s{font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+  .shots img{width:92px;height:92px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer}
+  .lightbox{position:fixed;inset:0;background:rgba(8,16,12,.9);display:flex;align-items:center;
+            justify-content:center;padding:20px;z-index:60}
+  .lightbox img{max-width:100%;max-height:90vh;border-radius:8px}
+  .lightbox[hidden]{display:none!important}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+  .modal-actions .btn{flex:1 1 auto;min-width:140px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">ตั้งค่าโรงงาน</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="manage.html" class="on">ตั้งค่า</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="tabs">
+      <button class="tab" id="tab-emp" aria-selected="true" type="button">พนักงาน</button>
+      <button class="tab" id="tab-prod" aria-selected="false" type="button">สินค้า</button>
+      <button class="tab" id="tab-shot" aria-selected="false" type="button">รูปหลักฐาน</button>
+    </div>
+
+    <div id="pane-emp">
+      <div class="card">
+        <h2 id="emp-title">เพิ่มพนักงานใหม่</h2>
+        <div class="msg" id="emp-msg" hidden></div>
+        <div class="two">
+          <div class="field">
+            <label for="e-name">ชื่อพนักงาน</label>
+            <input id="e-name" type="text" placeholder="เช่น สมชาย">
+          </div>
+          <div class="field">
+            <label for="e-code">รหัสพนักงาน</label>
+            <input id="e-code" type="text" placeholder="เช่น EMP-08">
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="e-role">ตำแหน่ง</label>
+            <select id="e-role">
+              <option value="worker">พนักงาน</option>
+              <option value="supervisor">หัวหน้า</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="e-active">สถานะ</label>
+            <select id="e-active">
+              <option value="1">ใช้งานอยู่</option>
+              <option value="0">พักงาน / ลาออก</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="e-pin">PIN <span id="e-pin-hint">(จำเป็นสำหรับคนใหม่)</span></label>
+          <input id="e-pin" type="text" inputmode="numeric" placeholder="อย่างน้อย 4 ตัว">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="e-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+          <button class="btn btn-primary" id="e-save" type="button">บันทึก</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>รายชื่อพนักงาน</h2>
+        <div id="emp-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
+    <div id="pane-prod" hidden>
+      <div class="card">
+        <h2 id="prod-title">เพิ่มสินค้าใหม่</h2>
+        <div class="msg" id="prod-msg" hidden></div>
+
+        <div class="photo-pick">
+          <img id="p-preview" alt="รูปสินค้า">
+          <div class="side">
+            <input id="p-photo" type="file" accept="image/*">
+            <div>
+              <button class="btn btn-sm btn-danger" id="p-photo-clear" type="button">ลบรูป</button>
+              <span class="hint" id="p-photo-hint"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="two">
+          <div class="field">
+            <label for="p-code">รหัสสินค้า</label>
+            <input id="p-code" type="text" placeholder="เช่น PK019">
+          </div>
+          <div class="field">
+            <label for="p-jade">ชนิดหยก</label>
+            <input id="p-jade" type="text" list="jade-list" placeholder="เช่น ฟ้ากัวเต">
+            <datalist id="jade-list"></datalist>
+          </div>
+        </div>
+        <div class="field">
+          <label for="p-name">ชื่อสินค้า</label>
+          <input id="p-name" type="text" placeholder="เช่น หลวงปู่ทวด องค์ลอย">
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="p-w">กว้าง (ซม.)</label>
+            <input id="p-w" type="number" inputmode="decimal" step="0.001" min="0">
+          </div>
+          <div class="field">
+            <label for="p-l">ยาว (ซม.)</label>
+            <input id="p-l" type="number" inputmode="decimal" step="0.001" min="0">
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="p-h">สูง (ซม.)</label>
+            <input id="p-h" type="number" inputmode="decimal" step="0.001" min="0">
+          </div>
+          <div class="field">
+            <label for="p-active">สถานะ</label>
+            <select id="p-active">
+              <option value="1">ใช้งานอยู่</option>
+              <option value="0">เลิกผลิต / ซ่อนไว้</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="p-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+          <button class="btn btn-primary" id="p-save" type="button">บันทึก</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>รายการสินค้า</h2>
+        <div id="prod-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
+    <div id="pane-shot" hidden>
+      <div class="card">
+        <h2>ตรวจหลักฐานงาน</h2>
+        <p class="hint" style="margin-bottom:12px">รูปที่พนักงานถ่ายไว้ตอนลงงานแต่ละขั้นตอน</p>
+        <div class="two">
+          <div class="field"><label for="s-from">ตั้งแต่</label><input id="s-from" type="date"></div>
+          <div class="field"><label for="s-to">ถึง</label><input id="s-to" type="date"></div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="s-lot">ล็อต</label>
+            <select id="s-lot"><option value="">— ทุกล็อต —</option></select>
+          </div>
+          <div class="field">
+            <label for="s-only">แสดง</label>
+            <select id="s-only">
+              <option value="all">ทุกรายการ</option>
+              <option value="photo">เฉพาะที่มีรูป</option>
+              <option value="nophoto">เฉพาะที่ยังไม่มีรูป</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="s-go" type="button">ดูรายการ</button>
+      </div>
+
+      <div class="card">
+        <div id="ent-list"><p class="hint">กดปุ่ม "ดูรายการ" เพื่อเริ่ม</p></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
+
+<script src="config.js?v=4"></script>
+<script src="api.js?v=4"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var editEmp = null, editProd = null, prodPhoto = null, prodPhotoTouched = false;
+
+  $("factory").textContent = J.factory;
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var jades = [];
+      d.products.forEach(function (p) { if (jades.indexOf(p.jade) === -1) jades.push(p.jade); });
+      $("jade-list").innerHTML = jades.map(function (j) {
+        return '<option value="' + J.esc(j) + '"></option>';
+      }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    var d = new Date();
+    $("s-to").value = J.today();
+    $("s-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14)
+      .toISOString().slice(0, 10);
+    loadEmployees();
+    loadProducts();
+    loadLotOptions();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_employees", { p_name: name, p_pin: pin }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- แท็บ ---------- */
+  function setTab(which) {
+    ["emp", "prod", "shot"].forEach(function (k) {
+      $("tab-" + k).setAttribute("aria-selected", String(k === which));
+      $("pane-" + k).hidden = k !== which;
+    });
+  }
+  $("tab-emp").addEventListener("click", function () { setTab("emp"); });
+  $("tab-prod").addEventListener("click", function () { setTab("prod"); });
+  $("tab-shot").addEventListener("click", function () { setTab("shot"); });
+
+  /* ---------- พนักงาน ---------- */
+  function resetEmpForm() {
+    editEmp = null;
+    $("emp-title").textContent = "เพิ่มพนักงานใหม่";
+    $("e-name").value = ""; $("e-code").value = ""; $("e-pin").value = "";
+    $("e-role").value = "worker"; $("e-active").value = "1";
+    $("e-pin-hint").textContent = "(จำเป็นสำหรับคนใหม่)";
+    $("e-cancel").hidden = true;
+  }
+
+  function editEmployee(em) {
+    editEmp = em.name;
+    $("emp-title").textContent = "แก้ไข: " + em.name;
+    $("e-name").value = em.name;
+    $("e-code").value = em.code || "";
+    $("e-role").value = em.role;
+    $("e-active").value = em.active ? "1" : "0";
+    $("e-pin").value = "";
+    $("e-pin-hint").textContent = "(เว้นว่างถ้าไม่เปลี่ยน)";
+    $("e-cancel").hidden = false;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  $("e-cancel").addEventListener("click", resetEmpForm);
+
+  $("e-save").addEventListener("click", function () {
+    var m = J.me.get();
+    $("e-save").disabled = true;
+    J.rpc("sup_save_employee", {
+      p_name: m.name, p_pin: m.pin,
+      p_target: editEmp,
+      p_new_name: $("e-name").value,
+      p_code: $("e-code").value || null,
+      p_role: $("e-role").value,
+      p_active: $("e-active").value === "1",
+      p_new_pin: $("e-pin").value || null
+    }).then(function (r) {
+      J.msg($("emp-msg"), (r.created ? "เพิ่ม " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
+      resetEmpForm();
+      loadEmployees();
+    }).catch(function (err) { J.msg($("emp-msg"), err.message, "err"); })
+      .then(function () { $("e-save").disabled = false; });
+  });
+
+  function loadEmployees() {
+    var m = J.me.get();
+    J.rpc("sup_employees", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      $("emp-list").innerHTML = list.map(function (em) {
+        return '<div class="item' + (em.active ? "" : " off") + '">' +
+          '<span class="thumb ph">' + J.esc(em.code || "—") + "</span>" +
+          '<span class="main"><span class="t">' + J.esc(em.name) +
+          (em.role === "supervisor" ? ' <span class="chip ok">หัวหน้า</span>' : "") +
+          (em.active ? "" : ' <span class="chip idle">พักงาน</span>') + "</span><br>" +
+          '<span class="s">ลงงานไว้ ' + J.nf.format(em.entries) + " รายการ</span></span>" +
+          '<span class="act"><button class="btn btn-sm" data-emp="' + J.esc(em.name) + '" type="button">แก้ไข</button></span>' +
+          "</div>";
+      }).join("");
+      Array.prototype.forEach.call($("emp-list").querySelectorAll("[data-emp]"), function (b) {
+        b.addEventListener("click", function () {
+          editEmployee(list.filter(function (x) { return x.name === b.dataset.emp; })[0]);
+        });
+      });
+    }).catch(function (err) { $("emp-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  /* ---------- สินค้า ---------- */
+  function setProdPreview(src) {
+    var img = $("p-preview");
+    if (src) { img.src = src; img.style.visibility = "visible"; }
+    else { img.removeAttribute("src"); img.style.visibility = "hidden"; }
+  }
+
+  function resetProdForm() {
+    editProd = null; prodPhoto = null; prodPhotoTouched = false;
+    $("prod-title").textContent = "เพิ่มสินค้าใหม่";
+    ["p-code", "p-name", "p-jade", "p-w", "p-l", "p-h"].forEach(function (id) { $(id).value = ""; });
+    $("p-active").value = "1";
+    $("p-photo").value = "";
+    $("p-photo-hint").textContent = "";
+    setProdPreview(null);
+    $("p-cancel").hidden = true;
+  }
+
+  function editProduct(p) {
+    editProd = p.code;
+    prodPhoto = null; prodPhotoTouched = false;
+    $("prod-title").textContent = "แก้ไข: " + p.code;
+    $("p-code").value = p.code; $("p-name").value = p.name; $("p-jade").value = p.jade;
+    $("p-w").value = p.w == null ? "" : p.w;
+    $("p-l").value = p.l == null ? "" : p.l;
+    $("p-h").value = p.h == null ? "" : p.h;
+    $("p-active").value = p.active ? "1" : "0";
+    $("p-photo").value = "";
+    $("p-photo-hint").textContent = p.has_photo ? "กำลังโหลดรูป…" : "ยังไม่มีรูป";
+    setProdPreview(null);
+    $("p-cancel").hidden = false;
+    if (p.has_photo) {
+      var m = J.me.get();
+      J.rpc("app_product_photo", { p_name: m.name, p_pin: m.pin, p_code: p.code })
+        .then(function (r) { setProdPreview(r.photo); $("p-photo-hint").textContent = ""; })
+        .catch(function () { $("p-photo-hint").textContent = "โหลดรูปไม่สำเร็จ"; });
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  $("p-cancel").addEventListener("click", resetProdForm);
+
+  $("p-photo").addEventListener("change", function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (!f) return;
+    $("p-photo-hint").textContent = "กำลังย่อรูป…";
+    J.shrinkImage(f, 900, 0.72, function (data) {
+      if (!data) { $("p-photo-hint").textContent = "อ่านไฟล์รูปไม่ได้"; return; }
+      prodPhoto = data; prodPhotoTouched = true;
+      setProdPreview(data);
+      $("p-photo-hint").textContent = "พร้อมบันทึก (" + Math.round(data.length / 1024) + " KB)";
+    });
+  });
+
+  $("p-photo-clear").addEventListener("click", function () {
+    prodPhoto = "-"; prodPhotoTouched = true;
+    setProdPreview(null);
+    $("p-photo").value = "";
+    $("p-photo-hint").textContent = "จะลบรูปเมื่อกดบันทึก";
+  });
+
+  $("p-save").addEventListener("click", function () {
+    var m = J.me.get();
+    var num = function (id) { var v = $(id).value; return v === "" ? null : Number(v); };
+    $("p-save").disabled = true;
+    J.rpc("sup_save_product", {
+      p_name: m.name, p_pin: m.pin,
+      p_target_code: editProd,
+      p_code: $("p-code").value,
+      p_pname: $("p-name").value,
+      p_jade: $("p-jade").value,
+      p_w: num("p-w"), p_l: num("p-l"), p_h: num("p-h"),
+      p_active: $("p-active").value === "1",
+      p_photo: prodPhotoTouched ? prodPhoto : null
+    }).then(function (r) {
+      J.msg($("prod-msg"), (r.created ? "เพิ่มสินค้า " : "บันทึกสินค้า ") + r.code + " เรียบร้อย", "ok");
+      resetProdForm();
+      loadProducts();
+    }).catch(function (err) { J.msg($("prod-msg"), err.message, "err"); })
+      .then(function () { $("p-save").disabled = false; });
+  });
+
+  function loadProducts() {
+    var m = J.me.get();
+    J.rpc("sup_products", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      $("prod-list").innerHTML = list.map(function (p) {
+        var size = [p.w, p.l, p.h].filter(function (x) { return x != null; }).join(" × ");
+        return '<div class="item' + (p.active ? "" : " off") + '">' +
+          (p.has_photo
+            ? '<img class="thumb" data-photo="' + J.esc(p.code) + '" alt="' + J.esc(p.name) + '">'
+            : '<span class="thumb ph">ไม่มีรูป</span>') +
+          '<span class="main"><span class="t">' + J.esc(p.code) + " · " + J.esc(p.name) +
+          (p.active ? "" : ' <span class="chip idle">ซ่อน</span>') + "</span><br>" +
+          '<span class="s">หยก' + J.esc(p.jade) + (size ? " · " + size + " ซม." : "") +
+          " · " + J.nf.format(p.lots) + " ล็อต</span></span>" +
+          '<span class="act"><button class="btn btn-sm" data-prod="' + J.esc(p.code) + '" type="button">แก้ไข</button></span>' +
+          "</div>";
+      }).join("");
+      Array.prototype.forEach.call($("prod-list").querySelectorAll("[data-prod]"), function (b) {
+        b.addEventListener("click", function () {
+          editProduct(list.filter(function (x) { return x.code === b.dataset.prod; })[0]);
+        });
+      });
+      Array.prototype.forEach.call($("prod-list").querySelectorAll("[data-photo]"), function (img) {
+        J.rpc("app_product_photo", { p_name: m.name, p_pin: m.pin, p_code: img.dataset.photo })
+          .then(function (r) { if (r.photo) img.src = r.photo; })
+          .catch(function () {});
+      });
+    }).catch(function (err) { $("prod-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  /* ---------- รูปหลักฐาน ---------- */
+  function loadLotOptions() {
+    var m = J.me.get();
+    J.rpc("sup_lots", { p_name: m.name, p_pin: m.pin, p_status: "all" }).then(function (list) {
+      $("s-lot").innerHTML = '<option value="">— ทุกล็อต —</option>' +
+        list.map(function (l) {
+          return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+            J.esc(l.product_code) + "</option>";
+        }).join("");
+    }).catch(function () {});
+  }
+
+  $("s-go").addEventListener("click", loadEntries);
+
+  function loadEntries() {
+    var m = J.me.get();
+    $("ent-list").innerHTML = '<p class="hint">กำลังโหลด…</p>';
+    J.rpc("sup_entries", {
+      p_name: m.name, p_pin: m.pin,
+      p_lot: $("s-lot").value || null,
+      p_from: $("s-from").value || null,
+      p_to: $("s-to").value || null,
+      p_limit: 100
+    }).then(function (list) {
+      var only = $("s-only").value;
+      var rows = list.filter(function (e) {
+        if (only === "photo") return e.photos > 0;
+        if (only === "nophoto") return !e.photos;
+        return true;
+      });
+      if (!rows.length) { $("ent-list").innerHTML = '<p class="hint">ไม่พบรายการตามเงื่อนไข</p>'; return; }
+      $("ent-list").innerHTML = rows.map(function (e) {
+        var when = J.thDate(e.work_date) +
+          (e.time_start && e.time_end ? " · " + e.time_start + "–" + e.time_end : "") +
+          (e.minutes ? " (" + e.minutes + " นาที)" : "");
+        return '<div class="ent">' +
+          '<div class="ent-top"><span class="ent-t">' +
+            J.esc(e.lot || "งานอื่น") + " · " + J.esc(e.step || "—") + " · " + J.esc(e.employee) +
+          "</span>" +
+          '<span class="chip ' + (e.photos ? "ok" : "idle") + '">' +
+            (e.photos ? e.photos + " รูป" : "ไม่มีรูป") + "</span></div>" +
+          '<div class="ent-s">' + when + " · ดี " + J.nf.format(e.qty_good) +
+            (e.qty_bad ? " · เสีย " + J.nf.format(e.qty_bad) : "") +
+            (e.note ? " · " + J.esc(e.note) : "") + "</div>" +
+          (e.photos ? '<div class="shots" data-shots="' + J.esc(e.id) + '"></div>' : "") +
+          "</div>";
+      }).join("");
+      Array.prototype.forEach.call($("ent-list").querySelectorAll("[data-shots]"), function (box) {
+        J.rpc("app_entry_photos", { p_name: m.name, p_pin: m.pin, p_entry: box.dataset.shots })
+          .then(function (ph) {
+            box.innerHTML = ph.map(function (x) {
+              return '<img src="' + x.data + '" alt="รูปหลักฐาน">';
+            }).join("");
+            Array.prototype.forEach.call(box.querySelectorAll("img"), function (im) {
+              im.addEventListener("click", function () {
+                $("lightbox-img").src = im.src;
+                $("lightbox").hidden = false;
+              });
+            });
+          })
+          .catch(function () { box.innerHTML = '<span class="hint">โหลดรูปไม่สำเร็จ</span>'; });
+      });
+    }).catch(function (err) { $("ent-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  $("lightbox").addEventListener("click", function () { $("lightbox").hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("lightbox").hidden = true; });
+
+  /* ---------- เริ่ม ---------- */
+  setProdPreview(null);
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+</script>
+</body>
+</html>
