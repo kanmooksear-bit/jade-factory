@@ -119,12 +119,142 @@ window.JADE = (function () {
     el.textContent = text;
   }
 
+  /* ---------- ช่องวันที่แบบไทย วว/ดด/ปปปป (พ.ศ.) ----------
+     เปลี่ยนช่อง <input type="date"> ทุกช่องให้พิมพ์เป็น วว/ดด/ปปปป
+     โค้ดส่วนอื่นยังอ่าน/เขียน .value เป็น YYYY-MM-DD เหมือนเดิม   */
+
+  var TH_FULL = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน",
+                 "กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  var NATIVE = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+
+  function pad2(n) { return String(n).padStart(2, "0"); }
+
+  function allDigits(s) {
+    if (!s.length) return false;
+    for (var i = 0; i < s.length; i++) { var c = s.charAt(i); if (c < "0" || c > "9") return false; }
+    return true;
+  }
+  function onlyDigits(s, max) {
+    var out = "";
+    for (var i = 0; i < s.length && out.length < max; i++) {
+      var c = s.charAt(i);
+      if (c >= "0" && c <= "9") out += c;
+    }
+    return out;
+  }
+
+  // "05/09/2569" (หรือ ค.ศ.) -> "2026-09-05" ; ไม่ถูกต้องคืน ""
+  function parseThai(s) {
+    var p = String(s || "").split("/");
+    if (p.length !== 3) return "";
+    var ds = p[0].trim(), ms = p[1].trim(), ys = p[2].trim();
+    if (!allDigits(ds) || !allDigits(ms) || !allDigits(ys)) return "";
+    if (ds.length > 2 || ms.length > 2 || ys.length !== 4) return "";
+    var d = +ds, mo = +ms, y = +ys;
+    if (y > 2400) y -= 543;
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return "";
+    var dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return "";
+    return y + "-" + pad2(mo) + "-" + pad2(d);
+  }
+
+  // "2026-09-05" -> "05/09/2569"
+  function formatThai(iso) {
+    var p = String(iso || "").slice(0, 10).split("-");
+    if (p.length !== 3) return "";
+    return pad2(+p[2]) + "/" + pad2(+p[1]) + "/" + (+p[0] + 543);
+  }
+
+  function thLong(iso) {
+    var p = String(iso || "").slice(0, 10).split("-");
+    if (p.length !== 3) return "";
+    return +p[2] + " " + TH_FULL[+p[1] - 1] + " " + (+p[0] + 543);
+  }
+
+  function enhanceDate(inp) {
+    if (!inp || inp.dataset.thaiDate) return;
+    inp.dataset.thaiDate = "1";
+    inp.type = "text";
+    inp.setAttribute("inputmode", "numeric");
+    inp.setAttribute("autocomplete", "off");
+    inp.setAttribute("maxlength", "10");
+    inp.placeholder = "วว/ดด/ปปปป";
+
+    var iso = "";
+
+    var row = document.createElement("div");
+    row.className = "daterow";
+    inp.parentNode.insertBefore(row, inp);
+    row.appendChild(inp);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm daybtn";
+    btn.textContent = "วันนี้";
+    row.appendChild(btn);
+
+    var hint = document.createElement("span");
+    hint.className = "datehint";
+    row.parentNode.insertBefore(hint, row.nextSibling);
+
+    function paint() {
+      var raw = NATIVE.get.call(inp);
+      if (iso) { hint.textContent = thLong(iso); hint.className = "datehint"; }
+      else if (raw) { hint.textContent = "ยังไม่ครบ — พิมพ์เป็น วว/ดด/ปปปป เช่น 05/09/2569"; hint.className = "datehint bad"; }
+      else { hint.textContent = ""; hint.className = "datehint"; }
+    }
+
+    Object.defineProperty(inp, "value", {
+      configurable: true,
+      get: function () { return iso; },
+      set: function (v) {
+        iso = v ? String(v).slice(0, 10) : "";
+        NATIVE.set.call(inp, iso ? formatThai(iso) : "");
+        paint();
+      }
+    });
+
+    inp.addEventListener("input", function () {
+      var digits = onlyDigits(NATIVE.get.call(inp), 8);
+      var out = digits.slice(0, 2);
+      if (digits.length > 2) out += "/" + digits.slice(2, 4);
+      if (digits.length > 4) out += "/" + digits.slice(4, 8);
+      NATIVE.set.call(inp, out);
+      iso = parseThai(out);
+      paint();
+    });
+
+    inp.addEventListener("blur", function () {
+      if (iso) NATIVE.set.call(inp, formatThai(iso));
+      paint();
+    });
+
+    btn.addEventListener("click", function () {
+      inp.value = today();
+      inp.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    paint();
+  }
+
+  function enhanceDates(root) {
+    var list = (root || document).querySelectorAll('input[type="date"]');
+    Array.prototype.forEach.call(list, enhanceDate);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () { enhanceDates(); });
+  } else {
+    enhanceDates();
+  }
+
   return {
     rpc: rpc, me: me, submit: submit, flush: flush,
     queueLength: function () { return queue().length; },
     onQueueChange: function (fn) { onQueue = fn; },
     configured: configured,
     thDate: thDate, today: today, nf: nf, esc: esc, msg: msg,
+    parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     factory: CFG.factory || "โรงงานหยก"
   };
 })();
