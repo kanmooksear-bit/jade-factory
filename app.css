@@ -94,6 +94,15 @@ a{color:var(--jade)}
 }
 .durnote.bad{color:var(--alert)}
 
+.shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.shots .shot{position:relative;flex:none}
+.shots .shot img{width:76px;height:76px;object-fit:cover;border-radius:6px;border:1px solid var(--line);display:block}
+.shots .shot button{
+  position:absolute;inset-block-start:-6px;inset-inline-end:-6px;
+  width:24px;height:24px;border-radius:50%;border:1px solid var(--line);
+  background:var(--surface);color:var(--alert);cursor:pointer;line-height:1;font-size:14px;padding:0;
+}
+
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   padding:13px 18px;border-radius:7px;border:1px solid var(--line);
