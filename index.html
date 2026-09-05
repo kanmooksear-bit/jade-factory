@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=3">
+<link rel="stylesheet" href="app.css?v=4">
 </head>
 <body>
 
@@ -116,6 +116,13 @@
           <input id="f-note" type="text" placeholder="เช่น เจอตำหนิที่ฐาน">
         </div>
 
+        <div class="field">
+          <label for="f-shot">รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
+          <input id="f-shot" type="file" accept="image/*" capture="environment" multiple>
+          <div class="shots" id="shot-preview"></div>
+          <span class="hint" id="shot-hint">ถ่ายรูปงานที่ทำเสร็จไว้เป็นหลักฐาน</span>
+        </div>
+
         <button class="btn btn-primary btn-lg" id="submit-prod" type="button">ส่งบันทึก</button>
       </div>
 
@@ -168,14 +175,14 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=3"></script>
-<script src="api.js?v=3"></script>
+<script src="config.js?v=4"></script>
+<script src="api.js?v=4"></script>
 <script>
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var J = window.JADE;
-  var boot = null, lots = [], mode = "production", skipTime = false;
+  var boot = null, lots = [], mode = "production", skipTime = false, shots = [];
 
   $("factory").textContent = J.factory;
 
@@ -326,13 +333,69 @@
       J.msg($("form-msg"), r && r.queued
         ? "เน็ตไม่ติด — เก็บไว้ในเครื่องแล้ว จะส่งให้เองเมื่อเน็ตกลับมา"
         : "บันทึกเรียบร้อย ขอบคุณครับ", r && r.queued ? "warn" : "ok");
-      clear();
+      clear(r);
       loadLots();
       loadRecent();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }).catch(function (err) {
       J.msg($("form-msg"), err.message, "err");
     }).then(function () { btn.disabled = false; });
+  }
+
+  function renderShots() {
+    $("shot-preview").innerHTML = shots.map(function (s, i) {
+      return '<span class="shot"><img src="' + s + '" alt="รูปหลักฐาน">' +
+        '<button type="button" data-rm="' + i + '" aria-label="ลบรูป">×</button></span>';
+    }).join("");
+    Array.prototype.forEach.call($("shot-preview").querySelectorAll("[data-rm]"), function (b) {
+      b.addEventListener("click", function () {
+        shots.splice(Number(b.dataset.rm), 1);
+        renderShots();
+      });
+    });
+    $("shot-hint").textContent = shots.length
+      ? shots.length + " รูปพร้อมส่ง (แนบให้อัตโนมัติหลังกดส่งบันทึก)"
+      : "ถ่ายรูปงานที่ทำเสร็จไว้เป็นหลักฐาน";
+  }
+
+  $("f-shot").addEventListener("change", function (e) {
+    var files = Array.prototype.slice.call(e.target.files || []);
+    $("f-shot").value = "";
+    if (!files.length) return;
+    var room = 3 - shots.length;
+    if (room <= 0) { $("shot-hint").textContent = "ครบ 3 รูปแล้ว ลบรูปเดิมก่อนถ้าจะเปลี่ยน"; return; }
+    files = files.slice(0, room);
+    $("shot-hint").textContent = "กำลังย่อรูป…";
+    var left = files.length;
+    files.forEach(function (f) {
+      J.shrinkImage(f, 1000, 0.62, function (data) {
+        if (data) shots.push(data);
+        if (--left === 0) renderShots();
+      });
+    });
+  });
+
+  function uploadShots(entryId) {
+    var m = J.me.get();
+    var list = shots.slice();
+    shots = []; renderShots();
+    if (!list.length) return;
+    J.msg($("form-msg"), "กำลังส่งรูป 0/" + list.length + "…", "ok");
+    var done = 0;
+    list.reduce(function (chain, data) {
+      return chain.then(function () {
+        return J.rpc("app_add_photo", { p_name: m.name, p_pin: m.pin, p_entry: entryId, p_data: data })
+          .then(function () {
+            done++;
+            J.msg($("form-msg"), "กำลังส่งรูป " + done + "/" + list.length + "…", "ok");
+          });
+      });
+    }, Promise.resolve()).then(function () {
+      J.msg($("form-msg"), "บันทึกและแนบรูป " + done + " รูปเรียบร้อย", "ok");
+      loadRecent();
+    }).catch(function (err) {
+      J.msg($("form-msg"), "บันทึกงานแล้ว แต่แนบรูปไม่สำเร็จ: " + err.message, "warn");
+    });
   }
 
   $("submit-prod").addEventListener("click", function () {
@@ -361,12 +424,17 @@
       p_cnc_end: (isCnc && $("f-cend").value) || null,
       p_note: $("f-note").value || null,
       p_time_start: t1, p_time_end: t2
-    }, $("submit-prod"), function () {
+    }, $("submit-prod"), function (r) {
       $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
       $("f-cstart").value = ""; $("f-cend").value = "";
       $("f-tstart").value = ""; $("f-tend").value = "";
       skipTime = false;
       updateDuration();
+      if (r && r.id) uploadShots(r.id);
+      else if (shots.length) {
+        J.msg($("form-msg"), "เน็ตไม่ติด — บันทึกงานเก็บไว้ในเครื่องแล้ว แต่รูปแนบไม่ได้ตอนออฟไลน์ ค่อยถ่ายแนบใหม่ทีหลัง", "warn");
+        shots = []; renderShots();
+      }
     });
   });
 
@@ -380,8 +448,9 @@
       p_good: Number($("o-good").value || 0), p_bad: 0,
       p_date: $("o-date").value || J.today(),
       p_cnc_start: null, p_cnc_end: null, p_note: note
-    }, $("submit-other"), function () {
+    }, $("submit-other"), function (r) {
       $("o-note").value = ""; $("o-good").value = "";
+      if (r && r.id) uploadShots(r.id);
     });
   });
 
@@ -400,6 +469,7 @@
                             (e.minutes % 60 ? (e.minutes % 60) + " น." : "") + ")" : "")
             : "") +
           (e.machine ? " · " + e.machine : "") +
+          (e.photos ? " · " + e.photos + " รูป" : "") +
           (e.category === "production" && e.note ? " · " + e.note : "") +
           (e.category === "other" ? " · งานอื่น" : "");
         return '<div class="row"><span class="main"><span class="t">' + J.esc(title) +
