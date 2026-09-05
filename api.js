@@ -242,10 +242,93 @@ window.JADE = (function () {
     Array.prototype.forEach.call(list, enhanceDate);
   }
 
+
+  /* ---------- ช่องเวลา ชช:นน (24 ชั่วโมง) ---------- */
+
+  function nowTime() {
+    var d = new Date();
+    return pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+
+  // "0830" หรือ "08:30" -> "08:30" ; ไม่ถูกต้องคืน ""
+  function parseTime(s) {
+    var p = String(s || "").split(":");
+    if (p.length !== 2) return "";
+    var hs = p[0].trim(), ms = p[1].trim();
+    if (!allDigits(hs) || !allDigits(ms)) return "";
+    if (hs.length > 2 || ms.length !== 2) return "";
+    var h = +hs, mi = +ms;
+    if (h > 23 || mi > 59) return "";
+    return pad2(h) + ":" + pad2(mi);
+  }
+
+  function durationText(t1, t2) {
+    var a = parseTime(t1), b = parseTime(t2);
+    if (!a || !b) return "";
+    var m = (+b.slice(0, 2) * 60 + +b.slice(3)) - (+a.slice(0, 2) * 60 + +a.slice(3));
+    if (m <= 0) return "เวลาเสร็จต้องหลังเวลาเริ่ม";
+    var h = Math.floor(m / 60), mm = m % 60;
+    return "ใช้เวลา " + (h ? h + " ชั่วโมง " : "") + (mm ? mm + " นาที" : (h ? "" : "0 นาที"));
+  }
+
+  function enhanceTime(inp) {
+    if (!inp || inp.dataset.thaiTime) return;
+    inp.dataset.thaiTime = "1";
+    inp.type = "text";
+    inp.setAttribute("inputmode", "numeric");
+    inp.setAttribute("autocomplete", "off");
+    inp.setAttribute("maxlength", "5");
+    inp.placeholder = "ชช:นน";
+
+    var val = "";
+
+    var row = document.createElement("div");
+    row.className = "daterow";
+    inp.parentNode.insertBefore(row, inp);
+    row.appendChild(inp);
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-sm daybtn";
+    btn.textContent = "ตอนนี้";
+    row.appendChild(btn);
+
+    Object.defineProperty(inp, "value", {
+      configurable: true,
+      get: function () { return val; },
+      set: function (v) {
+        val = parseTime(v);
+        NATIVE.set.call(inp, val);
+        inp.classList.toggle("bad", false);
+      }
+    });
+
+    inp.addEventListener("input", function () {
+      var digits = onlyDigits(NATIVE.get.call(inp), 4);
+      var out = digits.slice(0, 2);
+      if (digits.length > 2) out += ":" + digits.slice(2, 4);
+      NATIVE.set.call(inp, out);
+      val = parseTime(out);
+      inp.classList.toggle("bad", !!out && !val);
+      inp.dispatchEvent(new Event("timechange", { bubbles: true }));
+    });
+
+    btn.addEventListener("click", function () {
+      inp.value = nowTime();
+      inp.dispatchEvent(new Event("timechange", { bubbles: true }));
+    });
+  }
+
+  function enhanceTimes(root) {
+    var list = (root || document).querySelectorAll('input[type="time"]');
+    Array.prototype.forEach.call(list, enhanceTime);
+  }
+
+  function enhanceAll() { enhanceDates(); enhanceTimes(); }
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function () { enhanceDates(); });
+    document.addEventListener("DOMContentLoaded", enhanceAll);
   } else {
-    enhanceDates();
+    enhanceAll();
   }
 
   return {
@@ -255,6 +338,7 @@ window.JADE = (function () {
     configured: configured,
     thDate: thDate, today: today, nf: nf, esc: esc, msg: msg,
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
+    parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
     factory: CFG.factory || "โรงงานหยก"
   };
 })();
