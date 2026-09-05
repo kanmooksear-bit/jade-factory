@@ -87,6 +87,12 @@ a{color:var(--jade)}
 .daterow .daybtn{flex:0 0 auto;padding:0 10px;font-size:12.5px;white-space:nowrap}
 .datehint{display:block;margin-top:5px;font-size:12.5px;color:var(--jade);min-height:18px;line-height:1.4}
 .datehint.bad{color:var(--amber)}
+.field .daterow input.bad{border-color:var(--amber);color:var(--amber)}
+.durnote{
+  display:block;margin:-4px 0 14px;font-size:13px;color:var(--jade);
+  font-variant-numeric:tabular-nums;min-height:19px;
+}
+.durnote.bad{color:var(--alert)}
 
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
