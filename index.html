@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>ลงงานผลิต — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">ลงงานผลิต</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span>สวัสดี <b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อของคุณ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+    <p class="hint" style="margin-top:12px">ครั้งแรก PIN คือ 1234 — เข้าแล้วเปลี่ยนได้ที่ด้านล่างหน้าจอ</p>
+  </section>
+
+  <section id="app" hidden>
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" id="tab-prod" role="tab" aria-selected="true" type="button">งานผลิต</button>
+        <button class="tab" id="tab-other" role="tab" aria-selected="false" type="button">งานอื่น / ลา</button>
+      </div>
+
+      <div class="msg" id="form-msg" hidden></div>
+
+      <div id="pane-prod">
+        <div class="field">
+          <label for="f-lot">ล็อตงาน</label>
+          <select id="f-lot"></select>
+        </div>
+        <div class="lotinfo" id="lotinfo" hidden></div>
+
+        <div class="field">
+          <label for="f-step">ขั้นตอนที่ทำ</label>
+          <select id="f-step"></select>
+        </div>
+
+        <div class="field" id="wrap-machine" hidden>
+          <label for="f-machine">เครื่อง CNC</label>
+          <select id="f-machine"></select>
+        </div>
+
+        <div class="two" id="wrap-cnc" hidden>
+          <div class="field">
+            <label for="f-cstart">วันที่เริ่ม CNC</label>
+            <input id="f-cstart" type="date">
+          </div>
+          <div class="field">
+            <label for="f-cend">วันที่เสร็จ CNC</label>
+            <input id="f-cend" type="date">
+          </div>
+        </div>
+
+        <div class="two">
+          <div class="field">
+            <label for="f-good">จำนวนดี (ชิ้น)</label>
+            <input id="f-good" type="number" inputmode="numeric" min="0" step="1" value="">
+          </div>
+          <div class="field">
+            <label for="f-bad">จำนวนเสีย (ชิ้น)</label>
+            <input id="f-bad" type="number" inputmode="numeric" min="0" step="1" value="">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="f-date">วันที่ทำงาน</label>
+          <input id="f-date" type="date">
+        </div>
+
+        <div class="field">
+          <label for="f-note">หมายเหตุ (ถ้ามี)</label>
+          <input id="f-note" type="text" placeholder="เช่น เจอตำหนิที่ฐาน">
+        </div>
+
+        <button class="btn btn-primary btn-lg" id="submit-prod" type="button">ส่งบันทึก</button>
+      </div>
+
+      <div id="pane-other" hidden>
+        <p class="hint" style="margin-bottom:14px">งานที่ไม่ผูกกับล็อตสินค้า เช่น ขัดโซ่ พ่นทราย ทำความสะอาดโรงงาน หรือวันลา — จะถูกบันทึกไว้แต่ไม่นับเข้ายอดผลิต</p>
+        <div class="field">
+          <label for="o-note">ทำอะไร</label>
+          <input id="o-note" type="text" placeholder="เช่น ขัดโซ่ / ลากิจ">
+        </div>
+        <div class="field">
+          <label for="o-step">ขั้นตอนที่เกี่ยวข้อง (ไม่บังคับ)</label>
+          <select id="o-step"></select>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="o-good">จำนวน (ถ้ามี)</label>
+            <input id="o-good" type="number" inputmode="numeric" min="0" step="1">
+          </div>
+          <div class="field">
+            <label for="o-date">วันที่</label>
+            <input id="o-date" type="date">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="submit-other" type="button">ส่งบันทึก</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>รายการที่คุณลงล่าสุด</h2>
+      <div class="list" id="recent"><p class="hint">กำลังโหลด…</p></div>
+    </div>
+
+    <div class="card">
+      <h2>เปลี่ยน PIN</h2>
+      <div class="msg" id="pin-msg" hidden></div>
+      <div class="two">
+        <div class="field">
+          <label for="p-new">PIN ใหม่</label>
+          <input id="p-new" type="password" inputmode="numeric" placeholder="อย่างน้อย 4 ตัว">
+        </div>
+        <div class="field">
+          <label for="p-new2">พิมพ์ซ้ำ</label>
+          <input id="p-new2" type="password" inputmode="numeric">
+        </div>
+      </div>
+      <button class="btn" id="p-go" type="button">บันทึก PIN ใหม่</button>
+    </div>
+  </section>
+</main>
+
+<div class="queue" id="queue" hidden></div>
+
+<script src="config.js"></script>
+<script src="api.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var boot = null, lots = [], mode = "production";
+
+  $("factory").textContent = J.factory;
+
+  function showQueue(n) {
+    var q = $("queue");
+    if (!n) { q.hidden = true; return; }
+    q.hidden = false;
+    q.textContent = "มี " + n + " รายการรอส่ง — จะส่งเองอัตโนมัติเมื่อเน็ตกลับมา";
+  }
+  J.onQueueChange(showQueue);
+  showQueue(J.queueLength());
+
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      boot = d;
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        d.employees.map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) +
+            (e.role === "supervisor" ? " (หัวหน้า)" : "") + "</option>";
+        }).join("");
+      var stepOpts = d.steps.map(function (s) {
+        return '<option value="' + J.esc(s.name) + '">' + J.esc(s.name) + "</option>";
+      }).join("");
+      $("f-step").innerHTML = '<option value="">— เลือกขั้นตอน —</option>' + stepOpts;
+      $("o-step").innerHTML = '<option value="">— ไม่ระบุ —</option>' + stepOpts;
+      $("f-machine").innerHTML = '<option value="">— เลือกเครื่อง —</option>' +
+        d.machines.map(function (m) {
+          return '<option value="' + J.esc(m.name) + '">' + J.esc(m.name) +
+            (m.kind ? " (" + J.esc(m.kind) + ")" : "") + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function loadLots() {
+    return J.rpc("app_open_lots").then(function (d) {
+      lots = d || [];
+      $("f-lot").innerHTML = !lots.length
+        ? '<option value="">— ยังไม่มีล็อตที่เปิดอยู่ —</option>'
+        : '<option value="">— เลือกล็อต —</option>' + lots.map(function (l) {
+            return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+              J.esc(l.product_code) + " " + J.esc(l.product_name) + "</option>";
+          }).join("");
+      showLotInfo();
+    });
+  }
+
+  function currentLot() {
+    var c = $("f-lot").value;
+    for (var i = 0; i < lots.length; i++) if (lots[i].code === c) return lots[i];
+    return null;
+  }
+
+  function showLotInfo() {
+    var l = currentLot(), box = $("lotinfo");
+    if (!l) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML =
+      J.esc(l.product_name) + " · หยก" + J.esc(l.jade) + "<br>" +
+      "เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · " +
+      "ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b> · " +
+      "เสีย <b>" + J.nf.format(l.total_bad) + "</b> · " +
+      "อยู่ในสาย <b>" + J.nf.format(l.wip) + "</b>" +
+      (l.last_step ? "<br>ขั้นตอนล่าสุด: " + J.esc(l.last_step) : "") +
+      (l.due_date ? " · กำหนดส่ง " + J.thDate(l.due_date) : "");
+  }
+
+  function stepInfo(name) {
+    if (!boot) return null;
+    for (var i = 0; i < boot.steps.length; i++) if (boot.steps[i].name === name) return boot.steps[i];
+    return null;
+  }
+
+  function onStepChange() {
+    var s = stepInfo($("f-step").value);
+    var needs = !!(s && s.needs_machine);
+    $("wrap-machine").hidden = !needs;
+    $("wrap-cnc").hidden = !needs;
+  }
+
+  function enterApp(role) {
+    var m = J.me.get();
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = m.name;
+    $("f-date").value = J.today();
+    $("o-date").value = J.today();
+    loadLots();
+    loadRecent();
+    J.flush();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN ก่อน", "err"); return; }
+    J.msg($("login-msg"), "", "");
+    $("l-go").disabled = true;
+    J.rpc("app_my_entries", { p_name: name, p_pin: pin, p_limit: 1 }).then(function () {
+      var role = "worker";
+      (boot.employees || []).forEach(function (e) { if (e.name === name) role = e.role; });
+      J.me.set(name, pin, role);
+      enterApp(role);
+    }).catch(function (err) {
+      J.msg($("login-msg"), err.message, "err");
+    }).then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+
+  $("logout").addEventListener("click", function () {
+    J.me.clear();
+    location.reload();
+  });
+
+  function setMode(m) {
+    mode = m;
+    $("tab-prod").setAttribute("aria-selected", String(m === "production"));
+    $("tab-other").setAttribute("aria-selected", String(m === "other"));
+    $("pane-prod").hidden = m !== "production";
+    $("pane-other").hidden = m !== "other";
+    J.msg($("form-msg"), "", "");
+  }
+  $("tab-prod").addEventListener("click", function () { setMode("production"); });
+  $("tab-other").addEventListener("click", function () { setMode("other"); });
+
+  $("f-lot").addEventListener("change", showLotInfo);
+  $("f-step").addEventListener("change", onStepChange);
+
+  function send(args, btn, clear) {
+    btn.disabled = true;
+    J.submit(args).then(function (r) {
+      J.msg($("form-msg"), r && r.queued
+        ? "เน็ตไม่ติด — เก็บไว้ในเครื่องแล้ว จะส่งให้เองเมื่อเน็ตกลับมา"
+        : "บันทึกเรียบร้อย ขอบคุณครับ", r && r.queued ? "warn" : "ok");
+      clear();
+      loadLots();
+      loadRecent();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }).catch(function (err) {
+      J.msg($("form-msg"), err.message, "err");
+    }).then(function () { btn.disabled = false; });
+  }
+
+  $("submit-prod").addEventListener("click", function () {
+    var m = J.me.get();
+    var lot = $("f-lot").value, step = $("f-step").value;
+    var good = Number($("f-good").value || 0), bad = Number($("f-bad").value || 0);
+    if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
+    if (!step) { J.msg($("form-msg"), "เลือกขั้นตอนก่อน", "err"); return; }
+    if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
+    var s = stepInfo(step);
+    send({
+      p_name: m.name, p_pin: m.pin, p_category: "production",
+      p_lot: lot, p_step: step,
+      p_machine: (s && s.needs_machine) ? ($("f-machine").value || null) : null,
+      p_good: good, p_bad: bad,
+      p_date: $("f-date").value || J.today(),
+      p_cnc_start: (s && s.needs_machine && $("f-cstart").value) || null,
+      p_cnc_end: (s && s.needs_machine && $("f-cend").value) || null,
+      p_note: $("f-note").value || null
+    }, $("submit-prod"), function () {
+      $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
+      $("f-cstart").value = ""; $("f-cend").value = "";
+    });
+  });
+
+  $("submit-other").addEventListener("click", function () {
+    var m = J.me.get();
+    var note = $("o-note").value.trim();
+    if (!note) { J.msg($("form-msg"), "ใส่ว่าทำอะไรก่อน", "err"); return; }
+    send({
+      p_name: m.name, p_pin: m.pin, p_category: "other",
+      p_lot: null, p_step: $("o-step").value || null, p_machine: null,
+      p_good: Number($("o-good").value || 0), p_bad: 0,
+      p_date: $("o-date").value || J.today(),
+      p_cnc_start: null, p_cnc_end: null, p_note: note
+    }, $("submit-other"), function () {
+      $("o-note").value = ""; $("o-good").value = "";
+    });
+  });
+
+  function loadRecent() {
+    var m = J.me.get();
+    J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 15 }).then(function (list) {
+      if (!list || !list.length) { $("recent").innerHTML = '<p class="hint">ยังไม่มีรายการ</p>'; return; }
+      $("recent").innerHTML = list.map(function (e) {
+        var title = e.category === "other"
+          ? (e.note || "งานอื่น")
+          : (e.lot || "—") + " · " + (e.step || "—");
+        var sub = J.thDate(e.work_date) +
+          (e.machine ? " · " + e.machine : "") +
+          (e.category === "production" && e.note ? " · " + e.note : "") +
+          (e.category === "other" ? " · งานอื่น" : "");
+        return '<div class="row"><span class="main"><span class="t">' + J.esc(title) +
+          '</span><br><span class="s">' + J.esc(sub) + '</span></span>' +
+          '<span class="n">' + J.nf.format(e.qty_good) +
+          (e.qty_bad ? "<i>เสีย " + J.nf.format(e.qty_bad) + "</i>" : "") +
+          (e.can_delete ? ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(e.id) + '" type="button">ลบ</button>' : "") +
+          "</span></div>";
+      }).join("");
+      Array.prototype.forEach.call($("recent").querySelectorAll("[data-del]"), function (b) {
+        b.addEventListener("click", function () {
+          if (!confirm("ลบรายการนี้?")) return;
+          var mm = J.me.get();
+          J.rpc("app_delete_entry", { p_name: mm.name, p_pin: mm.pin, p_id: b.dataset.del })
+            .then(function () { loadRecent(); loadLots(); })
+            .catch(function (err) { alert(err.message); });
+        });
+      });
+    }).catch(function (err) {
+      $("recent").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>";
+    });
+  }
+
+  $("p-go").addEventListener("click", function () {
+    var m = J.me.get();
+    var a = $("p-new").value, b = $("p-new2").value;
+    if (a.length < 4) { J.msg($("pin-msg"), "PIN ต้องยาวอย่างน้อย 4 ตัว", "err"); return; }
+    if (a !== b) { J.msg($("pin-msg"), "PIN สองช่องไม่ตรงกัน", "err"); return; }
+    J.rpc("app_change_pin", { p_name: m.name, p_pin: m.pin, p_new_pin: a }).then(function () {
+      J.me.set(m.name, a, m.role);
+      $("p-new").value = ""; $("p-new2").value = "";
+      J.msg($("pin-msg"), "เปลี่ยน PIN แล้ว", "ok");
+    }).catch(function (err) { J.msg($("pin-msg"), err.message, "err"); });
+  });
+
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js — ใส่ PROJECT URL และ ANON KEY จาก Supabase ก่อน", "err");
+  } else {
+    loadBoot().then(function () {
+      if (J.me.ok()) enterApp(J.me.get().role);
+    }).catch(function (err) {
+      J.msg($("login-msg"), err.message, "err");
+    });
+  }
+})();
+</script>
+</body>
+</html>
