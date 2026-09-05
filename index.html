@@ -68,15 +68,17 @@
           <select id="f-machine"></select>
         </div>
 
-        <div class="two" id="wrap-cnc" hidden>
+        <div id="wrap-cnc" hidden>
+          <p class="hint" style="margin:0 0 10px">สองช่องนี้ไม่บังคับ — ใส่ไว้เพื่อดูว่างานอยู่ในเครื่องกี่วัน</p>
           <div class="field">
-            <label for="f-cstart">วันที่เริ่ม CNC</label>
+            <label for="f-cstart">วันที่เอาเข้าเครื่อง</label>
             <input id="f-cstart" type="date">
           </div>
           <div class="field">
-            <label for="f-cend">วันที่เสร็จ CNC</label>
+            <label for="f-cend">วันที่เอาออกจากเครื่อง</label>
             <input id="f-cend" type="date">
           </div>
+          <p class="hint" style="margin:-4px 0 14px">ถ้างานยังอยู่ในเครื่อง ยังไม่เสร็จ ให้ลบ "วันที่เอาออก" ทิ้งแล้วเว้นว่างไว้ก่อน</p>
         </div>
 
         <div class="two">
@@ -239,6 +241,7 @@
     var needs = !!(s && s.needs_machine);
     $("wrap-machine").hidden = !needs;
     $("wrap-cnc").hidden = !needs;
+    if (needs && !$("f-cend").value) $("f-cend").value = $("f-date").value || J.today();
   }
 
   function enterApp(role) {
