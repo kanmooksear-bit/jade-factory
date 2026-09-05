@@ -273,11 +273,15 @@
     var wip = (d.lots || []).filter(function (l) { return l.status === "open"; })
       .reduce(function (a, l) { return a + Number(l.wip || 0); }, 0);
     var openLots = (d.lots || []).filter(function (l) { return l.status === "open"; }).length;
+    var recorded = (d.by_step || []).reduce(function (a, s) {
+      return a + (Number(s.qty) || 0) + (Number(s.bad) || 0);
+    }, 0);
     var tiles = [
       { k: "ผ่าน QC (ยอดผลิตจริง)", v: J.nf.format(qc), u: "ชิ้น",
-        f: (out.lots || 0) + " ล็อตที่มีการตรวจ" },
+        f: qc ? (out.lots || 0) + " ล็อตที่มีการตรวจ" : "ยังไม่มีล็อตไหนผ่าน QC" },
       { k: "ของเสียทุกขั้นตอน", v: J.nf.format(bad), u: "ชิ้น",
-        f: "เทียบยอดผ่าน QC " + pctTxt(bad, qc + bad), bad: bad > 0 },
+        f: recorded ? "คิดเป็น " + pctTxt(bad, recorded) + " ของงานที่บันทึก" : "ยังไม่มีข้อมูล",
+        bad: bad > 0 },
       { k: "ออกจาก CNC", v: J.nf.format(cnc.pieces || 0), u: "ชิ้น",
         f: (cnc.runs || 0) + " รอบ · กำลังการผลิตต้นทาง" },
       { k: "ค้างในสายผลิต", v: J.nf.format(wip), u: "ชิ้น", f: openLots + " ล็อตที่ยังเปิดอยู่" }
@@ -296,8 +300,9 @@
       strip.innerHTML = ""; axis.innerHTML = ""; $("daily-note").textContent = "";
       return;
     }
-    var maxQ = Math.max.apply(null, rows.map(function (r) { return Number(r.qc) || 0; })) || 1;
-    var maxB = Math.max.apply(null, rows.map(function (r) { return Number(r.bad) || 0; })) || 1;
+    var topQ = Math.max.apply(null, rows.map(function (r) { return Number(r.qc) || 0; }));
+    var topB = Math.max.apply(null, rows.map(function (r) { return Number(r.bad) || 0; }));
+    var maxQ = topQ || 1, maxB = topB || 1;
     var every = rows.length > 16 ? Math.ceil(rows.length / 12) : 1;
 
     host.innerHTML = rows.map(function (r) {
@@ -314,9 +319,15 @@
     axis.innerHTML = rows.map(function (r, i) {
       return "<span>" + (i % every === 0 ? J.thDate(r.d, false) : "") + "</span>";
     }).join("");
-    var top = rows.filter(function (r) { return Number(r.qc) === maxQ; })[0];
-    $("daily-note").textContent = "ผ่าน QC สูงสุด " + J.nf.format(maxQ) + " ชิ้น วันที่ " +
-      J.thDate(top.d) + " · ของเสียสูงสุด " + J.nf.format(maxB) + " ชิ้น/วัน";
+    var note = [];
+    if (topQ) {
+      var top = rows.filter(function (r) { return (Number(r.qc) || 0) === topQ; })[0];
+      note.push("ผ่าน QC สูงสุด " + J.nf.format(topQ) + " ชิ้น วันที่ " + J.thDate(top.d));
+    } else {
+      note.push("ยังไม่มีชิ้นงานผ่าน QC ในช่วงนี้ — งานยังอยู่ระหว่างขั้นตอน");
+    }
+    if (topB) note.push("ของเสียสูงสุด " + J.nf.format(topB) + " ชิ้น/วัน");
+    $("daily-note").textContent = note.join(" · ");
   }
 
   function renderLots(lots) {
