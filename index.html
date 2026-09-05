@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=2">
+<link rel="stylesheet" href="app.css?v=3">
 </head>
 <body>
 
@@ -79,6 +79,20 @@
             <input id="f-cend" type="date">
           </div>
           <p class="hint" style="margin:-4px 0 14px">ถ้างานยังอยู่ในเครื่อง ยังไม่เสร็จ ให้ลบ "วันที่เอาออก" ทิ้งแล้วเว้นว่างไว้ก่อน</p>
+        </div>
+
+        <div id="wrap-time" hidden>
+          <div class="two">
+            <div class="field">
+              <label for="f-tstart">เริ่มกี่โมง</label>
+              <input id="f-tstart" type="time">
+            </div>
+            <div class="field">
+              <label for="f-tend">เสร็จกี่โมง</label>
+              <input id="f-tend" type="time">
+            </div>
+          </div>
+          <span class="durnote" id="dur-note"></span>
         </div>
 
         <div class="two">
@@ -154,14 +168,14 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=2"></script>
-<script src="api.js?v=2"></script>
+<script src="config.js?v=3"></script>
+<script src="api.js?v=3"></script>
 <script>
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var J = window.JADE;
-  var boot = null, lots = [], mode = "production";
+  var boot = null, lots = [], mode = "production", skipTime = false;
 
   $("factory").textContent = J.factory;
 
@@ -242,6 +256,18 @@
     $("wrap-machine").hidden = !needs;
     $("wrap-cnc").hidden = !needs;
     if (needs && !$("f-cend").value) $("f-cend").value = $("f-date").value || J.today();
+    $("wrap-time").hidden = !s || needs;
+    updateDuration();
+  }
+
+  function updateDuration() {
+    var box = $("dur-note");
+    var a = $("f-tstart").value, b = $("f-tend").value;
+    if (!a && !b) { box.textContent = "ใส่เวลาเริ่มกับเวลาเสร็จ จะได้รู้ว่าขั้นตอนนี้ใช้เวลาเท่าไร"; box.className = "durnote"; return; }
+    if (!a || !b) { box.textContent = "ใส่ให้ครบทั้งสองช่อง"; box.className = "durnote"; return; }
+    var t = J.durationText(a, b);
+    box.textContent = t;
+    box.className = "durnote" + (t.indexOf("ต้องหลัง") !== -1 ? " bad" : "");
   }
 
   function enterApp(role) {
@@ -291,6 +317,8 @@
 
   $("f-lot").addEventListener("change", showLotInfo);
   $("f-step").addEventListener("change", onStepChange);
+  $("f-tstart").addEventListener("timechange", updateDuration);
+  $("f-tend").addEventListener("timechange", updateDuration);
 
   function send(args, btn, clear) {
     btn.disabled = true;
@@ -315,18 +343,30 @@
     if (!step) { J.msg($("form-msg"), "เลือกขั้นตอนก่อน", "err"); return; }
     if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
     var s = stepInfo(step);
+    var isCnc = !!(s && s.needs_machine);
+    var t1 = isCnc ? null : ($("f-tstart").value || null);
+    var t2 = isCnc ? null : ($("f-tend").value || null);
+    if (!isCnc && (!t1 || !t2) && !skipTime) {
+      skipTime = true;
+      J.msg($("form-msg"), "ยังไม่ได้ใส่เวลาเริ่ม–เวลาเสร็จ ถ้าจำไม่ได้ กดส่งอีกครั้งเพื่อบันทึกโดยไม่มีเวลา", "warn");
+      return;
+    }
     send({
       p_name: m.name, p_pin: m.pin, p_category: "production",
       p_lot: lot, p_step: step,
-      p_machine: (s && s.needs_machine) ? ($("f-machine").value || null) : null,
+      p_machine: isCnc ? ($("f-machine").value || null) : null,
       p_good: good, p_bad: bad,
       p_date: $("f-date").value || J.today(),
-      p_cnc_start: (s && s.needs_machine && $("f-cstart").value) || null,
-      p_cnc_end: (s && s.needs_machine && $("f-cend").value) || null,
-      p_note: $("f-note").value || null
+      p_cnc_start: (isCnc && $("f-cstart").value) || null,
+      p_cnc_end: (isCnc && $("f-cend").value) || null,
+      p_note: $("f-note").value || null,
+      p_time_start: t1, p_time_end: t2
     }, $("submit-prod"), function () {
       $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
       $("f-cstart").value = ""; $("f-cend").value = "";
+      $("f-tstart").value = ""; $("f-tend").value = "";
+      skipTime = false;
+      updateDuration();
     });
   });
 
@@ -354,6 +394,11 @@
           ? (e.note || "งานอื่น")
           : (e.lot || "—") + " · " + (e.step || "—");
         var sub = J.thDate(e.work_date) +
+          (e.time_start && e.time_end
+            ? " · " + e.time_start + "–" + e.time_end +
+              (e.minutes ? " (" + (e.minutes >= 60 ? Math.floor(e.minutes / 60) + " ชม. " : "") +
+                            (e.minutes % 60 ? (e.minutes % 60) + " น." : "") + ")" : "")
+            : "") +
           (e.machine ? " · " + e.machine : "") +
           (e.category === "production" && e.note ? " · " + e.note : "") +
           (e.category === "other" ? " · งานอื่น" : "");
