@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -131,8 +131,8 @@
   </section>
 </main>
 
-<script src="config.js?v=6"></script>
-<script src="api.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="api.js?v=7"></script>
 <script>
 (function () {
   "use strict";
@@ -150,6 +150,9 @@
         (sup.length ? sup : d.employees).map(function (e) {
           return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
         }).join("");
+      Array.prototype.forEach.call($("lots").querySelectorAll("[data-pic]"), function (im) {
+        J.setPhoto(im, im.dataset.pic, true);
+      });
       $("n-prod").innerHTML = '<option value="">— เลือกสินค้า —</option>' +
         d.products.map(function (p) {
           return '<option value="' + J.esc(p.code) + '">' + J.esc(p.code) + " · " +
@@ -225,9 +228,12 @@
         var done = l.qty_opened ? Math.min(100, l.qc_passed / l.qty_opened * 100) : 0;
         var late = l.due_date && l.status === "open" && l.due_date < J.today();
         return '<div class="lot">' +
-          '<div class="lot-top"><span><span class="lot-code">' + J.esc(l.code) + "</span> " +
+          '<div class="lot-top"><span class="withpic">' +
+            (l.has_photo ? '<img class="lotpic" data-pic="' + J.esc(l.product_code) + '" alt="">' : "") +
+            '<span class="txt"><span class="lot-code">' + J.esc(l.code) + "</span> " +
             '<span class="lot-sub">' + J.esc(l.product_code) + " · " + J.esc(l.product_name) +
-            " · หยก" + J.esc(l.jade) + "</span></span>" +
+            " · หยก" + J.esc(l.jade) + "</span><br>" +
+            '<span class="lot-sub">เริ่ม ' + J.esc(J.thDate(l.opened_at)) + "</span></span></span>" +
             '<span class="chip ' + (l.status === "closed" ? "idle" : late ? "bad" : "ok") + '">' +
             (l.status === "closed" ? "ปิดแล้ว" : late ? "เลยกำหนดส่ง" : "กำลังทำ") + "</span></div>" +
           '<div class="lot-nums">' +
