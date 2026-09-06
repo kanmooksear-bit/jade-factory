@@ -243,8 +243,10 @@
     box.hidden = false;
     box.innerHTML =
       J.esc(l.product_name) + " · หยก" + J.esc(l.jade) + "<br>" +
+      "เริ่มล็อต <b>" + J.esc(J.thDate(l.opened_at)) + "</b> · " +
       "เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · " +
       "ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b> · " +
+      (l.qc_pending ? "รอตรวจ <b>" + J.nf.format(l.qc_pending) + "</b> · " : "") +
       "เสีย <b>" + J.nf.format(l.total_bad) + "</b> · " +
       "อยู่ในสาย <b>" + J.nf.format(l.wip) + "</b>" +
       (l.last_step ? "<br>ขั้นตอนล่าสุด: " + J.esc(l.last_step) : "") +
@@ -484,6 +486,11 @@
             : "") +
           (e.review_status === "approved"
             ? '<br><span class="s">ยืนยันแล้ว แก้หรือลบเองไม่ได้ ถ้าผิดให้แจ้งหัวหน้า</span>'
+            : "") +
+          (e.lot_qty && e.step_total > e.lot_qty
+            ? '<br><span class="s" style="color:var(--amber)">ขั้นตอนนี้ลงรวม ' +
+              J.nf.format(e.step_total) + " จากล็อต " + J.nf.format(e.lot_qty) +
+              " ชิ้น (เกิน " + J.nf.format(e.step_total - e.lot_qty) + ")</span>"
             : "") + "</span>" +
           '<span class="n">' + J.nf.format(e.qty_good) +
           (e.qty_bad ? "<i>เสีย " + J.nf.format(e.qty_bad) + "</i>" : "") +
