@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -32,7 +32,7 @@
     padding:14px 16px;margin-bottom:16px;
   }
   .lotcard[hidden]{display:none!important}
-  .lotcard .lc-top{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+  .lotcard .lc-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
   .lotcard .lc-code{font-family:var(--display);font-size:22px;font-weight:600}
   .lotcard .lc-prod{font-size:14px;color:var(--ink-2)}
   .lotcard .lc-facts{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
@@ -229,8 +229,8 @@
   </div>
 </main>
 
-<script src="config.js?v=6"></script>
-<script src="api.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="api.js?v=7"></script>
 <script>
 (function () {
   "use strict";
@@ -354,7 +354,9 @@
     var pct = function (v) { return open ? (v / open * 100).toFixed(1) + "%" : "0%"; };
     var late = info.due_date && info.due_date < J.today() && info.status === "open";
     box.innerHTML =
-      '<div class="lc-top"><span class="lc-code">' + J.esc(info.code) + "</span>" +
+      '<div class="lc-top">' +
+        '<img class="lotpic big" id="lc-pic" alt="" hidden>' +
+        '<span class="lc-code">' + J.esc(info.code) + "</span>" +
         '<span class="lc-prod">' + J.esc(info.product_code) + " · " + J.esc(info.product_name) +
         " · หยก" + J.esc(info.jade) + "</span>" +
         '<span class="chip ' + (info.status === "open" ? "ok" : "idle") + '">' +
@@ -377,6 +379,7 @@
           (info.last_date ? " เมื่อ " + J.esc(J.thDate(info.last_date)) : "") + "</span>" +
         (info.due_date ? "<span>กำหนดส่ง <b>" + J.esc(J.thDate(info.due_date)) + "</b></span>" : "") +
       "</div>";
+    J.setPhoto(document.getElementById("lc-pic"), info.product_code, info.has_photo);
   }
 
   function renderOver(rows, one) {
@@ -521,8 +524,10 @@
       open.map(function (l) {
         var late = l.due_date && l.due_date < J.today();
         var wait = Number(l.qc_pending) || 0;
-        return "<tr><td>" + J.esc(l.code) + "</td><td>" + J.esc(l.product_code) + " " +
-          J.esc(l.product_name) + "</td><td>" + J.esc(J.thDate(l.opened_at)) +
+        return "<tr><td>" + J.esc(l.code) + '</td><td><span class="withpic">' +
+          (l.has_photo ? '<img class="lotpic sm" data-pic="' + J.esc(l.product_code) + '" alt="">' : "") +
+          '<span class="txt">' + J.esc(l.product_code) + " " + J.esc(l.product_name) +
+          "</span></span></td><td>" + J.esc(J.thDate(l.opened_at)) +
           (l.days != null ? ' <span class="lotlist">' + J.nf.format(l.days) + " วัน</span>" : "") +
           "</td><td class='num'>" + J.nf.format(l.qty_opened) +
           "</td><td class='num'>" + J.nf.format(l.qc_passed) + "</td><td class='num'>" +
@@ -532,6 +537,9 @@
           (l.due_date ? '<span class="chip ' + (late ? "bad" : "ok") + '">' + J.thDate(l.due_date) + "</span>" : "—") +
           "</td></tr>";
       }).join("") + "</tbody>";
+    Array.prototype.forEach.call($("lots").querySelectorAll("[data-pic]"), function (im) {
+      J.setPhoto(im, im.dataset.pic, true);
+    });
   }
 
   function renderByEmp(rows, one) {
