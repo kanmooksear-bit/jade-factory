@@ -260,15 +260,23 @@
         (r.minutes ? " (" + r.minutes + " นาที)" : "") +
         (r.machine ? " · " + r.machine : "");
       var seen = r.review_status !== "pending";
+      var over = r.lot_qty && r.step_total > r.lot_qty ? r.step_total - r.lot_qty : 0;
       return '<div class="rev' + (seen ? " done" : "") + '">' +
         '<input type="checkbox" data-id="' + J.esc(r.id) + '" aria-label="เลือกรายการ">' +
         '<div class="body">' +
           '<div class="l1"><span class="t">' +
             J.esc(r.lot || "งานอื่น") + " · " + J.esc(r.step || "—") + " · " + J.esc(r.employee) +
             " " + (CHIP[r.review_status] || "") +
+            (over ? ' <span class="chip warn">เกินล็อต +' + J.nf.format(over) + "</span>" : "") +
           '</span><span class="n">' + J.nf.format(r.qty_good) +
             (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") + "</span></div>" +
-          '<div class="s">' + J.esc(when) + (r.note ? " · " + J.esc(r.note) : "") + "</div>" +
+          '<div class="s">' + J.esc(when) + (r.note ? " · " + J.esc(r.note) : "") +
+            (r.lot_start ? " · ล็อตเริ่ม " + J.esc(J.thDate(r.lot_start)) : "") + "</div>" +
+          (r.lot_qty
+            ? '<div class="s">ขั้นตอนนี้ลงรวม ' + J.nf.format(r.step_total) + " / เปิดล็อต " +
+              J.nf.format(r.lot_qty) + " ชิ้น" +
+              (over ? " — ตัดเผื่อ " + J.nf.format(over) + " ชิ้น" : "") + "</div>"
+            : "") +
           (r.review_status === "rejected" && r.review_note
             ? '<div class="why">ตีกลับ: ' + J.esc(r.review_note) + "</div>" : "") +
           (r.review_status === "approved" && r.reviewed_by
