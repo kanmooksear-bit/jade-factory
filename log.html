@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>ห้อง Log — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=6">
+<style>
+  .wrap{max-width:1000px}
+  .topbar-in{max-width:1000px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
+         color:var(--ink-2);font-size:13.5px;background:var(--surface)}
+  .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+
+  .rooms{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .room{
+    padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);
+    color:var(--ink-2);cursor:pointer;font-size:14px;display:flex;gap:7px;align-items:center;
+  }
+  .room b{font-variant-numeric:tabular-nums;font-weight:600;font-size:12.5px;
+          background:var(--surface-2);border-radius:999px;padding:1px 8px;color:var(--ink-3)}
+  .room[aria-selected="true"]{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+  .room[aria-selected="true"] b{background:rgba(255,255,255,.22);color:inherit}
+
+  .lg{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line-2);align-items:flex-start}
+  .lg:first-child{border-top:0}
+  .lg .when{flex:none;width:96px;font-size:12px;color:var(--ink-3);
+            font-variant-numeric:tabular-nums;line-height:1.45;padding-top:2px}
+  .lg .body{flex:1;min-width:0;display:block}
+  .lg .t{display:block;font-size:14.5px}
+  .lg .t b{font-weight:600}
+  .lg .d{display:block;font-size:12.5px;color:var(--ink-3);margin-top:3px;overflow-wrap:anywhere}
+  .lg .d span{margin-inline-end:10px;white-space:nowrap}
+  .lg .d span i{font-style:normal;color:var(--ink-2)}
+  .daysep{
+    font-size:12px;letter-spacing:.06em;color:var(--gold);
+    padding:14px 0 5px;border-top:1px solid var(--line);margin-top:6px;
+  }
+  .daysep:first-child{border-top:0;margin-top:0;padding-top:2px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">ห้อง LOG</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html" class="on">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="card">
+      <div class="two">
+        <div class="field"><label for="f-from">ตั้งแต่</label><input id="f-from" type="date"></div>
+        <div class="field"><label for="f-to">ถึง</label><input id="f-to" type="date"></div>
+      </div>
+      <div class="field">
+        <label for="f-actor">ใครทำ</label>
+        <select id="f-actor"><option value="">— ทุกคน —</option></select>
+      </div>
+      <button class="btn btn-primary btn-lg" id="f-go" type="button">ดู Log</button>
+    </div>
+
+    <div class="rooms" id="rooms"></div>
+
+    <div class="card">
+      <p class="hint" id="head" style="margin-bottom:10px"></p>
+      <div id="list"><p class="hint">กำลังโหลด…</p></div>
+    </div>
+  </div>
+</main>
+
+<script src="config.js?v=6"></script>
+<script src="api.js?v=6"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var area = "all", counts = {};
+
+  $("factory").textContent = J.factory;
+
+  var ROOMS = [
+    { k: "all",      t: "ทั้งหมด" },
+    { k: "entry",    t: "งานผลิต" },
+    { k: "photo",    t: "รูปหลักฐาน" },
+    { k: "employee", t: "พนักงาน" },
+    { k: "product",  t: "สินค้า" },
+    { k: "lot",      t: "ล็อตงาน" },
+    { k: "auth",     t: "เข้าใช้งาน" }
+  ];
+
+  var ACT = {
+    create: "ลงบันทึก", update: "แก้ไข", delete: "ลบทิ้ง",
+    approve: "ยืนยันงาน", reject: "ตีกลับงาน", reopen: "เปิดให้แก้ใหม่",
+    photo_add: "แนบรูป", photo_delete: "ลบรูป", login: "เข้าใช้งาน"
+  };
+  var AREA_T = {};
+  ROOMS.forEach(function (r) { AREA_T[r.k] = r.t; });
+
+  // แปลค่าดิบในฐานข้อมูลให้เป็นภาษาคน
+  var VAL = {
+    pending: "รอตรวจ", approved: "ยืนยันแล้ว", rejected: "ตีกลับ",
+    worker: "พนักงาน", supervisor: "หัวหน้า",
+    open: "เปิดอยู่", closed: "ปิดแล้ว"
+  };
+  var FLD = { role: "ตำแหน่ง", "เปลี่ยน_PIN": "เปลี่ยน PIN", "ขนาด_KB": "ขนาดรูป (KB)" };
+
+  var TONE = {
+    approve: "ok", reject: "bad", delete: "bad", photo_delete: "bad",
+    create: "idle", update: "warn", reopen: "warn", photo_add: "idle", login: "idle"
+  };
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      $("f-actor").innerHTML = '<option value="">— ทุกคน —</option>' +
+        d.employees.map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    var d = new Date();
+    $("f-to").value = J.today();
+    $("f-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 30)
+      .toISOString().slice(0, 10);
+    refresh();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_log_counts", { p_name: name, p_pin: pin }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- ห้อง ---------- */
+  function renderRooms() {
+    var total = 0;
+    Object.keys(counts).forEach(function (k) { total += Number(counts[k]) || 0; });
+    $("rooms").innerHTML = ROOMS.map(function (r) {
+      var n = r.k === "all" ? total : (Number(counts[r.k]) || 0);
+      return '<button class="room" type="button" data-area="' + r.k + '" aria-selected="' +
+        (r.k === area) + '">' + J.esc(r.t) + "<b>" + J.nf.format(n) + "</b></button>";
+    }).join("");
+    Array.prototype.forEach.call($("rooms").querySelectorAll("[data-area]"), function (b) {
+      b.addEventListener("click", function () {
+        area = b.dataset.area;
+        renderRooms();
+        loadList();
+      });
+    });
+  }
+
+  $("f-go").addEventListener("click", refresh);
+
+  function refresh() {
+    var m = J.me.get();
+    J.rpc("sup_log_counts", {
+      p_name: m.name, p_pin: m.pin,
+      p_from: $("f-from").value || null, p_to: $("f-to").value || null
+    }).then(function (c) { counts = c || {}; renderRooms(); })
+      .catch(function () { counts = {}; renderRooms(); });
+    loadList();
+  }
+
+  /* ---------- รายการ ---------- */
+  function loadList() {
+    var m = J.me.get();
+    $("list").innerHTML = '<p class="hint">กำลังโหลด…</p>';
+    J.rpc("sup_log", {
+      p_name: m.name, p_pin: m.pin,
+      p_area: area,
+      p_actor: $("f-actor").value || null,
+      p_from: $("f-from").value || null,
+      p_to: $("f-to").value || null,
+      p_limit: 300
+    }).then(render)
+      .catch(function (err) { $("list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  function clock(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return "";
+    return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+  function dayKey(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return "";
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+           "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  function render(list) {
+    if (!list || !list.length) {
+      $("head").textContent = "";
+      $("list").innerHTML = '<p class="hint">ยังไม่มีความเคลื่อนไหวในห้องนี้ตามช่วงที่เลือก</p>';
+      return;
+    }
+    $("head").textContent = "ห้อง" + (AREA_T[area] || "") + " · " +
+      J.nf.format(list.length) + " รายการ (ใหม่สุดอยู่บน)";
+
+    var day = "", html = "";
+    list.forEach(function (g) {
+      var k = dayKey(g.at);
+      if (k !== day) {
+        day = k;
+        html += '<div class="daysep">' + J.esc(J.thLong(k) || k) + "</div>";
+      }
+      var det = "";
+      if (g.detail && typeof g.detail === "object") {
+        det = Object.keys(g.detail).map(function (f) {
+          var v = g.detail[f];
+          if (v === true) v = "ใช่";
+          else if (v === false) v = "ไม่";
+          else if (VAL[v] !== undefined) v = VAL[v];
+          return "<span>" + J.esc(FLD[f] || f.split("_").join(" ")) +
+                 " <i>" + J.esc(v) + "</i></span>";
+        }).join("");
+      }
+      html += '<div class="lg"><span class="when">' + clock(g.at) +
+        (area === "all" ? "<br>" + J.esc(AREA_T[g.area] || g.area) : "") + "</span>" +
+        '<span class="body"><span class="t"><b>' + J.esc(g.actor_name) + "</b> " +
+          '<span class="chip ' + (TONE[g.action] || "idle") + '">' +
+          J.esc(ACT[g.action] || g.action) + "</span> " +
+          J.esc(g.target || "") + "</span>" +
+        (det ? '<span class="d">' + det + "</span>" : "") +
+        "</span></div>";
+    });
+    $("list").innerHTML = html;
+  }
+
+  /* ---------- เริ่ม ---------- */
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+</script>
+</body>
+</html>
