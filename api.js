@@ -376,6 +376,19 @@ window.JADE = (function () {
     });
   }
 
+  /* ---------- เมนู: หัวหน้าเห็นครบ พนักงานเห็นเฉพาะลงงานผลิต + แดชบอร์ด ---------- */
+  var SUP_ONLY = ["admin.html", "review.html", "people.html", "cost.html", "manage.html", "log.html"];
+
+  function paintNav(role) {
+    var nav = document.getElementById("nav");
+    if (!nav) return;
+    var boss = role === "supervisor";
+    Array.prototype.forEach.call(nav.querySelectorAll("a"), function (a) {
+      a.hidden = !boss && SUP_ONLY.indexOf(a.getAttribute("href")) >= 0;
+    });
+    nav.hidden = false;
+  }
+
   function enhanceAll() { enhanceDates(); enhanceTimes(); }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enhanceAll);
@@ -392,7 +405,7 @@ window.JADE = (function () {
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
     shrinkImage: shrinkImage,
-    productPhoto: productPhoto, setPhoto: setPhoto,
+    productPhoto: productPhoto, setPhoto: setPhoto, nav: paintNav,
     factory: CFG.factory || "โรงงานหยก"
   };
 })();

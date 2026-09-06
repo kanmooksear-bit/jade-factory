@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=10">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
 
 <main class="wrap">
 
-  <!-- แถบเมนู: หัวหน้าเท่านั้นที่เห็น -->
+  <!-- แถบเมนู: หัวหน้าเห็นครบ พนักงานเห็นเฉพาะลงงานผลิต + แดชบอร์ด -->
   <nav class="nav" id="nav" hidden>
     <a href="index.html" class="on">ลงงานผลิต</a>
     <a href="admin.html">หน้าหัวหน้า</a>
@@ -196,8 +196,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="api.js?v=10"></script>
 <script>
 (function () {
   "use strict";
@@ -317,7 +317,7 @@
   /* ---------- เข้าใช้งาน ---------- */
   function enterApp(role) {
     var m = J.me.get();
-    $("nav").hidden = (role || m.role) !== "supervisor";
+    J.nav(role || m.role);
     $("login").hidden = true;
     $("app").hidden = false;
     $("who").hidden = false;

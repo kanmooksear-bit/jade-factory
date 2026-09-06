@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=10">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -104,7 +104,7 @@
 </header>
 
 <main class="wrap">
-  <nav class="nav">
+  <nav class="nav" id="nav" hidden>
     <a href="index.html">ลงงานผลิต</a>
     <a href="admin.html">หน้าหัวหน้า</a>
     <a href="review.html">ตรวจงาน</a>
@@ -116,7 +116,7 @@
   </nav>
 
   <section id="login" class="card">
-    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <h2>เข้าใช้งาน</h2>
     <div class="msg err" id="login-msg" hidden></div>
     <div class="field">
       <label for="l-name">ชื่อ</label>
@@ -178,7 +178,7 @@
       <div class="panel scroll"><table id="over"></table></div>
     </section>
 
-    <section>
+    <section id="sec-byemp">
       <div class="sec-head">
         <h2>ปริมาณงานรายคน</h2>
         <span class="hint">หน่วยคือ "ชิ้น-ขั้นตอน" — ชิ้นเดียวผ่าน 19 ขั้นตอนนับ 19 ครั้ง จึงเป็นปริมาณงาน ไม่ใช่ยอดผลิต</span>
@@ -186,7 +186,7 @@
       <div class="panel"><div class="hbars" id="byemp"></div></div>
     </section>
 
-    <section>
+    <section id="sec-heat">
       <div class="sec-head">
         <h2>ใครทำขั้นตอนไหน</h2>
         <span class="hint">ยิ่งเข้มยิ่งมีจำนวนมาก · เลื่อนซ้ายขวาได้</span>
@@ -221,7 +221,7 @@
       <div class="panel scroll"><table id="bystep"></table></div>
     </section>
 
-    <section>
+    <section id="sec-other">
       <div class="sec-head">
         <h2>งานอื่น / วันลา</h2>
         <span class="hint">บันทึกไว้แต่ไม่นับเข้ายอดผลิต</span>
@@ -231,8 +231,8 @@
   </div>
 </main>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=10"></script>
+<script src="api.js?v=10"></script>
 <script>
 (function () {
   "use strict";
@@ -262,11 +262,14 @@
     return (v === 0 ? "0" : v < 0.1 ? v.toFixed(2) : v.toFixed(1)) + "%";
   }
 
+  var ROLES = {};   // ชื่อ -> role จาก app_bootstrap
+
   function loadBoot() {
     return J.rpc("app_bootstrap").then(function (d) {
-      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      ROLES = {};
+      d.employees.forEach(function (e) { ROLES[e.name] = e.role; });
       $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
-        (sup.length ? sup : d.employees).map(function (e) {
+        d.employees.map(function (e) {
           return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
         }).join("");
       var saved = J.me.get();
@@ -274,11 +277,23 @@
     });
   }
 
+  /* พนักงานทั่วไปเห็นภาพรวมโรงงานได้ แต่ไม่เห็นข้อมูลรายบุคคล
+     (ฝั่งเซิร์ฟเวอร์ก็ไม่ส่งข้อมูลพวกนี้มาให้เลย ไม่ใช่แค่ซ่อนใน HTML) */
+  function applyRole(role) {
+    var boss = role === "supervisor";
+    ["sec-byemp", "sec-heat", "sec-other"].forEach(function (id) {
+      var el = $(id); if (el) el.hidden = !boss;
+    });
+    J.nav(role);
+  }
+
   function enterApp() {
+    var m = J.me.get();
     $("login").hidden = true;
     $("app").hidden = false;
     $("who").hidden = false;
-    $("who-name").textContent = J.me.get().name;
+    $("who-name").textContent = m.name;
+    applyRole(m.role);
     setLast30();
     load();
   }
@@ -294,8 +309,8 @@
     var name = $("l-name").value, pin = $("l-pin").value;
     if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
     $("l-go").disabled = true;
-    J.rpc("sup_dashboard", { p_name: name, p_pin: pin }).then(function () {
-      J.me.set(name, pin, "supervisor");
+    J.rpc("app_dashboard", { p_name: name, p_pin: pin }).then(function (d) {
+      J.me.set(name, pin, d.scope === "boss" ? "supervisor" : (ROLES[name] || "worker"));
       enterApp();
     }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
       .then(function () { $("l-go").disabled = false; });
@@ -310,7 +325,7 @@
   /* ---------- โหลดและวาด ---------- */
   function load() {
     var m = J.me.get();
-    J.rpc("sup_dashboard", {
+    J.rpc(m.role === "supervisor" ? "sup_dashboard" : "app_dashboard", {
       p_name: m.name, p_pin: m.pin,
       p_from: $("r-from").value || null, p_to: $("r-to").value || null,
       p_lot: $("r-lot").value || null
@@ -676,7 +691,7 @@
   } else {
     loadBoot().then(function () {
       var m = J.me.get();
-      if (m.name && m.pin && m.role === "supervisor") enterApp();
+      if (m.name && m.pin && ROLES[m.name]) { J.me.set(m.name, m.pin, ROLES[m.name]); enterApp(); }
     }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
   }
 })();
