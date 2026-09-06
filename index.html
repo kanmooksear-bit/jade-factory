@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 </head>
 <body>
 
@@ -26,6 +26,15 @@
 </header>
 
 <main class="wrap">
+
+  <nav class="nav" id="nav" hidden>
+    <a href="index.html" class="on">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
 
   <section id="login" class="card">
     <h2>เข้าใช้งาน</h2>
@@ -56,7 +65,10 @@
           <label for="f-lot">ล็อตงาน</label>
           <select id="f-lot"></select>
         </div>
-        <div class="lotinfo" id="lotinfo" hidden></div>
+        <div class="lotinfo withpic" id="lotinfo" hidden>
+          <img class="lotpic" id="lotpic" alt="" hidden>
+          <span class="txt" id="lottext"></span>
+        </div>
 
         <div class="field">
           <label for="f-step">ขั้นตอนที่ทำ</label>
@@ -175,8 +187,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=6"></script>
-<script src="api.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="api.js?v=7"></script>
 <script>
 (function () {
   "use strict";
@@ -241,7 +253,8 @@
     var l = currentLot(), box = $("lotinfo");
     if (!l) { box.hidden = true; return; }
     box.hidden = false;
-    box.innerHTML =
+    J.setPhoto($("lotpic"), l.product_code, l.has_photo);
+    $("lottext").innerHTML =
       J.esc(l.product_name) + " · หยก" + J.esc(l.jade) + "<br>" +
       "เริ่มล็อต <b>" + J.esc(J.thDate(l.opened_at)) + "</b> · " +
       "เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · " +
@@ -281,6 +294,7 @@
 
   function enterApp(role) {
     var m = J.me.get();
+    $("nav").hidden = (role || m.role) !== "supervisor";
     $("login").hidden = true;
     $("app").hidden = false;
     $("who").hidden = false;
