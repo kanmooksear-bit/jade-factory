@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=4">
+<link rel="stylesheet" href="app.css?v=6">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -27,6 +27,8 @@
   .kpi .v small{font-size:12px;font-weight:400;color:var(--ink-3);margin-inline-start:4px}
   .kpi .f{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
   .kpi.bad .v{color:var(--alert)}
+  .kpi.warn .v{color:var(--amber)}
+  .kpi.warn{border-color:var(--amber-soft)}
 
   section{margin-bottom:28px}
   .sec-head{display:flex;gap:8px 16px;align-items:baseline;justify-content:space-between;
@@ -86,8 +88,10 @@
   <nav class="nav">
     <a href="index.html">ลงงานผลิต</a>
     <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
     <a href="dashboard.html" class="on">แดชบอร์ด</a>
     <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
   </nav>
 
   <section id="login" class="card">
@@ -194,8 +198,8 @@
   </div>
 </main>
 
-<script src="config.js?v=4"></script>
-<script src="api.js?v=4"></script>
+<script src="config.js?v=6"></script>
+<script src="api.js?v=6"></script>
 <script>
 (function () {
   "use strict";
@@ -314,9 +318,16 @@
       return a + (Number(s.qty) || 0) + (Number(s.bad) || 0);
     }, 0);
     var mins = Number(d.minutes) || 0;
+    var pend = d.pending || {}, rej = Number(d.rejected) || 0;
     var tiles = [
-      { k: "ผ่าน QC (ยอดผลิตจริง)", v: J.nf.format(qc), u: "ชิ้น",
-        f: qc ? (out.lots || 0) + " ล็อตที่มีการตรวจ" : "ยังไม่มีล็อตไหนผ่าน QC" },
+      { k: "ผ่าน QC (ยืนยันแล้ว)", v: J.nf.format(qc), u: "ชิ้น",
+        f: qc ? (out.lots || 0) + " ล็อตที่มีการตรวจ" : "ยังไม่มีล็อตไหนผ่าน QC ที่ยืนยันแล้ว" },
+      { k: "รอหัวหน้าตรวจ", v: J.nf.format(pend.pieces || 0), u: "ชิ้น",
+        f: (pend.entries || 0)
+             ? J.nf.format(pend.entries) + " รายการ · ค้างมาตั้งแต่ " + J.thDate(pend.oldest) +
+               (rej ? " · ตีกลับ " + J.nf.format(rej) : "")
+             : "ตรวจครบทุกรายการแล้ว",
+        warn: (pend.entries || 0) > 0 },
       { k: "ของเสียทุกขั้นตอน", v: J.nf.format(bad), u: "ชิ้น",
         f: recorded ? "คิดเป็น " + pctTxt(bad, recorded) + " ของงานที่บันทึก" : "ยังไม่มีข้อมูล",
         bad: bad > 0 },
@@ -326,7 +337,7 @@
       { k: "ชั่วโมงงานที่บันทึก", v: hoursTxt(d.minutes), u: "ชม.", f: rateFoot(d, mins, recorded) }
     ];
     $("kpis").innerHTML = tiles.map(function (t) {
-      return '<div class="kpi' + (t.bad ? " bad" : "") + '"><span class="k">' + J.esc(t.k) +
+      return '<div class="kpi' + (t.bad ? " bad" : t.warn ? " warn" : "") + '"><span class="k">' + J.esc(t.k) +
         '</span><span class="v">' + t.v + "<small>" + J.esc(t.u) + '</small></span>' +
         '<span class="f">' + J.esc(t.f) + "</span></div>";
     }).join("");
@@ -374,12 +385,15 @@
     if (!open.length) { $("lots").innerHTML = '<tr><td class="empty">ไม่มีล็อตที่กำลังทำอยู่</td></tr>'; return; }
     $("lots").innerHTML =
       "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>เปิด</th><th class='num'>ผ่าน QC</th>" +
+      "<th class='num'>รอตรวจ</th>" +
       "<th class='num'>เสีย</th><th class='num'>ค้างในสาย</th><th>ขั้นตอนล่าสุด</th><th>กำหนดส่ง</th></tr></thead><tbody>" +
       open.map(function (l) {
         var late = l.due_date && l.due_date < J.today();
+        var wait = Number(l.qc_pending) || 0;
         return "<tr><td>" + J.esc(l.code) + "</td><td>" + J.esc(l.product_code) + " " +
           J.esc(l.product_name) + "</td><td class='num'>" + J.nf.format(l.qty_opened) +
           "</td><td class='num'>" + J.nf.format(l.qc_passed) + "</td><td class='num'>" +
+          (wait ? '<span class="chip warn">' + J.nf.format(wait) + "</span>" : "—") + "</td><td class='num'>" +
           J.nf.format(l.total_bad) + "</td><td class='num'>" + J.nf.format(l.wip) + "</td><td>" +
           J.esc(l.last_step || "—") + "</td><td>" +
           (l.due_date ? '<span class="chip ' + (late ? "bad" : "ok") + '">' + J.thDate(l.due_date) + "</span>" : "—") +
