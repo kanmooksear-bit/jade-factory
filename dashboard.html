@@ -171,7 +171,7 @@
     <section id="sec-over" hidden>
       <div class="sec-head">
         <h2>ขั้นตอนที่ลงเกินจำนวนล็อต</h2>
-        <span class="hint">ตัดเผื่อได้ ไม่ใช่ความผิด — แต่ควรรู้ว่าเผื่อไปเท่าไร</span>
+        <span class="hint">อาจเป็นการตัดเผื่อ หรือขั้นตอนนั้นวนทำหลายรอบ — ไม่ใช่ความผิด แต่ควรรู้</span>
       </div>
       <div class="panel scroll"><table id="over"></table></div>
     </section>
@@ -179,7 +179,7 @@
     <section>
       <div class="sec-head">
         <h2>ปริมาณงานรายคน</h2>
-        <span class="hint">นับทุกขั้นตอนที่ทำ (ชิ้น-ขั้นตอน) · ตัวเลขแดงคือของเสีย</span>
+        <span class="hint">หน่วยคือ "ชิ้น-ขั้นตอน" — ชิ้นเดียวผ่าน 19 ขั้นตอนนับ 19 ครั้ง จึงเป็นปริมาณงาน ไม่ใช่ยอดผลิต</span>
       </div>
       <div class="panel"><div class="hbars" id="byemp"></div></div>
     </section>
@@ -384,12 +384,15 @@
     $("sec-over").hidden = false;
     $("over").innerHTML =
       "<thead><tr><th>ล็อต</th><th>ขั้นตอน</th><th class='num'>เปิดล็อต</th>" +
-      "<th class='num'>ลงไปแล้ว</th><th class='num'>เกิน</th></tr></thead><tbody>" +
+      "<th class='num'>ลงไปแล้ว</th><th class='num'>เกิน</th><th>เท่ากับ</th></tr></thead><tbody>" +
       rows.map(function (r) {
+        var n = Number(r.rounds) || 0;
+        var why = n >= 1.9 ? "ทำซ้ำ " + n.toFixed(1) + " รอบของล็อต" : "ตัดเผื่อ " + Math.round((n - 1) * 100) + "%";
         return "<tr><td>" + J.esc(r.lot) + "</td><td>" + J.esc(r.step) +
           "</td><td class='num'>" + J.nf.format(r.lot_qty) +
           "</td><td class='num'>" + J.nf.format(r.step_total) +
-          '</td><td class="num"><span class="chip warn">+' + J.nf.format(r.over) + "</span></td></tr>";
+          '</td><td class="num"><span class="chip warn">+' + J.nf.format(r.over) + "</span></td>" +
+          "<td>" + J.esc(why) + "</td></tr>";
       }).join("") + "</tbody>";
   }
 
@@ -436,6 +439,7 @@
     }, 0);
     var mins = Number(d.minutes) || 0;
     var pend = d.pending || {}, rej = Number(d.rejected) || 0;
+    var base = Number(d.lot_base) || 0;
     var tiles = [
       { k: "ผ่าน QC (ยืนยันแล้ว)", v: J.nf.format(qc), u: "ชิ้น",
         f: qc ? (out.lots || 0) + " ล็อตที่มีการตรวจ" : "ยังไม่มีล็อตไหนผ่าน QC ที่ยืนยันแล้ว" },
@@ -446,7 +450,8 @@
              : "ตรวจครบทุกรายการแล้ว",
         warn: (pend.entries || 0) > 0 },
       { k: "ของเสียทุกขั้นตอน", v: J.nf.format(bad), u: "ชิ้น",
-        f: recorded ? "คิดเป็น " + pctTxt(bad, recorded) + " ของงานที่บันทึก" : "ยังไม่มีข้อมูล",
+        f: base ? "คิดเป็น " + pctTxt(bad, base) + " ของ " + J.nf.format(base) + " ชิ้นที่เปิดล็อต"
+                : (recorded ? "ยังไม่รู้ฐานล็อต" : "ยังไม่มีข้อมูล"),
         bad: bad > 0 },
       { k: "ออกจาก CNC", v: J.nf.format(cnc.pieces || 0), u: "ชิ้น",
         f: (cnc.runs || 0) + " รอบ · กำลังการผลิตต้นทาง" },
@@ -538,6 +543,8 @@
       return '<div class="hrow"><span class="hname">' + J.esc(r.name) + lotTag(r.lots, one) + "</span>" +
         '<span class="htrack"><span class="hfill" style="width:' + (q / max * 100).toFixed(1) + '%"></span></span>' +
         '<span class="hval">' + J.nf.format(q) +
+        (r.steps ? '<b class="rate">' + J.nf.format(r.steps) + " ขั้นตอน</b>" : "") +
+        (Number(r.qc) ? '<b class="rate">ดัน QC ผ่าน ' + J.nf.format(r.qc) + "</b>" : "") +
         (mi ? '<b class="rate">' + hoursTxt(mi) + " ชม." +
               (tq ? " · " + rateTxt(tq, mi) : "") + "</b>" : "") +
         (b ? "<i>เสีย " + J.nf.format(b) + "</i>" : "") + "</span></div>";
@@ -606,7 +613,7 @@
     if (!rows.length) { $("byprod").innerHTML = '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>'; return; }
     $("byprod").innerHTML =
       "<thead><tr><th>รหัส</th><th>สินค้า</th><th>ชนิดหยก</th><th class='num'>ผ่าน QC</th>" +
-      "<th class='num'>เสีย</th><th>อัตราเสีย</th><th class='num'>งานทุกขั้นตอน</th></tr></thead><tbody>" +
+      "<th class='num'>เสีย</th><th>อัตราเสีย</th><th class='num'>ชิ้น-ขั้นตอน</th></tr></thead><tbody>" +
       rows.map(function (r) {
         var qc = Number(r.qc) || 0, bad = Number(r.bad) || 0;
         var rate = qc + bad > 0 ? bad / (qc + bad) * 100 : 0;
