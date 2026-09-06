@@ -174,3 +174,21 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
 .stack{display:flex;flex-direction:column;gap:10px}
 .muted{color:var(--ink-3)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* แถบเมนูหน้าอื่น — โผล่เฉพาะหัวหน้า */
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
+       color:var(--ink-2);font-size:13.5px;background:var(--surface)}
+.nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+.nav[hidden]{display:none!important}
+
+/* รูปสินค้าประจำล็อต */
+.lotpic{
+  width:56px;height:56px;flex:none;border-radius:7px;border:1px solid var(--line);
+  background:var(--surface-2);object-fit:cover;display:block;
+}
+.lotpic.big{width:78px;height:78px;border-radius:8px}
+.lotpic.sm{width:42px;height:42px;border-radius:6px}
+.lotpic[hidden]{display:none!important}
+.withpic{display:flex;gap:12px;align-items:flex-start}
+.withpic .txt{flex:1;min-width:0}
