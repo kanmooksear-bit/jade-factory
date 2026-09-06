@@ -353,6 +353,29 @@ window.JADE = (function () {
     reader.readAsDataURL(file);
   }
 
+
+  /* ---------- รูปสินค้า: ดึงครั้งเดียวต่อรหัส แล้วจำไว้ ---------- */
+  var picCache = {};
+  function productPhoto(code, cb) {
+    if (!code) { cb(null); return; }
+    if (Object.prototype.hasOwnProperty.call(picCache, code)) { cb(picCache[code]); return; }
+    var m = me.get();
+    if (!m.name || !m.pin) { cb(null); return; }
+    rpc("app_product_photo", { p_name: m.name, p_pin: m.pin, p_code: code })
+      .then(function (r) { picCache[code] = (r && r.photo) || null; cb(picCache[code]); })
+      .catch(function () { picCache[code] = null; cb(null); });
+  }
+
+  // วางรูปลงใน <img> ที่ให้มา ซ่อนไว้ถ้าไม่มีรูป
+  function setPhoto(img, code, has) {
+    if (!img) return;
+    if (has === false) { img.hidden = true; return; }
+    productPhoto(code, function (src) {
+      if (src) { img.src = src; img.hidden = false; }
+      else { img.removeAttribute("src"); img.hidden = true; }
+    });
+  }
+
   function enhanceAll() { enhanceDates(); enhanceTimes(); }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enhanceAll);
@@ -369,6 +392,7 @@ window.JADE = (function () {
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
     shrinkImage: shrinkImage,
+    productPhoto: productPhoto, setPhoto: setPhoto,
     factory: CFG.factory || "โรงงานหยก"
   };
 })();
