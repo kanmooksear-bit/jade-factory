@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -29,6 +29,13 @@
   .rev .why{font-size:12.5px;color:var(--alert);margin-top:3px}
   .rev .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px}
   .rev.done{opacity:.55}
+  .edt{background:var(--surface-2);border-radius:8px;padding:12px;margin-top:9px}
+  .edt .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+  .edt label{display:block;font-size:11.5px;color:var(--ink-3);margin-bottom:4px}
+  .edt input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;
+             background:var(--paper);color:var(--ink);font-size:15px}
+  .edt .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  .edt[hidden]{display:none!important}
   .shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .shots img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer}
 
@@ -153,8 +160,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=7"></script>
-<script src="api.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="api.js?v=8"></script>
 <script>
 (function () {
   "use strict";
@@ -303,11 +310,13 @@
           (r.review_status === "approved" && r.reviewed_by
             ? '<div class="s">ยืนยันโดย ' + J.esc(r.reviewed_by) + "</div>" : "") +
           '<div class="tools">' +
+            '<button class="btn btn-sm" data-edit="' + J.esc(r.id) + '" type="button">แก้ไข</button>' +
             (r.photos
               ? '<button class="btn btn-sm btn-ghost" data-shots="' + J.esc(r.id) + '" type="button">ดูรูป ' + r.photos + " ใบ</button>"
               : '<span class="chip idle">ไม่มีรูปหลักฐาน</span>') +
           "</div>" +
           '<div class="shots" data-box="' + J.esc(r.id) + '"></div>' +
+          '<div class="edt" data-edt="' + J.esc(r.id) + '" hidden></div>' +
         "</div></div>";
     }).join("");
 
@@ -317,7 +326,55 @@
     Array.prototype.forEach.call($("list").querySelectorAll("[data-shots]"), function (b) {
       b.addEventListener("click", function () { showShots(b.dataset.shots, b); });
     });
+    Array.prototype.forEach.call($("list").querySelectorAll("[data-edit]"), function (b) {
+      b.addEventListener("click", function () { openEdit(b.dataset.edit); });
+    });
     sync();
+  }
+
+  function openEdit(id) {
+    var r = rows.filter(function (x) { return x.id === id; })[0];
+    var box = $("list").querySelector('[data-edt="' + id + '"]');
+    if (!r || !box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="row2">' +
+        '<div><label>จำนวนดี</label><input type="number" min="0" step="1" data-f="good" value="' + (r.qty_good || 0) + '"></div>' +
+        '<div><label>จำนวนเสีย</label><input type="number" min="0" step="1" data-f="bad" value="' + (r.qty_bad || 0) + '"></div>' +
+        '<div><label>วันที่ทำงาน</label><input type="text" data-f="date" placeholder="วว/ดด/ปปปป" value="' +
+          J.esc(J.formatThai(r.work_date)) + '"></div>' +
+        '<div><label>เริ่มกี่โมง</label><input type="text" data-f="t1" placeholder="ชช:นน" value="' + J.esc(r.time_start || "") + '"></div>' +
+        '<div><label>เสร็จกี่โมง</label><input type="text" data-f="t2" placeholder="ชช:นน" value="' + J.esc(r.time_end || "") + '"></div>' +
+      "</div>" +
+      '<div style="margin-top:10px"><label>หมายเหตุ</label>' +
+        '<input type="text" data-f="note" value="' + J.esc(r.note || "") + '"></div>' +
+      '<div class="acts">' +
+        '<button class="btn btn-sm btn-primary" data-save="1" type="button">บันทึกการแก้ไข</button>' +
+        '<button class="btn btn-sm btn-ghost" data-cancel="1" type="button">ยกเลิก</button>' +
+        '<span class="hint">การแก้ไขทุกครั้งถูกจดไว้ในห้อง Log</span>' +
+      "</div>";
+    var f = function (n) { return box.querySelector('[data-f="' + n + '"]'); };
+    box.querySelector("[data-cancel]").addEventListener("click", function () { box.hidden = true; });
+    box.querySelector("[data-save]").addEventListener("click", function () {
+      var iso = J.parseThai(f("date").value);
+      if (f("date").value && !iso) { J.msg($("rev-msg"), "วันที่ไม่ถูกต้อง — พิมพ์เป็น วว/ดด/ปปปป", "err"); return; }
+      var m = J.me.get();
+      box.querySelector("[data-save]").disabled = true;
+      J.rpc("app_edit_entry", {
+        p_name: m.name, p_pin: m.pin, p_id: id,
+        p_good: Number(f("good").value || 0), p_bad: Number(f("bad").value || 0),
+        p_date: iso || null, p_note: f("note").value,
+        p_time_start: J.parseTime(f("t1").value) || null,
+        p_time_end: J.parseTime(f("t2").value) || null
+      }).then(function () {
+        J.msg($("rev-msg"), "แก้ไขเรียบร้อย", "ok");
+        load();
+      }).catch(function (err) {
+        J.msg($("rev-msg"), err.message, "err");
+        box.querySelector("[data-save]").disabled = false;
+      });
+    });
   }
 
   function showShots(id, btn) {
