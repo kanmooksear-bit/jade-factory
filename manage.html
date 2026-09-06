@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -93,6 +93,8 @@
     <div class="tabs">
       <button class="tab" id="tab-emp" aria-selected="true" type="button">พนักงาน</button>
       <button class="tab" id="tab-prod" aria-selected="false" type="button">สินค้า</button>
+      <button class="tab" id="tab-mach" aria-selected="false" type="button">เครื่องจักร</button>
+      <button class="tab" id="tab-step" aria-selected="false" type="button">ขั้นตอน</button>
       <button class="tab" id="tab-shot" aria-selected="false" type="button">รูปหลักฐาน</button>
     </div>
 
@@ -208,6 +210,71 @@
       </div>
     </div>
 
+    <div id="pane-mach" hidden>
+      <div class="card">
+        <h2 id="mach-title">เพิ่มเครื่องใหม่</h2>
+        <div class="msg" id="mach-msg" hidden></div>
+        <div class="two">
+          <div class="field"><label for="m-name">ชื่อเครื่อง</label>
+            <input id="m-name" type="text" placeholder="เช่น 5 แกน"></div>
+          <div class="field"><label for="m-kind">ชนิด (ไม่บังคับ)</label>
+            <input id="m-kind" type="text" placeholder="เช่น Rotor / 4 Axis"></div>
+        </div>
+        <div class="field"><label for="m-active">สถานะ</label>
+          <select id="m-active">
+            <option value="1">ใช้งานอยู่</option>
+            <option value="0">ปิดใช้ / ส่งซ่อม</option>
+          </select></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="m-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+          <button class="btn btn-primary" id="m-save" type="button">บันทึก</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>เครื่องในระบบ</h2>
+        <div id="mach-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
+    <div id="pane-step" hidden>
+      <div class="card">
+        <h2 id="step-title">เพิ่มขั้นตอนใหม่</h2>
+        <div class="msg" id="step-msg" hidden></div>
+        <div class="two">
+          <div class="field"><label for="t-name">ชื่อขั้นตอน</label>
+            <input id="t-name" type="text" placeholder="เช่น เขย่า 5000"></div>
+          <div class="field"><label for="t-seq">ลำดับในสายผลิต</label>
+            <input id="t-seq" type="number" min="1" step="1" placeholder="เช่น 20"></div>
+        </div>
+        <div class="two">
+          <div class="field"><label for="t-qc">เป็นขั้นตอน QC ไหม</label>
+            <select id="t-qc">
+              <option value="0">ไม่ใช่</option>
+              <option value="1">ใช่ — ยอดผลิตจริงนับจากขั้นนี้</option>
+            </select></div>
+          <div class="field"><label for="t-mach">ต้องเลือกเครื่องไหม</label>
+            <select id="t-mach">
+              <option value="0">ไม่ต้อง</option>
+              <option value="1">ต้องเลือกเครื่อง (แบบ CNC)</option>
+            </select></div>
+        </div>
+        <div class="field"><label for="t-active">สถานะ</label>
+          <select id="t-active">
+            <option value="1">ใช้งานอยู่</option>
+            <option value="0">ปิดใช้ / เลิกทำแล้ว</option>
+          </select></div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="t-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+          <button class="btn btn-primary" id="t-save" type="button">บันทึก</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>ขั้นตอนในสายผลิต</h2>
+        <p class="hint" style="margin-bottom:10px">ขั้นตอนที่มีการลงงานแล้วจะลบไม่ได้ — ปิดใช้แทน ข้อมูลเก่ายังอยู่ครบ</p>
+        <div id="step-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
     <div id="pane-shot" hidden>
       <div class="card">
         <h2>ตรวจหลักฐานงาน</h2>
@@ -242,8 +309,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=7"></script>
-<script src="api.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="api.js?v=8"></script>
 <script>
 (function () {
   "use strict";
@@ -300,13 +367,15 @@
 
   /* ---------- แท็บ ---------- */
   function setTab(which) {
-    ["emp", "prod", "shot"].forEach(function (k) {
+    ["emp", "prod", "mach", "step", "shot"].forEach(function (k) {
       $("tab-" + k).setAttribute("aria-selected", String(k === which));
       $("pane-" + k).hidden = k !== which;
     });
   }
   $("tab-emp").addEventListener("click", function () { setTab("emp"); });
   $("tab-prod").addEventListener("click", function () { setTab("prod"); });
+  $("tab-mach").addEventListener("click", function () { setTab("mach"); loadMachines(); });
+  $("tab-step").addEventListener("click", function () { setTab("step"); loadSteps(); });
   $("tab-shot").addEventListener("click", function () { setTab("shot"); });
 
   /* ---------- พนักงาน ---------- */
@@ -486,6 +555,110 @@
   }
 
   /* ---------- รูปหลักฐาน ---------- */
+  var editMach = null;
+  function resetMachForm() {
+    editMach = null;
+    $("mach-title").textContent = "เพิ่มเครื่องใหม่";
+    $("m-name").value = ""; $("m-kind").value = ""; $("m-active").value = "1";
+    $("m-cancel").hidden = true;
+  }
+  $("m-cancel").addEventListener("click", resetMachForm);
+
+  $("m-save").addEventListener("click", function () {
+    var m = J.me.get();
+    $("m-save").disabled = true;
+    J.rpc("sup_save_machine", {
+      p_name: m.name, p_pin: m.pin, p_target: editMach,
+      p_new_name: $("m-name").value, p_kind: $("m-kind").value || null,
+      p_active: $("m-active").value === "1"
+    }).then(function (r) {
+      J.msg($("mach-msg"), (r.created ? "เพิ่มเครื่อง " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
+      resetMachForm(); loadMachines();
+    }).catch(function (err) { J.msg($("mach-msg"), err.message, "err"); })
+      .then(function () { $("m-save").disabled = false; });
+  });
+
+  function loadMachines() {
+    var m = J.me.get();
+    J.rpc("sup_machines", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      $("mach-list").innerHTML = list.map(function (x) {
+        return '<div class="item' + (x.active ? "" : " off") + '">' +
+          '<span class="thumb ph">' + J.esc(x.kind || "—") + "</span>" +
+          '<span class="main"><span class="t">' + J.esc(x.name) +
+          (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') + "</span><br>" +
+          '<span class="s">ใช้ลงงานไปแล้ว ' + J.nf.format(x.entries) + " รายการ</span></span>" +
+          '<span class="act"><button class="btn btn-sm" data-mach="' + J.esc(x.name) + '" type="button">แก้ไข</button></span>' +
+          "</div>";
+      }).join("");
+      Array.prototype.forEach.call($("mach-list").querySelectorAll("[data-mach]"), function (b) {
+        b.addEventListener("click", function () {
+          var x = list.filter(function (y) { return y.name === b.dataset.mach; })[0];
+          editMach = x.name;
+          $("mach-title").textContent = "แก้ไข: " + x.name;
+          $("m-name").value = x.name; $("m-kind").value = x.kind || "";
+          $("m-active").value = x.active ? "1" : "0";
+          $("m-cancel").hidden = false;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+    }).catch(function (err) { $("mach-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  var editStep = null;
+  function resetStepForm() {
+    editStep = null;
+    $("step-title").textContent = "เพิ่มขั้นตอนใหม่";
+    $("t-name").value = ""; $("t-seq").value = "";
+    $("t-qc").value = "0"; $("t-mach").value = "0"; $("t-active").value = "1";
+    $("t-cancel").hidden = true;
+  }
+  $("t-cancel").addEventListener("click", resetStepForm);
+
+  $("t-save").addEventListener("click", function () {
+    var m = J.me.get();
+    $("t-save").disabled = true;
+    J.rpc("sup_save_step", {
+      p_name: m.name, p_pin: m.pin, p_target: editStep,
+      p_new_name: $("t-name").value, p_seq: Number($("t-seq").value || 0),
+      p_is_qc: $("t-qc").value === "1", p_needs_machine: $("t-mach").value === "1",
+      p_active: $("t-active").value === "1"
+    }).then(function (r) {
+      J.msg($("step-msg"), "บันทึกขั้นตอน " + r.name + " เรียบร้อย", "ok");
+      resetStepForm(); loadSteps();
+    }).catch(function (err) { J.msg($("step-msg"), err.message, "err"); })
+      .then(function () { $("t-save").disabled = false; });
+  });
+
+  function loadSteps() {
+    var m = J.me.get();
+    J.rpc("sup_steps", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      $("step-list").innerHTML = list.map(function (x) {
+        return '<div class="item' + (x.active ? "" : " off") + '">' +
+          '<span class="thumb ph">' + J.nf.format(x.seq) + "</span>" +
+          '<span class="main"><span class="t">' + J.esc(x.name) +
+          (x.is_qc ? ' <span class="chip ok">QC</span>' : "") +
+          (x.needs_machine ? ' <span class="chip warn">ใช้เครื่อง</span>' : "") +
+          (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') + "</span><br>" +
+          '<span class="s">ลงงานไปแล้ว ' + J.nf.format(x.entries) + " รายการ</span></span>" +
+          '<span class="act"><button class="btn btn-sm" data-step="' + J.esc(x.name) + '" type="button">แก้ไข</button></span>' +
+          "</div>";
+      }).join("");
+      Array.prototype.forEach.call($("step-list").querySelectorAll("[data-step]"), function (b) {
+        b.addEventListener("click", function () {
+          var x = list.filter(function (y) { return y.name === b.dataset.step; })[0];
+          editStep = x.name;
+          $("step-title").textContent = "แก้ไข: " + x.name;
+          $("t-name").value = x.name; $("t-seq").value = x.seq;
+          $("t-qc").value = x.is_qc ? "1" : "0";
+          $("t-mach").value = x.needs_machine ? "1" : "0";
+          $("t-active").value = x.active ? "1" : "0";
+          $("t-cancel").hidden = false;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+    }).catch(function (err) { $("step-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
   function loadLotOptions() {
     var m = J.me.get();
     J.rpc("sup_lots", { p_name: m.name, p_pin: m.pin, p_status: "all" }).then(function (list) {
