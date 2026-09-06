@@ -180,7 +180,9 @@ window.JADE = (function () {
     inp.setAttribute("maxlength", "10");
     inp.placeholder = "วว/ดด/ปปปป";
 
-    var iso = "";
+    // ถ้าโค้ดตั้งค่าไว้ก่อนที่ช่องจะถูกแปลง ต้องไม่ทำค่านั้นหาย
+    var iso = String(NATIVE.get.call(inp) || "").slice(0, 10);
+    if (iso && iso.indexOf("-") === -1) iso = "";
 
     var row = document.createElement("div");
     row.className = "daterow";
@@ -228,6 +230,8 @@ window.JADE = (function () {
       if (iso) NATIVE.set.call(inp, formatThai(iso));
       paint();
     });
+
+    NATIVE.set.call(inp, iso ? formatThai(iso) : "");
 
     btn.addEventListener("click", function () {
       inp.value = today();
@@ -280,7 +284,8 @@ window.JADE = (function () {
     inp.setAttribute("maxlength", "5");
     inp.placeholder = "ชช:นน";
 
-    var val = "";
+    var val = parseTime(NATIVE.get.call(inp));
+    NATIVE.set.call(inp, val);
 
     var row = document.createElement("div");
     row.className = "daterow";
