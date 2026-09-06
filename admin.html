@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -131,8 +131,8 @@
   </section>
 </main>
 
-<script src="config.js?v=7"></script>
-<script src="api.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="api.js?v=8"></script>
 <script>
 (function () {
   "use strict";
@@ -246,12 +246,17 @@
           "</div>" +
           '<span class="bar"><i style="width:' + done.toFixed(1) + '%"></i></span>' +
           (l.note ? '<p class="hint" style="margin:8px 0 0">' + J.esc(l.note) + "</p>" : "") +
-          '<div class="lot-actions"><button class="btn btn-sm ' +
-            (l.status === "open" ? "btn-danger" : "") + '" data-toggle="' + J.esc(l.code) +
-            '" data-reopen="' + (l.status === "closed") + '" type="button">' +
-            (l.status === "open" ? "ปิดล็อต" : "เปิดล็อตใหม่") + "</button></div>" +
+          '<div class="lot-actions">' +
+            '<button class="btn btn-sm" data-fix="' + J.esc(l.code) + '" type="button">แก้ล็อต</button> ' +
+            '<button class="btn btn-sm ' + (l.status === "open" ? "btn-danger" : "") +
+            '" data-toggle="' + J.esc(l.code) + '" data-reopen="' + (l.status === "closed") +
+            '" type="button">' + (l.status === "open" ? "ปิดล็อต" : "เปิดล็อตใหม่") + "</button></div>" +
+          '<div class="edt" data-edt="' + J.esc(l.code) + '" hidden></div>' +
           "</div>";
       }).join("");
+      Array.prototype.forEach.call($("lots").querySelectorAll("[data-fix]"), function (b) {
+        b.addEventListener("click", function () { openLotFix(b.dataset.fix, list); });
+      });
       Array.prototype.forEach.call($("lots").querySelectorAll("[data-toggle]"), function (b) {
         b.addEventListener("click", function () {
           var reopen = b.dataset.reopen === "true";
@@ -263,6 +268,57 @@
         });
       });
     }).catch(function (err) { $("lots").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  function openLotFix(code, list) {
+    var l = list.filter(function (x) { return x.code === code; })[0];
+    var box = $("lots").querySelector('[data-edt="' + code + '"]');
+    if (!l || !box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    var used = (Number(l.qc_passed) || 0) + (Number(l.qc_pending) || 0) +
+               (Number(l.total_bad) || 0) + (Number(l.bad_pending) || 0);
+    box.innerHTML =
+      '<div class="row2">' +
+        '<div><label>จำนวนที่เปิดล็อต</label><input type="number" min="1" step="1" data-f="qty" value="' +
+          (l.qty_opened || 0) + '"></div>' +
+        '<div><label>กำหนดส่ง (เว้นว่าง = ไม่กำหนด)</label><input type="text" data-f="due" placeholder="วว/ดด/ปปปป" value="' +
+          J.esc(l.due_date ? J.formatThai(l.due_date) : "") + '"></div>' +
+      "</div>" +
+      '<div style="margin-top:9px"><label>หมายเหตุ</label>' +
+        '<input type="text" data-f="note" value="' + J.esc(l.note || "") + '"></div>' +
+      '<p class="hint" style="margin:8px 0 0">ล็อตนี้ผ่าน QC และเสียไปแล้วรวม ' + J.nf.format(used) +
+        ' ชิ้น — ลดจำนวนต่ำกว่านี้ไม่ได้</p>' +
+      '<div class="acts">' +
+        '<button class="btn btn-sm btn-primary" data-save="1" type="button">บันทึก</button>' +
+        '<button class="btn btn-sm btn-ghost" data-cancel="1" type="button">ยกเลิก</button>' +
+        (used === 0
+          ? '<button class="btn btn-sm btn-danger" data-del="1" type="button">ลบล็อตนี้ทิ้ง</button>'
+          : '<span class="hint">ลบไม่ได้เพราะมีการลงงานแล้ว — ใช้ปิดล็อตแทน</span>') +
+      "</div>";
+    var f = function (n) { return box.querySelector('[data-f="' + n + '"]'); };
+    box.querySelector("[data-cancel]").addEventListener("click", function () { box.hidden = true; });
+    box.querySelector("[data-save]").addEventListener("click", function () {
+      var dueRaw = f("due").value.trim();
+      var due = dueRaw ? J.parseThai(dueRaw) : null;
+      if (dueRaw && !due) { J.msg($("lot-msg"), "กำหนดส่งไม่ถูกต้อง — พิมพ์เป็น วว/ดด/ปปปป", "err"); return; }
+      var m = J.me.get();
+      J.rpc("sup_edit_lot", {
+        p_name: m.name, p_pin: m.pin, p_code: code,
+        p_qty: Number(f("qty").value || 0) || null,
+        p_due: due, p_clear_due: !dueRaw,
+        p_note: f("note").value
+      }).then(function () { J.msg($("lot-msg"), "แก้ล็อต " + code + " เรียบร้อย", "ok"); loadLots(); })
+        .catch(function (err) { J.msg($("lot-msg"), err.message, "err"); });
+    });
+    var del = box.querySelector("[data-del]");
+    if (del) del.addEventListener("click", function () {
+      if (!confirm("ลบล็อต " + code + " ทิ้งถาวร?")) return;
+      var m = J.me.get();
+      J.rpc("sup_delete_lot", { p_name: m.name, p_pin: m.pin, p_code: code })
+        .then(function () { J.msg($("lot-msg"), "ลบล็อต " + code + " แล้ว", "ok"); loadLots(); })
+        .catch(function (err) { J.msg($("lot-msg"), err.message, "err"); });
+    });
   }
 
   $("s-go").addEventListener("click", function () {
