@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -109,6 +109,8 @@
     <a href="admin.html">หน้าหัวหน้า</a>
     <a href="review.html">ตรวจงาน</a>
     <a href="dashboard.html" class="on">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
     <a href="manage.html">ตั้งค่า</a>
     <a href="log.html">Log</a>
   </nav>
@@ -229,8 +231,8 @@
   </div>
 </main>
 
-<script src="config.js?v=8"></script>
-<script src="api.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="api.js?v=9"></script>
 <script>
 (function () {
   "use strict";
@@ -305,6 +307,7 @@
   $("r-lot").addEventListener("change", load);
   $("r-30").addEventListener("click", function () { setLast30(); load(); });
 
+  /* ---------- โหลดและวาด ---------- */
   function load() {
     var m = J.me.get();
     J.rpc("sup_dashboard", {
@@ -315,6 +318,7 @@
   }
 
   /* ---------- ตัวช่วยเรื่องล็อต ---------- */
+  // ป้ายบอกล็อตท้ายชื่อหัวข้อทุกกล่อง
   function paintScope(lot) {
     var txt = lot ? "ล็อต " + lot : "ทุกล็อต";
     Array.prototype.forEach.call(document.querySelectorAll(".sec-head"), function (h) {
@@ -324,6 +328,7 @@
     });
   }
 
+  // รายชื่อล็อตท้ายแต่ละแถว — ถ้ากรองล็อตเดียวอยู่แล้วก็ไม่ต้องซ้ำ
   function lotTag(arr, one) {
     if (one || !arr || !arr.length) return "";
     var a = arr.slice(0, 3).join(" · ");
@@ -421,7 +426,7 @@
   function rateFoot(d, mins, recorded) {
     if (!mins) return "ยังไม่มีใครลงเวลา";
     var t = d.timed;
-    if (!t || t.pieces == null) {
+    if (!t || t.pieces == null) {                       // ฐานข้อมูลรุ่นเก่า — ไม่แสดงอัตราที่เชื่อไม่ได้
       return "ยังเทียบอัตราไม่ได้ (ต้องอัปเดตฐานข้อมูล)";
     }
     var tm = Number(t.minutes) || 0, tp = Number(t.pieces) || 0;
@@ -442,7 +447,7 @@
     }, 0);
     var mins = Number(d.minutes) || 0;
     var pend = d.pending || {}, rej = Number(d.rejected) || 0;
-    var base = Number(d.lot_base) || 0;
+    var base = Number(d.lot_base) || 0;   // จำนวนที่เปิดล็อต = ตัวหารที่ถูกของอัตราของเสีย
     var tiles = [
       { k: "ผ่าน QC (ยืนยันแล้ว)", v: J.nf.format(qc), u: "ชิ้น",
         f: qc ? (out.lots || 0) + " ล็อตที่มีการตรวจ" : "ยังไม่มีล็อตไหนผ่าน QC ที่ยืนยันแล้ว" },
@@ -477,7 +482,7 @@
     }
     var topQ = Math.max.apply(null, rows.map(function (r) { return Number(r.qc) || 0; }));
     var topB = Math.max.apply(null, rows.map(function (r) { return Number(r.bad) || 0; }));
-    var maxQ = topQ || 1, maxB = topB || 1;
+    var maxQ = topQ || 1, maxB = topB || 1;   // ใช้แค่คิดความสูงแท่ง
     var every = rows.length > 16 ? Math.ceil(rows.length / 12) : 1;
 
     host.innerHTML = rows.map(function (r) {
@@ -547,7 +552,7 @@
     var max = Math.max.apply(null, rows.map(function (r) { return Number(r.qty) || 0; })) || 1;
     $("byemp").innerHTML = rows.map(function (r) {
       var q = Number(r.qty) || 0, b = Number(r.bad) || 0, mi = Number(r.minutes) || 0;
-      var tq = r.timed_qty == null ? null : Number(r.timed_qty) || 0;
+      var tq = r.timed_qty == null ? null : Number(r.timed_qty) || 0;   // ชิ้นเฉพาะรายการที่ลงเวลา
       return '<div class="hrow"><span class="hname">' + J.esc(r.name) + lotTag(r.lots, one) + "</span>" +
         '<span class="htrack"><span class="hfill" style="width:' + (q / max * 100).toFixed(1) + '%"></span></span>' +
         '<span class="hval">' + J.nf.format(q) +
@@ -594,6 +599,7 @@
     var list = rows.filter(function (r) { return (Number(r.minutes) || 0) > 0; })
       .map(function (r) {
         var mi = Number(r.minutes) || 0;
+        // นับเฉพาะชิ้นของรายการที่ลงเวลา ให้เข้าคู่กับชั่วโมงที่ลงไว้
         var q = r.timed_qty == null
           ? (Number(r.qty) || 0) + (Number(r.bad) || 0)
           : Number(r.timed_qty) || 0;
@@ -664,6 +670,7 @@
       }).join("") + "</tbody>";
   }
 
+  /* ---------- เริ่ม ---------- */
   if (!J.configured()) {
     J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js — ใส่ PROJECT URL และ ANON KEY จาก Supabase ก่อน", "err");
   } else {

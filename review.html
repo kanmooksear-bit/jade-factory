@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -34,7 +34,7 @@
   .edt label{display:block;font-size:11.5px;color:var(--ink-3);margin-bottom:4px}
   .edt input{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;
              background:var(--paper);color:var(--ink);font-size:15px}
-  .edt .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  .edt .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
   .edt[hidden]{display:none!important}
   .shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .shots img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer}
@@ -81,6 +81,8 @@
     <a href="admin.html">หน้าหัวหน้า</a>
     <a href="review.html" class="on">ตรวจงาน</a>
     <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
     <a href="manage.html">ตั้งค่า</a>
     <a href="log.html">Log</a>
   </nav>
@@ -160,8 +162,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=8"></script>
-<script src="api.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="api.js?v=9"></script>
 <script>
 (function () {
   "use strict";
@@ -332,6 +334,32 @@
     sync();
   }
 
+  function showShots(id, btn) {
+    var box = $("list").querySelector('[data-box="' + id + '"]');
+    if (!box || box.dataset.loaded) return;
+    box.dataset.loaded = "1";
+    if (btn) { btn.disabled = true; btn.textContent = "กำลังโหลดรูป…"; }
+    var m = J.me.get();
+    J.rpc("app_entry_photos", { p_name: m.name, p_pin: m.pin, p_entry: id })
+      .then(function (ph) {
+        box.innerHTML = ph.map(function (x) {
+          return '<img src="' + x.data + '" alt="รูปหลักฐาน">';
+        }).join("");
+        Array.prototype.forEach.call(box.querySelectorAll("img"), function (im) {
+          im.addEventListener("click", function () {
+            $("lightbox-img").src = im.src;
+            $("lightbox").hidden = false;
+          });
+        });
+        if (btn) btn.remove();
+      })
+      .catch(function () {
+        box.dataset.loaded = "";
+        if (btn) { btn.disabled = false; btn.textContent = "โหลดรูปไม่สำเร็จ — ลองใหม่"; }
+      });
+  }
+
+  /* ---------- แก้ไขรายการ ---------- */
   function openEdit(id) {
     var r = rows.filter(function (x) { return x.id === id; })[0];
     var box = $("list").querySelector('[data-edt="' + id + '"]');
@@ -375,31 +403,6 @@
         box.querySelector("[data-save]").disabled = false;
       });
     });
-  }
-
-  function showShots(id, btn) {
-    var box = $("list").querySelector('[data-box="' + id + '"]');
-    if (!box || box.dataset.loaded) return;
-    box.dataset.loaded = "1";
-    if (btn) { btn.disabled = true; btn.textContent = "กำลังโหลดรูป…"; }
-    var m = J.me.get();
-    J.rpc("app_entry_photos", { p_name: m.name, p_pin: m.pin, p_entry: id })
-      .then(function (ph) {
-        box.innerHTML = ph.map(function (x) {
-          return '<img src="' + x.data + '" alt="รูปหลักฐาน">';
-        }).join("");
-        Array.prototype.forEach.call(box.querySelectorAll("img"), function (im) {
-          im.addEventListener("click", function () {
-            $("lightbox-img").src = im.src;
-            $("lightbox").hidden = false;
-          });
-        });
-        if (btn) btn.remove();
-      })
-      .catch(function () {
-        box.dataset.loaded = "";
-        if (btn) { btn.disabled = false; btn.textContent = "โหลดรูปไม่สำเร็จ — ลองใหม่"; }
-      });
   }
 
   $("shot-all").addEventListener("click", function () {

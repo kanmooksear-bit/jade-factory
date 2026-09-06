@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>ต้นทุนการผลิต — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=9">
+<style>
+  .wrap{max-width:1080px}
+  .topbar-in{max-width:1080px}
+  .secret{background:var(--gold-soft);color:var(--gold);border-radius:7px;padding:10px 13px;
+          font-size:13px;margin-bottom:16px}
+  .range{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+  .range .field{margin:0;min-width:170px}
+
+  section{margin-bottom:26px}
+  .sec-head{display:flex;gap:8px 16px;align-items:baseline;justify-content:space-between;
+            flex-wrap:wrap;margin-bottom:10px}
+  .sec-head h2{font-size:19px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+
+  .kpis{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;
+       display:flex;flex-direction:column;gap:2px}
+  .kpi .k{font-size:11.5px;letter-spacing:.08em;color:var(--ink-3)}
+  .kpi .v{font-family:var(--display);font-size:27px;font-weight:600;line-height:1.15;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:12px;font-weight:400;color:var(--ink-3);margin-inline-start:4px}
+  .kpi .f{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .kpi.big .v{color:var(--jade-ink);font-size:31px}
+  .kpi.big{border-color:var(--jade)}
+  .kpi.bad .v{color:var(--alert)}
+  .kpi.warn .v{color:var(--amber)}
+
+  .stack-bar{display:flex;height:26px;border-radius:6px;overflow:hidden;margin:12px 0 8px;background:var(--surface-2)}
+  .stack-bar i{display:block;height:100%}
+  .legend-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--ink-2)}
+  .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;margin-inline-end:6px;vertical-align:-1px}
+  .empty{padding:30px 10px;text-align:center;color:var(--ink-3);font-size:14px}
+  td.money,th.money{text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">ต้นทุนการผลิต</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html" class="on">ต้นทุน</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <p class="secret">หน้านี้มีข้อมูลต้นทุน ค่าแรง และราคาขาย — พนักงานเข้าไม่ได้ ระบบเช็ค PIN ที่ฝั่งฐานข้อมูลทุกครั้ง</p>
+
+    <div class="card" style="margin-bottom:16px">
+      <h2>สูตรที่ใช้คิด</h2>
+      <p class="hint" style="margin-bottom:12px">ต้นทุน/ชิ้น = (ค่าหยกของล็อต + ค่าแรงจากชั่วโมงที่ลงจริง + ค่าโสหุ้ย) ÷ ชิ้นที่ผ่าน QC</p>
+      <div class="two">
+        <div class="field">
+          <label for="s-hpd">ชั่วโมงทำงานต่อวัน</label>
+          <input id="s-hpd" type="number" min="1" max="24" step="0.5">
+        </div>
+        <div class="field">
+          <label for="s-oh">ค่าโสหุ้ยต่อชั่วโมงงาน (บาท)</label>
+          <input id="s-oh" type="number" min="0" step="1">
+        </div>
+      </div>
+      <div class="msg" id="set-msg" hidden></div>
+      <button class="btn" id="s-save" type="button">บันทึกค่าตั้งต้น</button>
+      <p class="hint" style="margin-top:10px">ค่าแรงรายวันของแต่ละคนตั้งที่หน้า ตั้งค่า → พนักงาน · ค่าหยกของแต่ละล็อตกรอกได้ในตารางข้างล่าง</p>
+    </div>
+
+    <div class="range">
+      <div class="field"><label for="r-status">แสดงล็อต</label>
+        <select id="r-status">
+          <option value="all">ทุกล็อต</option>
+          <option value="open">ที่กำลังทำ</option>
+          <option value="closed">ที่ปิดแล้ว</option>
+        </select></div>
+      <button class="btn" id="r-go" type="button">โหลดใหม่</button>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <section>
+      <div class="sec-head">
+        <h2>ต้นทุนรายล็อต</h2>
+        <span class="hint">กรอกค่าหยกในช่องได้เลย แล้วกด Enter</span>
+      </div>
+      <div class="panel scroll"><table id="lots"></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>เจาะดูทีละล็อต</h2>
+        <span class="hint">เลือกล็อตเพื่อดูว่าต้นทุนไปอยู่ที่ขั้นตอนไหน ใครบ้าง</span>
+      </div>
+      <div class="field" style="max-width:340px">
+        <label for="d-lot">ล็อต</label>
+        <select id="d-lot"><option value="">— เลือกล็อต —</option></select>
+      </div>
+      <div id="detail"></div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js?v=9"></script>
+<script src="api.js?v=9"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var rows = [];
+
+  $("factory").textContent = J.factory;
+
+  var baht = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function money(v) { return baht.format(Number(v) || 0); }
+  function hoursTxt(min) {
+    var m = Number(min) || 0;
+    if (!m) return "—";
+    return (m / 60).toFixed(1) + " ชม.";
+  }
+
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    loadSettings();
+    load();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_settings", { p_name: name, p_pin: pin }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- ค่าตั้งต้น ---------- */
+  function loadSettings() {
+    var m = J.me.get();
+    J.rpc("sup_settings", { p_name: m.name, p_pin: m.pin }).then(function (s) {
+      $("s-hpd").value = s.hours_per_day == null ? 8 : s.hours_per_day;
+      $("s-oh").value = s.overhead_per_hour == null ? 0 : s.overhead_per_hour;
+    }).catch(function () {});
+  }
+
+  $("s-save").addEventListener("click", function () {
+    var m = J.me.get();
+    $("s-save").disabled = true;
+    J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "hours_per_day", p_num: Number($("s-hpd").value) })
+      .then(function () {
+        return J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "overhead_per_hour", p_num: Number($("s-oh").value) });
+      })
+      .then(function () { J.msg($("set-msg"), "บันทึกแล้ว — ตัวเลขข้างล่างคิดใหม่ให้เลย", "ok"); load(); })
+      .catch(function (err) { J.msg($("set-msg"), err.message, "err"); })
+      .then(function () { $("s-save").disabled = false; });
+  });
+
+  /* ---------- ตารางต้นทุน ---------- */
+  $("r-go").addEventListener("click", load);
+  $("r-status").addEventListener("change", load);
+
+  function load() {
+    var m = J.me.get();
+    $("lots").innerHTML = '<tr><td class="empty">กำลังโหลด…</td></tr>';
+    J.rpc("sup_costs", { p_name: m.name, p_pin: m.pin, p_status: $("r-status").value })
+      .then(function (list) { rows = list || []; render(); })
+      .catch(function (err) { $("lots").innerHTML = '<tr><td class="empty">' + J.esc(err.message) + "</td></tr>"; });
+  }
+
+  function render() {
+    // ---- สรุปรวม ----
+    var mat = 0, lab = 0, oh = 0, qc = 0, noMat = 0;
+    rows.forEach(function (r) {
+      mat += Number(r.material) || 0;
+      lab += Number(r.labour) || 0;
+      oh  += Number(r.overhead) || 0;
+      qc  += Number(r.qc_passed) || 0;
+      if (!r.material_set) noMat++;
+    });
+    var tot = mat + lab + oh;
+    var pct = function (v) { return tot ? (v / tot * 100) : 0; };
+
+    $("kpis").innerHTML = [
+      { k: "ต้นทุนรวมทุกล็อต", v: money(tot), u: "บาท",
+        f: J.nf.format(rows.length) + " ล็อต", big: true },
+      { k: "ต้นทุนเฉลี่ยต่อชิ้น", v: qc ? money(tot / qc) : "—", u: "บาท",
+        f: qc ? "จาก " + J.nf.format(qc) + " ชิ้นที่ผ่าน QC" : "ยังไม่มีชิ้นผ่าน QC" },
+      { k: "ค่าหยก", v: money(mat), u: "บาท", f: pct(mat).toFixed(0) + "% ของต้นทุน",
+        warn: noMat > 0 },
+      { k: "ค่าแรง", v: money(lab), u: "บาท", f: pct(lab).toFixed(0) + "% ของต้นทุน" },
+      { k: "ค่าโสหุ้ย", v: money(oh), u: "บาท", f: pct(oh).toFixed(0) + "% ของต้นทุน" }
+    ].map(function (t) {
+      return '<div class="kpi' + (t.big ? " big" : t.warn ? " warn" : "") + '">' +
+        '<span class="k">' + J.esc(t.k) + '</span><span class="v">' + t.v +
+        "<small>" + J.esc(t.u) + '</small></span><span class="f">' + J.esc(t.f) + "</span></div>";
+    }).join("");
+
+    if (noMat) {
+      $("kpis").insertAdjacentHTML("afterend",
+        '<p class="msg warn" style="margin-bottom:16px">ยังไม่ได้กรอกค่าหยกให้ ' + noMat +
+        ' ล็อต — ต้นทุนของล็อตพวกนั้นจะต่ำกว่าความจริง กรอกในตารางข้างล่างได้เลย</p>');
+    }
+
+    if (!rows.length) {
+      $("lots").innerHTML = '<tr><td class="empty">ยังไม่มีล็อต</td></tr>';
+      $("d-lot").innerHTML = '<option value="">— เลือกล็อต —</option>';
+      return;
+    }
+
+    $("lots").innerHTML =
+      "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>ผ่าน QC</th>" +
+      "<th class='money'>ค่าหยก (กรอกได้)</th><th class='money'>ค่าแรง</th><th class='money'>โสหุ้ย</th>" +
+      "<th class='money'>รวม</th><th class='money'>ต่อชิ้น</th><th class='money'>ราคาขาย</th><th>กำไร/ชิ้น</th></tr></thead><tbody>" +
+      rows.map(function (r) {
+        var pp = r.per_piece == null ? null : Number(r.per_piece);
+        var price = r.price == null ? null : Number(r.price);
+        var gain = (pp != null && price != null) ? price - pp : null;
+        return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.product_code) + " " +
+          J.esc(r.product_name) + "</td><td class='num'>" + J.nf.format(r.qc_passed) + "</td>" +
+          '<td class="money"><input type="number" min="0" step="1" data-mat="' + J.esc(r.code) +
+            '" value="' + (r.material_set ? Number(r.material) : "") +
+            '" placeholder="ยังไม่กรอก" style="width:120px;padding:6px 8px;border:1px solid ' +
+            (r.material_set ? "var(--line)" : "var(--amber)") +
+            ';border-radius:6px;background:var(--paper);color:var(--ink);text-align:end;font-size:14px"></td>' +
+          '<td class="money">' + money(r.labour) + "</td>" +
+          '<td class="money">' + money(r.overhead) + "</td>" +
+          '<td class="money"><b>' + money(r.total) + "</b></td>" +
+          '<td class="money">' + (pp == null ? "—" : money(pp)) + "</td>" +
+          '<td class="money">' + (price == null ? "—" : money(price)) + "</td>" +
+          "<td>" + (gain == null ? "—"
+            : '<span class="chip ' + (gain > 0 ? "ok" : "bad") + '">' + money(gain) + "</span>") + "</td></tr>";
+      }).join("") + "</tbody>";
+
+    Array.prototype.forEach.call($("lots").querySelectorAll("[data-mat]"), function (inp) {
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") inp.blur(); });
+      inp.addEventListener("change", function () {
+        var m = J.me.get();
+        var v = inp.value === "" ? null : Number(inp.value);
+        inp.disabled = true;
+        J.rpc("sup_set_lot_cost", { p_name: m.name, p_pin: m.pin, p_code: inp.dataset.mat, p_cost: v })
+          .then(function () { load(); })
+          .catch(function (err) { alert(err.message); inp.disabled = false; });
+      });
+    });
+
+    var keep = $("d-lot").value;
+    $("d-lot").innerHTML = '<option value="">— เลือกล็อต —</option>' +
+      rows.map(function (r) {
+        return '<option value="' + J.esc(r.code) + '">' + J.esc(r.code) + " · " +
+          J.esc(r.product_code) + "</option>";
+      }).join("");
+    $("d-lot").value = keep;
+    if (keep) loadDetail();
+  }
+
+  /* ---------- เจาะทีละล็อต ---------- */
+  $("d-lot").addEventListener("change", loadDetail);
+
+  function loadDetail() {
+    var code = $("d-lot").value;
+    if (!code) { $("detail").innerHTML = ""; return; }
+    var m = J.me.get();
+    $("detail").innerHTML = '<p class="hint">กำลังโหลด…</p>';
+    J.rpc("sup_lot_cost", { p_name: m.name, p_pin: m.pin, p_code: code })
+      .then(renderDetail)
+      .catch(function (err) { $("detail").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  function renderDetail(d) {
+    var p = d.product || {};
+    var mat = Number(d.material) || 0, lab = Number(d.labour) || 0, oh = Number(d.overhead) || 0;
+    var tot = mat + lab + oh;
+    var w = function (v) { return tot ? (v / tot * 100).toFixed(1) + "%" : "0%"; };
+    var pp = d.per_piece == null ? null : Number(d.per_piece);
+    var price = p.price == null ? null : Number(p.price);
+
+    var html = '<div class="panel">';
+    html += "<h2 style='font-size:20px;margin-bottom:4px'>" + J.esc(d.code) + "</h2>" +
+      '<p class="hint" style="margin-bottom:10px">' + J.esc(p.code || "") + " · " + J.esc(p.name || "") +
+      (p.jade ? " · หยก" + J.esc(p.jade) : "") + (p.color ? " · สี" + J.esc(p.color) : "") +
+      (p.origin ? " · " + J.esc(p.origin) : "") + "</p>";
+
+    html += '<div class="stack-bar">' +
+      '<i style="width:' + w(mat) + ';background:var(--gold)"></i>' +
+      '<i style="width:' + w(lab) + ';background:var(--jade)"></i>' +
+      '<i style="width:' + w(oh)  + ';background:var(--amber)"></i></div>' +
+      '<div class="legend-row">' +
+        '<span><i class="swatch" style="background:var(--gold)"></i>ค่าหยก ' + money(mat) + "</span>" +
+        '<span><i class="swatch" style="background:var(--jade)"></i>ค่าแรง ' + money(lab) + "</span>" +
+        '<span><i class="swatch" style="background:var(--amber)"></i>โสหุ้ย ' + money(oh) + "</span>" +
+        "<span><b>รวม " + money(tot) + " บาท</b></span></div>";
+
+    html += '<div class="kpis" style="margin-top:16px">' + [
+      { k: "ต้นทุนต่อชิ้น", v: pp == null ? "—" : money(pp), u: "บาท",
+        f: d.qc_passed ? "จาก " + J.nf.format(d.qc_passed) + " ชิ้นที่ผ่าน QC" : "ยังไม่มีชิ้นผ่าน QC", big: true },
+      { k: "ราคาขาย", v: price == null ? "—" : money(price), u: "บาท",
+        f: price == null ? "ยังไม่ได้ตั้งราคาสินค้านี้" : "ตั้งไว้ที่หน้าตั้งค่า → สินค้า" },
+      { k: "กำไรต่อชิ้น", v: (pp != null && price != null) ? money(price - pp) : "—", u: "บาท",
+        f: (pp != null && price != null && price > 0)
+             ? "อัตรากำไร " + ((price - pp) / price * 100).toFixed(1) + "%" : "—",
+        bad: (pp != null && price != null && price - pp < 0) },
+      { k: "ชั่วโมงงานทั้งล็อต", v: (Number(d.minutes) / 60).toFixed(1), u: "ชม.",
+        f: "ลงเวลาไว้ " + J.nf.format(d.timed_entries) + " ใน " + J.nf.format(d.total_entries) + " รายการ",
+        warn: d.timed_entries < d.total_entries },
+      { k: "ของเสีย", v: J.nf.format(d.defects), u: "ชิ้น",
+        f: d.qty_opened ? "คิดเป็น " + ((Number(d.defects) || 0) / d.qty_opened * 100).toFixed(1) + "% ของที่เปิดล็อต" : "—",
+        bad: Number(d.defects) > 0 }
+    ].map(function (t) {
+      return '<div class="kpi' + (t.big ? " big" : t.bad ? " bad" : t.warn ? " warn" : "") + '">' +
+        '<span class="k">' + J.esc(t.k) + '</span><span class="v">' + t.v +
+        "<small>" + J.esc(t.u) + '</small></span><span class="f">' + J.esc(t.f) + "</span></div>";
+    }).join("") + "</div>";
+
+    if (!d.material_set) {
+      html += '<p class="msg warn">ยังไม่ได้กรอกค่าหยกของล็อตนี้ — ต้นทุนที่เห็นจึงมีแค่ค่าแรงกับโสหุ้ย</p>';
+    }
+    if (d.timed_entries < d.total_entries) {
+      html += '<p class="msg warn">มี ' + (d.total_entries - d.timed_entries) +
+        ' รายการที่ไม่ได้ลงเวลาเริ่ม–เสร็จ ค่าแรงส่วนนั้นคิดไม่ได้ ต้นทุนจริงจะสูงกว่านี้</p>';
+    }
+    if ((d.no_wage || []).length) {
+      html += '<p class="msg warn">ยังไม่ได้ตั้งค่าแรงรายวันให้: ' + J.esc((d.no_wage || []).join(", ")) +
+        ' — ตั้งที่หน้าตั้งค่า → พนักงาน</p>';
+    }
+    html += "</div>";
+
+    // ---- ต้นทุนไปอยู่ที่ขั้นตอนไหน ----
+    var st = (d.by_step || []).filter(function (x) { return Number(x.minutes) > 0 || Number(x.labour) > 0; });
+    html += '<section style="margin-top:20px"><div class="sec-head"><h2>ค่าแรงไปอยู่ที่ขั้นตอนไหน</h2>' +
+      '<span class="hint">เฉพาะขั้นตอนที่มีการลงเวลา</span></div><div class="panel scroll">';
+    if (!st.length) html += '<p class="empty">ยังไม่มีใครลงเวลาในล็อตนี้</p>';
+    else {
+      var maxL = Math.max.apply(null, st.map(function (x) { return Number(x.labour) || 0; })) || 1;
+      html += "<table><thead><tr><th>ขั้นตอน</th><th class='num'>ชั่วโมง</th><th class='money'>ค่าแรง</th>" +
+        "<th class='num'>ดี</th><th class='num'>เสีย</th><th></th></tr></thead><tbody>" +
+        st.map(function (x) {
+          return "<tr><td>" + J.esc(x.step) + "</td><td class='num'>" + hoursTxt(x.minutes) +
+            "</td><td class='money'>" + money(x.labour) + "</td><td class='num'>" + J.nf.format(x.good) +
+            "</td><td class='num'>" + (Number(x.bad) ? '<span class="chip bad">' + J.nf.format(x.bad) + "</span>" : "—") +
+            '</td><td style="width:28%"><span class="bar"><i style="width:' +
+            ((Number(x.labour) || 0) / maxL * 100).toFixed(1) + '%"></i></span></td></tr>';
+        }).join("") + "</tbody></table>";
+    }
+    html += "</div></section>";
+
+    // ---- ใครใช้ค่าแรงไปเท่าไร ----
+    var em = d.by_emp || [];
+    html += '<section><div class="sec-head"><h2>ค่าแรงรายคนในล็อตนี้</h2></div><div class="panel scroll">';
+    if (!em.length) html += '<p class="empty">ยังไม่มีข้อมูล</p>';
+    else {
+      html += "<table><thead><tr><th>พนักงาน</th><th class='num'>ชั่วโมง</th><th class='money'>ค่าแรง</th></tr></thead><tbody>" +
+        em.map(function (x) {
+          return "<tr><td>" + J.esc(x.name) +
+            (x.has_wage ? "" : ' <span class="chip warn">ยังไม่ตั้งค่าแรง</span>') +
+            "</td><td class='num'>" + hoursTxt(x.minutes) +
+            "</td><td class='money'>" + money(x.labour) + "</td></tr>";
+        }).join("") + "</tbody></table>";
+    }
+    html += "</div></section>";
+
+    $("detail").innerHTML = html;
+  }
+
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+</script>
+</body>
+</html>

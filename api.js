@@ -66,6 +66,7 @@ window.JADE = (function () {
 
   function submit(args) {
     return rpc("app_submit", args).catch(function (err) {
+      // ส่งไม่ได้เพราะเน็ต → เก็บเข้าคิว  (ถ้าฐานข้อมูลปฏิเสธ ให้ขึ้น error ตามจริง)
       if (!navigator.onLine || /Failed to fetch|NetworkError|เชื่อมต่อไม่สำเร็จ/i.test(err.message)) {
         var q = queue();
         q.push(args);
@@ -83,7 +84,7 @@ window.JADE = (function () {
     return q.reduce(function (chain, item) {
       return chain.then(function () {
         return rpc("app_submit", item).then(function () { sent++; },
-          function (err) { if (!/Failed to fetch|NetworkError/i.test(err.message)) sent++; });
+          function (err) { if (!/Failed to fetch|NetworkError/i.test(err.message)) sent++; /* ทิ้งรายการที่ผิดกติกา */ });
       });
     }, Promise.resolve()).then(function () {
       setQueue(q.slice(sent));
@@ -151,7 +152,7 @@ window.JADE = (function () {
     if (!allDigits(ds) || !allDigits(ms) || !allDigits(ys)) return "";
     if (ds.length > 2 || ms.length > 2 || ys.length !== 4) return "";
     var d = +ds, mo = +ms, y = +ys;
-    if (y > 2400) y -= 543;
+    if (y > 2400) y -= 543;                       // พ.ศ. -> ค.ศ.
     if (mo < 1 || mo > 12 || d < 1 || d > 31) return "";
     var dt = new Date(y, mo - 1, d);
     if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return "";
@@ -245,7 +246,6 @@ window.JADE = (function () {
     var list = (root || document).querySelectorAll('input[type="date"]');
     Array.prototype.forEach.call(list, enhanceDate);
   }
-
 
   /* ---------- ช่องเวลา ชช:นน (24 ชั่วโมง) ---------- */
 

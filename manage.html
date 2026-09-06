@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -71,6 +71,8 @@
     <a href="admin.html">หน้าหัวหน้า</a>
     <a href="review.html">ตรวจงาน</a>
     <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
     <a href="manage.html" class="on">ตั้งค่า</a>
     <a href="log.html">Log</a>
   </nav>
@@ -95,9 +97,11 @@
       <button class="tab" id="tab-prod" aria-selected="false" type="button">สินค้า</button>
       <button class="tab" id="tab-mach" aria-selected="false" type="button">เครื่องจักร</button>
       <button class="tab" id="tab-step" aria-selected="false" type="button">ขั้นตอน</button>
+      <button class="tab" id="tab-attr" aria-selected="false" type="button">รายการตัวเลือก</button>
       <button class="tab" id="tab-shot" aria-selected="false" type="button">รูปหลักฐาน</button>
     </div>
 
+    <!-- ---------- พนักงาน ---------- -->
     <div id="pane-emp">
       <div class="card">
         <h2 id="emp-title">เพิ่มพนักงานใหม่</h2>
@@ -128,10 +132,17 @@
             </select>
           </div>
         </div>
-        <div class="field">
-          <label for="e-pin">PIN <span id="e-pin-hint">(จำเป็นสำหรับคนใหม่)</span></label>
-          <input id="e-pin" type="text" inputmode="numeric" placeholder="อย่างน้อย 4 ตัว">
+        <div class="two">
+          <div class="field">
+            <label for="e-pin">PIN <span id="e-pin-hint">(จำเป็นสำหรับคนใหม่)</span></label>
+            <input id="e-pin" type="text" inputmode="numeric" placeholder="อย่างน้อย 4 ตัว">
+          </div>
+          <div class="field">
+            <label for="e-wage">ค่าแรงรายวัน (บาท) — ความลับ</label>
+            <input id="e-wage" type="number" min="0" step="1" placeholder="เช่น 400">
+          </div>
         </div>
+        <p class="hint" style="margin:-6px 0 14px">ค่าแรงใช้คิดต้นทุนในหน้าต้นทุน พนักงานไม่เห็นตัวเลขนี้</p>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="e-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
           <button class="btn btn-primary" id="e-save" type="button">บันทึก</button>
@@ -144,6 +155,7 @@
       </div>
     </div>
 
+    <!-- ---------- สินค้า ---------- -->
     <div id="pane-prod" hidden>
       <div class="card">
         <h2 id="prod-title">เพิ่มสินค้าใหม่</h2>
@@ -167,13 +179,26 @@
           </div>
           <div class="field">
             <label for="p-jade">ชนิดหยก</label>
-            <input id="p-jade" type="text" list="jade-list" placeholder="เช่น ฟ้ากัวเต">
-            <datalist id="jade-list"></datalist>
+            <select id="p-jade"><option value="">— ไม่ระบุ —</option></select>
           </div>
         </div>
         <div class="field">
           <label for="p-name">ชื่อสินค้า</label>
           <input id="p-name" type="text" placeholder="เช่น หลวงปู่ทวด องค์ลอย">
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="p-color">สี</label>
+            <select id="p-color"><option value="">— ไม่ระบุ —</option></select>
+          </div>
+          <div class="field">
+            <label for="p-origin">แหล่งที่มา</label>
+            <select id="p-origin"><option value="">— ไม่ระบุ —</option></select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="p-detail">รายละเอียด (พนักงานเห็นตอนเลือกล็อต)</label>
+          <input id="p-detail" type="text" placeholder="เช่น ฐานเรียบ ห้ามเจียรลึกเกิน 1 มม.">
         </div>
         <div class="two">
           <div class="field">
@@ -198,6 +223,17 @@
             </select>
           </div>
         </div>
+        <div class="two">
+          <div class="field">
+            <label for="p-cost">ต้นทุนมาตรฐาน (บาท) — ความลับ</label>
+            <input id="p-cost" type="number" min="0" step="1">
+          </div>
+          <div class="field">
+            <label for="p-price">ราคาขาย (บาท) — ความลับ</label>
+            <input id="p-price" type="number" min="0" step="1">
+          </div>
+        </div>
+        <p class="hint" style="margin:-6px 0 14px">สองช่องนี้พนักงานไม่เห็น ใช้เทียบกำไรในหน้าต้นทุน</p>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="p-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
           <button class="btn btn-primary" id="p-save" type="button">บันทึก</button>
@@ -210,21 +246,28 @@
       </div>
     </div>
 
+    <!-- ---------- เครื่องจักร ---------- -->
     <div id="pane-mach" hidden>
       <div class="card">
         <h2 id="mach-title">เพิ่มเครื่องใหม่</h2>
         <div class="msg" id="mach-msg" hidden></div>
         <div class="two">
-          <div class="field"><label for="m-name">ชื่อเครื่อง</label>
-            <input id="m-name" type="text" placeholder="เช่น 5 แกน"></div>
-          <div class="field"><label for="m-kind">ชนิด (ไม่บังคับ)</label>
-            <input id="m-kind" type="text" placeholder="เช่น Rotor / 4 Axis"></div>
+          <div class="field">
+            <label for="m-name">ชื่อเครื่อง</label>
+            <input id="m-name" type="text" placeholder="เช่น 5 แกน">
+          </div>
+          <div class="field">
+            <label for="m-kind">ชนิด (ไม่บังคับ)</label>
+            <input id="m-kind" type="text" placeholder="เช่น Rotor / 4 Axis">
+          </div>
         </div>
-        <div class="field"><label for="m-active">สถานะ</label>
+        <div class="field">
+          <label for="m-active">สถานะ</label>
           <select id="m-active">
             <option value="1">ใช้งานอยู่</option>
             <option value="0">ปิดใช้ / ส่งซ่อม</option>
-          </select></div>
+          </select>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="m-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
           <button class="btn btn-primary" id="m-save" type="button">บันทึก</button>
@@ -236,33 +279,44 @@
       </div>
     </div>
 
+    <!-- ---------- ขั้นตอนการผลิต ---------- -->
     <div id="pane-step" hidden>
       <div class="card">
         <h2 id="step-title">เพิ่มขั้นตอนใหม่</h2>
         <div class="msg" id="step-msg" hidden></div>
         <div class="two">
-          <div class="field"><label for="t-name">ชื่อขั้นตอน</label>
-            <input id="t-name" type="text" placeholder="เช่น เขย่า 5000"></div>
-          <div class="field"><label for="t-seq">ลำดับในสายผลิต</label>
-            <input id="t-seq" type="number" min="1" step="1" placeholder="เช่น 20"></div>
+          <div class="field">
+            <label for="t-name">ชื่อขั้นตอน</label>
+            <input id="t-name" type="text" placeholder="เช่น เขย่า 5000">
+          </div>
+          <div class="field">
+            <label for="t-seq">ลำดับในสายผลิต</label>
+            <input id="t-seq" type="number" min="1" step="1" placeholder="เช่น 20">
+          </div>
         </div>
         <div class="two">
-          <div class="field"><label for="t-qc">เป็นขั้นตอน QC ไหม</label>
+          <div class="field">
+            <label for="t-qc">เป็นขั้นตอน QC ไหม</label>
             <select id="t-qc">
               <option value="0">ไม่ใช่</option>
               <option value="1">ใช่ — ยอดผลิตจริงนับจากขั้นนี้</option>
-            </select></div>
-          <div class="field"><label for="t-mach">ต้องเลือกเครื่องไหม</label>
+            </select>
+          </div>
+          <div class="field">
+            <label for="t-mach">ต้องเลือกเครื่องไหม</label>
             <select id="t-mach">
               <option value="0">ไม่ต้อง</option>
               <option value="1">ต้องเลือกเครื่อง (แบบ CNC)</option>
-            </select></div>
+            </select>
+          </div>
         </div>
-        <div class="field"><label for="t-active">สถานะ</label>
+        <div class="field">
+          <label for="t-active">สถานะ</label>
           <select id="t-active">
             <option value="1">ใช้งานอยู่</option>
             <option value="0">ปิดใช้ / เลิกทำแล้ว</option>
-          </select></div>
+          </select>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="t-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
           <button class="btn btn-primary" id="t-save" type="button">บันทึก</button>
@@ -272,6 +326,51 @@
         <h2>ขั้นตอนในสายผลิต</h2>
         <p class="hint" style="margin-bottom:10px">ขั้นตอนที่มีการลงงานแล้วจะลบไม่ได้ — ปิดใช้แทน ข้อมูลเก่ายังอยู่ครบ</p>
         <div id="step-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
+    <!-- ---------- รูปหลักฐาน ---------- -->
+    <!-- ---------- รายการตัวเลือก ---------- -->
+    <div id="pane-attr" hidden>
+      <div class="card">
+        <h2 id="attr-title">เพิ่มรายการใหม่</h2>
+        <p class="hint" style="margin-bottom:12px">สี ชนิดหยก และแหล่งที่มา ที่ใช้เลือกตอนตั้งสินค้าและตอนเปิดล็อต — เปลี่ยนชื่อที่นี่ ระบบจะตามไปแก้ในสินค้าที่ใช้ชื่อเดิมให้เอง</p>
+        <div class="msg" id="attr-msg" hidden></div>
+        <div class="two">
+          <div class="field">
+            <label for="a-kind">ประเภท</label>
+            <select id="a-kind">
+              <option value="color">สี</option>
+              <option value="jade">ชนิดหยก</option>
+              <option value="origin">แหล่งที่มา</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="a-name">ชื่อ</label>
+            <input id="a-name" type="text" placeholder="เช่น ฟ้ากัวเต / พม่า">
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="a-seq">ลำดับที่แสดง</label>
+            <input id="a-seq" type="number" min="1" step="1" placeholder="100">
+          </div>
+          <div class="field">
+            <label for="a-active">สถานะ</label>
+            <select id="a-active">
+              <option value="1">ใช้งานอยู่</option>
+              <option value="0">ปิดใช้ / เลิกใช้แล้ว</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="a-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+          <button class="btn btn-primary" id="a-save" type="button">บันทึก</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>รายการทั้งหมด</h2>
+        <div id="attr-list"><p class="hint">กำลังโหลด…</p></div>
       </div>
     </div>
 
@@ -309,8 +408,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=8"></script>
-<script src="api.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="api.js?v=9"></script>
 <script>
 (function () {
   "use strict";
@@ -328,11 +427,15 @@
         (sup.length ? sup : d.employees).map(function (e) {
           return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
         }).join("");
-      var jades = [];
-      d.products.forEach(function (p) { if (jades.indexOf(p.jade) === -1) jades.push(p.jade); });
-      $("jade-list").innerHTML = jades.map(function (j) {
-        return '<option value="' + J.esc(j) + '"></option>';
-      }).join("");
+      var fill = function (id, kind) {
+        var keep = $(id).value;
+        $(id).innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+          (d.attrs || []).filter(function (a) { return a.kind === kind; })
+            .map(function (a) { return '<option value="' + J.esc(a.name) + '">' + J.esc(a.name) + "</option>"; })
+            .join("");
+        $(id).value = keep;
+      };
+      fill("p-jade", "jade"); fill("p-color", "color"); fill("p-origin", "origin");
       var saved = J.me.get();
       if (saved.name) $("l-name").value = saved.name;
     });
@@ -367,7 +470,7 @@
 
   /* ---------- แท็บ ---------- */
   function setTab(which) {
-    ["emp", "prod", "mach", "step", "shot"].forEach(function (k) {
+    ["emp", "prod", "mach", "step", "attr", "shot"].forEach(function (k) {
       $("tab-" + k).setAttribute("aria-selected", String(k === which));
       $("pane-" + k).hidden = k !== which;
     });
@@ -376,6 +479,7 @@
   $("tab-prod").addEventListener("click", function () { setTab("prod"); });
   $("tab-mach").addEventListener("click", function () { setTab("mach"); loadMachines(); });
   $("tab-step").addEventListener("click", function () { setTab("step"); loadSteps(); });
+  $("tab-attr").addEventListener("click", function () { setTab("attr"); loadAttrs(); });
   $("tab-shot").addEventListener("click", function () { setTab("shot"); });
 
   /* ---------- พนักงาน ---------- */
@@ -383,7 +487,7 @@
     editEmp = null;
     $("emp-title").textContent = "เพิ่มพนักงานใหม่";
     $("e-name").value = ""; $("e-code").value = ""; $("e-pin").value = "";
-    $("e-role").value = "worker"; $("e-active").value = "1";
+    $("e-role").value = "worker"; $("e-active").value = "1"; $("e-wage").value = "";
     $("e-pin-hint").textContent = "(จำเป็นสำหรับคนใหม่)";
     $("e-cancel").hidden = true;
   }
@@ -395,6 +499,7 @@
     $("e-code").value = em.code || "";
     $("e-role").value = em.role;
     $("e-active").value = em.active ? "1" : "0";
+    $("e-wage").value = em.daily_wage == null ? "" : em.daily_wage;
     $("e-pin").value = "";
     $("e-pin-hint").textContent = "(เว้นว่างถ้าไม่เปลี่ยน)";
     $("e-cancel").hidden = false;
@@ -413,7 +518,8 @@
       p_code: $("e-code").value || null,
       p_role: $("e-role").value,
       p_active: $("e-active").value === "1",
-      p_new_pin: $("e-pin").value || null
+      p_new_pin: $("e-pin").value || null,
+      p_daily_wage: $("e-wage").value === "" ? null : Number($("e-wage").value)
     }).then(function (r) {
       J.msg($("emp-msg"), (r.created ? "เพิ่ม " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
       resetEmpForm();
@@ -431,7 +537,9 @@
           '<span class="main"><span class="t">' + J.esc(em.name) +
           (em.role === "supervisor" ? ' <span class="chip ok">หัวหน้า</span>' : "") +
           (em.active ? "" : ' <span class="chip idle">พักงาน</span>') + "</span><br>" +
-          '<span class="s">ลงงานไว้ ' + J.nf.format(em.entries) + " รายการ</span></span>" +
+          '<span class="s">ลงงานไว้ ' + J.nf.format(em.entries) + " รายการ" +
+          (em.daily_wage == null ? ' · <span style="color:var(--amber)">ยังไม่ตั้งค่าแรง</span>'
+                                 : " · ค่าแรง " + J.nf.format(em.daily_wage) + " บาท/วัน") + "</span></span>" +
           '<span class="act"><button class="btn btn-sm" data-emp="' + J.esc(em.name) + '" type="button">แก้ไข</button></span>' +
           "</div>";
       }).join("");
@@ -453,7 +561,8 @@
   function resetProdForm() {
     editProd = null; prodPhoto = null; prodPhotoTouched = false;
     $("prod-title").textContent = "เพิ่มสินค้าใหม่";
-    ["p-code", "p-name", "p-jade", "p-w", "p-l", "p-h"].forEach(function (id) { $(id).value = ""; });
+    ["p-code", "p-name", "p-jade", "p-color", "p-origin", "p-detail",
+     "p-w", "p-l", "p-h", "p-cost", "p-price"].forEach(function (id) { $(id).value = ""; });
     $("p-active").value = "1";
     $("p-photo").value = "";
     $("p-photo-hint").textContent = "";
@@ -465,7 +574,11 @@
     editProd = p.code;
     prodPhoto = null; prodPhotoTouched = false;
     $("prod-title").textContent = "แก้ไข: " + p.code;
-    $("p-code").value = p.code; $("p-name").value = p.name; $("p-jade").value = p.jade;
+    $("p-code").value = p.code; $("p-name").value = p.name;
+    $("p-jade").value = p.jade || ""; $("p-color").value = p.color || "";
+    $("p-origin").value = p.origin || ""; $("p-detail").value = p.detail || "";
+    $("p-cost").value = p.cost == null ? "" : p.cost;
+    $("p-price").value = p.price == null ? "" : p.price;
     $("p-w").value = p.w == null ? "" : p.w;
     $("p-l").value = p.l == null ? "" : p.l;
     $("p-h").value = p.h == null ? "" : p.h;
@@ -516,7 +629,11 @@
       p_jade: $("p-jade").value,
       p_w: num("p-w"), p_l: num("p-l"), p_h: num("p-h"),
       p_active: $("p-active").value === "1",
-      p_photo: prodPhotoTouched ? prodPhoto : null
+      p_photo: prodPhotoTouched ? prodPhoto : null,
+      p_color: $("p-color").value || null,
+      p_origin: $("p-origin").value || null,
+      p_detail: $("p-detail").value || null,
+      p_cost: num("p-cost"), p_price: num("p-price")
     }).then(function (r) {
       J.msg($("prod-msg"), (r.created ? "เพิ่มสินค้า " : "บันทึกสินค้า ") + r.code + " เรียบร้อย", "ok");
       resetProdForm();
@@ -536,8 +653,11 @@
             : '<span class="thumb ph">ไม่มีรูป</span>') +
           '<span class="main"><span class="t">' + J.esc(p.code) + " · " + J.esc(p.name) +
           (p.active ? "" : ' <span class="chip idle">ซ่อน</span>') + "</span><br>" +
-          '<span class="s">หยก' + J.esc(p.jade) + (size ? " · " + size + " ซม." : "") +
-          " · " + J.nf.format(p.lots) + " ล็อต</span></span>" +
+          '<span class="s">' +
+          [p.color ? "สี" + p.color : "", p.jade ? "หยก" + p.jade : "", p.origin || "",
+           size ? size + " ซม." : ""].filter(Boolean).map(J.esc).join(" · ") +
+          " · " + J.nf.format(p.lots) + " ล็อต" +
+          (p.price != null ? " · ขาย " + J.nf.format(p.price) + " บาท" : "") + "</span></span>" +
           '<span class="act"><button class="btn btn-sm" data-prod="' + J.esc(p.code) + '" type="button">แก้ไข</button></span>' +
           "</div>";
       }).join("");
@@ -546,6 +666,7 @@
           editProduct(list.filter(function (x) { return x.code === b.dataset.prod; })[0]);
         });
       });
+      // โหลดรูปย่อทีละใบ
       Array.prototype.forEach.call($("prod-list").querySelectorAll("[data-photo]"), function (img) {
         J.rpc("app_product_photo", { p_name: m.name, p_pin: m.pin, p_code: img.dataset.photo })
           .then(function (r) { if (r.photo) img.src = r.photo; })
@@ -554,7 +675,7 @@
     }).catch(function (err) { $("prod-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
   }
 
-  /* ---------- รูปหลักฐาน ---------- */
+  /* ---------- เครื่องจักร ---------- */
   var editMach = null;
   function resetMachForm() {
     editMach = null;
@@ -604,6 +725,7 @@
     }).catch(function (err) { $("mach-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
   }
 
+  /* ---------- ขั้นตอนการผลิต ---------- */
   var editStep = null;
   function resetStepForm() {
     editStep = null;
@@ -659,6 +781,72 @@
     }).catch(function (err) { $("step-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
   }
 
+  /* ---------- รายการตัวเลือก ---------- */
+  var KINDT = { color: "สี", jade: "ชนิดหยก", origin: "แหล่งที่มา" };
+  var editAttr = null;
+
+  function resetAttrForm() {
+    editAttr = null;
+    $("attr-title").textContent = "เพิ่มรายการใหม่";
+    $("a-name").value = ""; $("a-seq").value = ""; $("a-active").value = "1";
+    $("a-kind").disabled = false;
+    $("a-cancel").hidden = true;
+  }
+  $("a-cancel").addEventListener("click", resetAttrForm);
+
+  $("a-save").addEventListener("click", function () {
+    var m = J.me.get();
+    $("a-save").disabled = true;
+    J.rpc("sup_save_attr", {
+      p_name: m.name, p_pin: m.pin,
+      p_kind: $("a-kind").value,
+      p_target: editAttr,
+      p_new_name: $("a-name").value,
+      p_seq: Number($("a-seq").value || 100),
+      p_active: $("a-active").value === "1"
+    }).then(function (r) {
+      J.msg($("attr-msg"), (r.created ? "เพิ่ม " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
+      resetAttrForm(); loadAttrs(); loadBoot(); loadProducts();
+    }).catch(function (err) { J.msg($("attr-msg"), err.message, "err"); })
+      .then(function () { $("a-save").disabled = false; });
+  });
+
+  function loadAttrs() {
+    var m = J.me.get();
+    J.rpc("sup_attrs", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      if (!list.length) { $("attr-list").innerHTML = '<p class="hint">ยังไม่มีรายการ</p>'; return; }
+      var html = "", kind = "";
+      list.forEach(function (x) {
+        if (x.kind !== kind) {
+          kind = x.kind;
+          html += '<h2 style="font-size:16px;margin:16px 0 4px">' + J.esc(KINDT[kind] || kind) + "</h2>";
+        }
+        html += '<div class="item' + (x.active ? "" : " off") + '">' +
+          '<span class="thumb ph">' + J.nf.format(x.seq) + "</span>" +
+          '<span class="main"><span class="t">' + J.esc(x.name) +
+          (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') + "</span><br>" +
+          '<span class="s">ใช้อยู่ใน ' + J.nf.format(x.used) + " สินค้า</span></span>" +
+          '<span class="act"><button class="btn btn-sm" data-attr="' + J.esc(x.kind) +
+          '|' + J.esc(x.name) + '" type="button">แก้ไข</button></span></div>';
+      });
+      $("attr-list").innerHTML = html;
+      Array.prototype.forEach.call($("attr-list").querySelectorAll("[data-attr]"), function (b) {
+        b.addEventListener("click", function () {
+          var parts = b.dataset.attr.split("|");
+          var x = list.filter(function (y) { return y.kind === parts[0] && y.name === parts[1]; })[0];
+          editAttr = x.name;
+          $("attr-title").textContent = "แก้ไข: " + (KINDT[x.kind] || x.kind) + " · " + x.name;
+          $("a-kind").value = x.kind; $("a-kind").disabled = true;
+          $("a-name").value = x.name; $("a-seq").value = x.seq;
+          $("a-active").value = x.active ? "1" : "0";
+          $("a-cancel").hidden = false;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+    }).catch(function (err) { $("attr-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  /* ---------- รูปหลักฐาน ---------- */
   function loadLotOptions() {
     var m = J.me.get();
     J.rpc("sup_lots", { p_name: m.name, p_pin: m.pin, p_status: "all" }).then(function (list) {

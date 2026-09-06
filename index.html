@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 
@@ -27,15 +27,19 @@
 
 <main class="wrap">
 
+  <!-- แถบเมนู: หัวหน้าเท่านั้นที่เห็น -->
   <nav class="nav" id="nav" hidden>
     <a href="index.html" class="on">ลงงานผลิต</a>
     <a href="admin.html">หน้าหัวหน้า</a>
     <a href="review.html">ตรวจงาน</a>
     <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
     <a href="manage.html">ตั้งค่า</a>
     <a href="log.html">Log</a>
   </nav>
 
+  <!-- ---------- เข้าใช้งาน ---------- -->
   <section id="login" class="card">
     <h2>เข้าใช้งาน</h2>
     <div class="msg err" id="login-msg" hidden></div>
@@ -51,6 +55,7 @@
     <p class="hint" style="margin-top:12px">ครั้งแรก PIN คือ 1234 — เข้าแล้วเปลี่ยนได้ที่ด้านล่างหน้าจอ</p>
   </section>
 
+  <!-- ---------- ลงงาน ---------- -->
   <section id="app" hidden>
     <div class="card">
       <div class="tabs" role="tablist">
@@ -60,6 +65,7 @@
 
       <div class="msg" id="form-msg" hidden></div>
 
+      <!-- งานผลิต -->
       <div id="pane-prod">
         <div class="field">
           <label for="f-lot">ล็อตงาน</label>
@@ -138,6 +144,7 @@
         <button class="btn btn-primary btn-lg" id="submit-prod" type="button">ส่งบันทึก</button>
       </div>
 
+      <!-- งานอื่น -->
       <div id="pane-other" hidden>
         <p class="hint" style="margin-bottom:14px">งานที่ไม่ผูกกับล็อตสินค้า เช่น ขัดโซ่ พ่นทราย ทำความสะอาดโรงงาน หรือวันลา — จะถูกบันทึกไว้แต่ไม่นับเข้ายอดผลิต</p>
         <div class="field">
@@ -162,11 +169,13 @@
       </div>
     </div>
 
+    <!-- รายการล่าสุด -->
     <div class="card">
       <h2>รายการที่คุณลงล่าสุด</h2>
       <div class="list" id="recent"><p class="hint">กำลังโหลด…</p></div>
     </div>
 
+    <!-- เปลี่ยน PIN -->
     <div class="card">
       <h2>เปลี่ยน PIN</h2>
       <div class="msg" id="pin-msg" hidden></div>
@@ -187,8 +196,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=8"></script>
-<script src="api.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="api.js?v=9"></script>
 <script>
 (function () {
   "use strict";
@@ -207,6 +216,7 @@
   J.onQueueChange(showQueue);
   showQueue(J.queueLength());
 
+  /* ---------- โหลดข้อมูลตั้งต้น ---------- */
   function loadBoot() {
     return J.rpc("app_bootstrap").then(function (d) {
       boot = d;
@@ -254,8 +264,18 @@
     if (!l) { box.hidden = true; return; }
     box.hidden = false;
     J.setPhoto($("lotpic"), l.product_code, l.has_photo);
+    var pd = (boot && boot.products || []).filter(function (p) { return p.code === l.product_code; })[0] || {};
+    var spec = [];
+    if (pd.color)  spec.push("สี" + pd.color);
+    if (l.jade)    spec.push("หยก" + l.jade);
+    if (pd.origin) spec.push("แหล่ง " + pd.origin);
+    var size = [pd.w, pd.l, pd.h].filter(function (x) { return x != null; }).join(" × ");
+    if (size) spec.push(size + " ซม.");
     $("lottext").innerHTML =
-      J.esc(l.product_name) + " · หยก" + J.esc(l.jade) + "<br>" +
+      "<b>" + J.esc(l.product_code) + "</b> " + J.esc(l.product_name) +
+      (spec.length ? "<br>" + J.esc(spec.join(" · ")) : "") +
+      (pd.detail ? '<br><span style="color:var(--gold)">' + J.esc(pd.detail) + "</span>" : "") +
+      "<br>" +
       "เริ่มล็อต <b>" + J.esc(J.thDate(l.opened_at)) + "</b> · " +
       "เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · " +
       "ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b> · " +
@@ -277,7 +297,9 @@
     var needs = !!(s && s.needs_machine);
     $("wrap-machine").hidden = !needs;
     $("wrap-cnc").hidden = !needs;
+    // ปกติจะลงบันทึกตอนงานออกจากเครื่องแล้ว จึงเติมวันนี้ให้เป็นค่าตั้งต้น ลบทิ้งได้ถ้ายังไม่เสร็จ
     if (needs && !$("f-cend").value) $("f-cend").value = $("f-date").value || J.today();
+    // CNC ใช้วันที่เข้า–ออกเครื่องแทน จึงไม่ต้องลงเวลารายชั่วโมง
     $("wrap-time").hidden = !s || needs;
     updateDuration();
   }
@@ -292,6 +314,7 @@
     box.className = "durnote" + (t.indexOf("ต้องหลัง") !== -1 ? " bad" : "");
   }
 
+  /* ---------- เข้าใช้งาน ---------- */
   function enterApp(role) {
     var m = J.me.get();
     $("nav").hidden = (role || m.role) !== "supervisor";
@@ -327,6 +350,7 @@
     location.reload();
   });
 
+  /* ---------- สลับแท็บ ---------- */
   function setMode(m) {
     mode = m;
     $("tab-prod").setAttribute("aria-selected", String(m === "production"));
@@ -343,6 +367,7 @@
   $("f-tstart").addEventListener("timechange", updateDuration);
   $("f-tend").addEventListener("timechange", updateDuration);
 
+  /* ---------- ส่งบันทึก ---------- */
   function send(args, btn, clear) {
     btn.disabled = true;
     J.submit(args).then(function (r) {
@@ -358,6 +383,7 @@
     }).then(function () { btn.disabled = false; });
   }
 
+  /* ---------- รูปหลักฐาน ---------- */
   function renderShots() {
     $("shot-preview").innerHTML = shots.map(function (s, i) {
       return '<span class="shot"><img src="' + s + '" alt="รูปหลักฐาน">' +
@@ -470,6 +496,7 @@
     });
   });
 
+  /* ---------- แก้รายการของตัวเอง ---------- */
   function openFix(id, list) {
     var r = list.filter(function (x) { return x.id === id; })[0];
     var box = $("recent").querySelector('[data-edt="' + id + '"]');
@@ -507,6 +534,7 @@
     });
   }
 
+  /* ---------- รายการล่าสุด ---------- */
   function loadRecent() {
     var m = J.me.get();
     J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 15 }).then(function (list) {
@@ -566,6 +594,7 @@
     });
   }
 
+  /* ---------- เปลี่ยน PIN ---------- */
   $("p-go").addEventListener("click", function () {
     var m = J.me.get();
     var a = $("p-new").value, b = $("p-new2").value;
@@ -578,6 +607,7 @@
     }).catch(function (err) { J.msg($("pin-msg"), err.message, "err"); });
   });
 
+  /* ---------- เริ่ม ---------- */
   if (!J.configured()) {
     J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js — ใส่ PROJECT URL และ ANON KEY จาก Supabase ก่อน", "err");
   } else {

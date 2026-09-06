@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -48,6 +48,8 @@
     <a href="admin.html" class="on">หน้าหัวหน้า</a>
     <a href="review.html">ตรวจงาน</a>
     <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
     <a href="manage.html">ตั้งค่า</a>
     <a href="log.html">Log</a>
   </nav>
@@ -72,7 +74,13 @@
       <div class="msg" id="open-msg" hidden></div>
       <div class="field">
         <label for="n-prod">สินค้า</label>
+        <div class="two" style="margin-bottom:8px">
+          <select id="n-color"><option value="">— ทุกสี —</option></select>
+          <select id="n-jade"><option value="">— หยกทุกชนิด —</option></select>
+        </div>
+        <select id="n-origin" style="margin-bottom:8px"><option value="">— ทุกแหล่งที่มา —</option></select>
         <select id="n-prod"></select>
+        <span class="hint" id="n-count"></span>
       </div>
       <div class="two">
         <div class="field">
@@ -131,8 +139,8 @@
   </section>
 </main>
 
-<script src="config.js?v=8"></script>
-<script src="api.js?v=8"></script>
+<script src="config.js?v=9"></script>
+<script src="api.js?v=9"></script>
 <script>
 (function () {
   "use strict";
@@ -153,11 +161,11 @@
       Array.prototype.forEach.call($("lots").querySelectorAll("[data-pic]"), function (im) {
         J.setPhoto(im, im.dataset.pic, true);
       });
-      $("n-prod").innerHTML = '<option value="">— เลือกสินค้า —</option>' +
-        d.products.map(function (p) {
-          return '<option value="' + J.esc(p.code) + '">' + J.esc(p.code) + " · " +
-            J.esc(p.name) + " (" + J.esc(p.jade) + ")</option>";
-        }).join("");
+      allProducts = d.products || [];
+      fillAttr("n-color",  "color",  "— ทุกสี —",           d.attrs || []);
+      fillAttr("n-jade",   "jade",   "— หยกทุกชนิด —",      d.attrs || []);
+      fillAttr("n-origin", "origin", "— ทุกแหล่งที่มา —",   d.attrs || []);
+      filterProducts();
       $("s-target").innerHTML = d.employees.map(function (e) {
         return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
       }).join("");
@@ -192,6 +200,57 @@
   $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
   $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
 
+  /* ---------- เลือกสินค้าแบบไล่จากคุณสมบัติ ---------- */
+  var allProducts = [];
+
+  function fillAttr(id, kind, allLabel, attrs) {
+    var names = attrs.filter(function (a) { return a.kind === kind; })
+                     .map(function (a) { return a.name; });
+    $(id).innerHTML = '<option value="">' + J.esc(allLabel) + "</option>" +
+      names.map(function (n) { return '<option value="' + J.esc(n) + '">' + J.esc(n) + "</option>"; }).join("");
+  }
+
+  // ตัวกรองแต่ละช่องแคบลงตามช่องอื่นที่เลือกไว้แล้ว จะได้ไม่เจอชุดที่ไม่มีสินค้าเลย
+  function matches(p, skip) {
+    var c = $("n-color").value, j = $("n-jade").value, o = $("n-origin").value;
+    if (skip !== "color"  && c && p.color  !== c) return false;
+    if (skip !== "jade"   && j && p.jade   !== j) return false;
+    if (skip !== "origin" && o && p.origin !== o) return false;
+    return true;
+  }
+
+  function trim(id, kind) {
+    var keep = $(id).value;
+    var ok = {};
+    allProducts.forEach(function (p) { if (matches(p, kind) && p[kind]) ok[p[kind]] = true; });
+    Array.prototype.forEach.call($(id).options, function (op) {
+      if (!op.value) return;
+      op.disabled = !ok[op.value];
+      op.textContent = op.value + (ok[op.value] ? "" : " (ไม่มีสินค้า)");
+    });
+    $(id).value = keep;
+  }
+
+  function filterProducts() {
+    trim("n-color", "color"); trim("n-jade", "jade"); trim("n-origin", "origin");
+    var list = allProducts.filter(function (p) { return matches(p, null); });
+    var keep = $("n-prod").value;
+    $("n-prod").innerHTML = '<option value="">— เลือกสินค้า —</option>' +
+      list.map(function (p) {
+        return '<option value="' + J.esc(p.code) + '">' + J.esc(p.code) + " · " + J.esc(p.name) +
+          (p.jade ? " (" + J.esc(p.jade) + ")" : "") + "</option>";
+      }).join("");
+    $("n-prod").value = keep;
+    $("n-count").textContent = list.length
+      ? "ตรงเงื่อนไข " + list.length + " รายการ จากทั้งหมด " + allProducts.length
+      : "ไม่มีสินค้าที่ตรงเงื่อนไขนี้ — ลองเอาตัวกรองออกบ้าง";
+  }
+
+  ["n-color", "n-jade", "n-origin"].forEach(function (id) {
+    $(id).addEventListener("change", filterProducts);
+  });
+
+  /* ---------- เปิดล็อต ---------- */
   $("n-go").addEventListener("click", function () {
     var m = J.me.get();
     var prod = $("n-prod").value, qty = Number($("n-qty").value || 0);
@@ -209,6 +268,7 @@
       .then(function () { $("n-go").disabled = false; });
   });
 
+  /* ---------- รายการล็อต ---------- */
   function setTab() {
     $("t-open").setAttribute("aria-selected", String(lotFilter === "open"));
     $("t-closed").setAttribute("aria-selected", String(lotFilter === "closed"));
@@ -270,6 +330,7 @@
     }).catch(function (err) { $("lots").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
   }
 
+  /* ---------- แก้ / ลบล็อต ---------- */
   function openLotFix(code, list) {
     var l = list.filter(function (x) { return x.code === code; })[0];
     var box = $("lots").querySelector('[data-edt="' + code + '"]');
@@ -321,6 +382,7 @@
     });
   }
 
+  /* ---------- รีเซ็ต PIN ---------- */
   $("s-go").addEventListener("click", function () {
     var m = J.me.get();
     var t = $("s-target").value, p = $("s-pin").value;
@@ -330,6 +392,7 @@
       .catch(function (err) { J.msg($("pin-msg"), err.message, "err"); });
   });
 
+  /* ---------- ดาวน์โหลด CSV ---------- */
   $("e-go").addEventListener("click", function () {
     var m = J.me.get();
     $("e-go").disabled = true;
@@ -355,6 +418,7 @@
       .then(function () { $("e-go").disabled = false; });
   });
 
+  /* ---------- เริ่ม ---------- */
   if (!J.configured()) {
     J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js — ใส่ PROJECT URL และ ANON KEY จาก Supabase ก่อน", "err");
   } else {
