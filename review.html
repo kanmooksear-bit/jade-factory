@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=7">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -118,6 +118,10 @@
         <label for="f-lot">ล็อต</label>
         <select id="f-lot"><option value="">— ทุกล็อต —</option></select>
       </div>
+      <div class="lotinfo withpic" id="lotbar" hidden>
+        <img class="lotpic" id="lotpic" alt="" hidden>
+        <span class="txt" id="lottext"></span>
+      </div>
       <button class="btn btn-primary btn-lg" id="f-go" type="button">ดูรายการ</button>
     </div>
 
@@ -149,8 +153,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=6"></script>
-<script src="api.js?v=6"></script>
+<script src="config.js?v=7"></script>
+<script src="api.js?v=7"></script>
 <script>
 (function () {
   "use strict";
@@ -206,6 +210,8 @@
   function loadLots() {
     var m = J.me.get();
     J.rpc("sup_lots", { p_name: m.name, p_pin: m.pin, p_status: "all" }).then(function (list) {
+      lotMap = {};
+      list.forEach(function (l) { lotMap[l.code] = l; });
       $("f-lot").innerHTML = '<option value="">— ทุกล็อต —</option>' +
         list.map(function (l) {
           return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
@@ -222,6 +228,21 @@
   };
 
   $("f-go").addEventListener("click", load);
+  $("f-lot").addEventListener("change", showLotBar);
+
+  // รูปสินค้า + ข้อมูลย่อของล็อตที่เลือก
+  var lotMap = {};
+  function showLotBar() {
+    var l = lotMap[$("f-lot").value];
+    if (!l) { $("lotbar").hidden = true; return; }
+    $("lotbar").hidden = false;
+    J.setPhoto($("lotpic"), l.product_code, l.has_photo);
+    $("lottext").innerHTML =
+      J.esc(l.product_code) + " · " + J.esc(l.product_name) + " · หยก" + J.esc(l.jade) + "<br>" +
+      "เริ่ม <b>" + J.esc(J.thDate(l.opened_at)) + "</b> · เปิดล็อต <b>" +
+      J.nf.format(l.qty_opened) + "</b> ชิ้น · ผ่าน QC <b>" + J.nf.format(l.qc_passed) +
+      "</b> · ค้างในสาย <b>" + J.nf.format(l.wip) + "</b>";
+  }
 
   function load() {
     var m = J.me.get();
