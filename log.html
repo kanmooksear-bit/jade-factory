@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -105,8 +105,8 @@
   </div>
 </main>
 
-<script src="config.js?v=7"></script>
-<script src="api.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="api.js?v=8"></script>
 <script>
 (function () {
   "use strict";
@@ -123,11 +123,13 @@
     { k: "employee", t: "พนักงาน" },
     { k: "product",  t: "สินค้า" },
     { k: "lot",      t: "ล็อตงาน" },
+    { k: "machine",  t: "เครื่องจักร" },
+    { k: "step",     t: "ขั้นตอน" },
     { k: "auth",     t: "เข้าใช้งาน" }
   ];
 
   var ACT = {
-    create: "ลงบันทึก", update: "แก้ไข", delete: "ลบทิ้ง",
+    create: "ลงบันทึก", update: "แก้ไข", edit: "แก้ตัวเลข", delete: "ลบทิ้ง",
     approve: "ยืนยันงาน", reject: "ตีกลับงาน", reopen: "เปิดให้แก้ใหม่",
     photo_add: "แนบรูป", photo_delete: "ลบรูป", login: "เข้าใช้งาน"
   };
@@ -144,7 +146,7 @@
 
   var TONE = {
     approve: "ok", reject: "bad", delete: "bad", photo_delete: "bad",
-    create: "idle", update: "warn", reopen: "warn", photo_add: "idle", login: "idle"
+    create: "idle", update: "warn", edit: "warn", reopen: "warn", photo_add: "idle", login: "idle"
   };
 
   /* ---------- เข้าใช้งาน ---------- */
