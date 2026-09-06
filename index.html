@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=4">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 
@@ -175,8 +175,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=4"></script>
-<script src="api.js?v=4"></script>
+<script src="config.js?v=6"></script>
+<script src="api.js?v=6"></script>
 <script>
 (function () {
   "use strict";
@@ -472,8 +472,19 @@
           (e.photos ? " · " + e.photos + " รูป" : "") +
           (e.category === "production" && e.note ? " · " + e.note : "") +
           (e.category === "other" ? " · งานอื่น" : "");
+        var chip = e.review_status === "approved" ? '<span class="chip ok">หัวหน้ายืนยันแล้ว</span>'
+                 : e.review_status === "rejected" ? '<span class="chip bad">ถูกตีกลับ</span>'
+                 : '<span class="chip warn">รอหัวหน้าตรวจ</span>';
         return '<div class="row"><span class="main"><span class="t">' + J.esc(title) +
-          '</span><br><span class="s">' + J.esc(sub) + '</span></span>' +
+          " " + chip +
+          '</span><br><span class="s">' + J.esc(sub) + '</span>' +
+          (e.review_status === "rejected" && e.review_note
+            ? '<br><span class="s" style="color:var(--alert)">ตีกลับเพราะ: ' +
+              J.esc(e.review_note) + " — ลบทิ้งแล้วลงใหม่ได้เลย</span>"
+            : "") +
+          (e.review_status === "approved"
+            ? '<br><span class="s">ยืนยันแล้ว แก้หรือลบเองไม่ได้ ถ้าผิดให้แจ้งหัวหน้า</span>'
+            : "") + "</span>" +
           '<span class="n">' + J.nf.format(e.qty_good) +
           (e.qty_bad ? "<i>เสีย " + J.nf.format(e.qty_bad) + "</i>" : "") +
           (e.can_delete ? ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(e.id) + '" type="button">ลบ</button>' : "") +
