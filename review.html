@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>ตรวจงาน — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=6">
+<style>
+  .wrap{max-width:1000px;padding-bottom:120px}
+  .topbar-in{max-width:1000px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
+         color:var(--ink-2);font-size:13.5px;background:var(--surface)}
+  .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+
+  .rev{display:flex;gap:12px;padding:13px 0;border-top:1px solid var(--line-2)}
+  .rev:first-child{border-top:0}
+  .rev input[type=checkbox]{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--jade)}
+  .rev .body{flex:1;min-width:0}
+  .rev .l1{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  .rev .t{font-size:14.5px}
+  .rev .n{font-variant-numeric:tabular-nums;font-size:14.5px;white-space:nowrap}
+  .rev .n i{font-style:normal;color:var(--alert);margin-inline-start:6px;font-size:13px}
+  .rev .s{font-size:12.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin-top:2px}
+  .rev .why{font-size:12.5px;color:var(--alert);margin-top:3px}
+  .rev .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:7px}
+  .rev.done{opacity:.55}
+  .shots{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .shots img{width:96px;height:96px;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer}
+
+  .bulk{
+    position:fixed;inset-block-end:0;inset-inline:0;z-index:40;
+    background:var(--surface);border-top:1px solid var(--line);
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .bulk-in{max-width:1000px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .bulk .cnt{font-size:14px;flex:1;min-width:120px}
+  .bulk .cnt b{font-variant-numeric:tabular-nums}
+  .bulk[hidden]{display:none!important}
+  .why-box{flex:1 1 100%;display:flex;gap:8px;flex-wrap:wrap}
+  .why-box input{flex:1 1 200px;padding:11px 12px;border:1px solid var(--line);border-radius:7px;
+                 background:var(--paper);color:var(--ink);font-size:15px}
+  .why-box[hidden]{display:none!important}
+
+  .selbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .lightbox{position:fixed;inset:0;background:rgba(8,16,12,.9);display:flex;align-items:center;
+            justify-content:center;padding:20px;z-index:60}
+  .lightbox img{max-width:100%;max-height:90vh;border-radius:8px}
+  .lightbox[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">ตรวจงาน</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html" class="on">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="card">
+      <h2>เลือกช่วงที่จะตรวจ</h2>
+      <div class="two">
+        <div class="field"><label for="f-from">ตั้งแต่</label><input id="f-from" type="date"></div>
+        <div class="field"><label for="f-to">ถึง</label><input id="f-to" type="date"></div>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="f-status">สถานะ</label>
+          <select id="f-status">
+            <option value="pending">รอตรวจ</option>
+            <option value="approved">ยืนยันแล้ว</option>
+            <option value="rejected">ตีกลับ</option>
+            <option value="all">ทั้งหมด</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-emp">พนักงาน</label>
+          <select id="f-emp"><option value="">— ทุกคน —</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-lot">ล็อต</label>
+        <select id="f-lot"><option value="">— ทุกล็อต —</option></select>
+      </div>
+      <button class="btn btn-primary btn-lg" id="f-go" type="button">ดูรายการ</button>
+    </div>
+
+    <div class="card">
+      <div class="msg" id="rev-msg" hidden></div>
+      <div class="selbar" id="selbar" hidden>
+        <button class="btn btn-sm" id="sel-all" type="button">เลือกทั้งหมด</button>
+        <button class="btn btn-sm btn-ghost" id="sel-none" type="button">ไม่เลือกเลย</button>
+        <button class="btn btn-sm btn-ghost" id="shot-all" type="button">โหลดรูปทุกรายการ</button>
+        <span class="hint" id="sum"></span>
+      </div>
+      <div id="list"><p class="hint">กดปุ่ม "ดูรายการ" เพื่อเริ่ม</p></div>
+    </div>
+  </div>
+</main>
+
+<div class="bulk" id="bulk" hidden>
+  <div class="bulk-in">
+    <span class="cnt">เลือกไว้ <b id="nsel">0</b> รายการ · <b id="npc">0</b> ชิ้น</span>
+    <button class="btn btn-primary" id="do-ok" type="button">ยืนยัน</button>
+    <button class="btn btn-danger" id="do-no" type="button">ตีกลับ</button>
+    <div class="why-box" id="why-box" hidden>
+      <input id="why" type="text" placeholder="ตีกลับเพราะอะไร — พนักงานจะเห็นข้อความนี้">
+      <button class="btn btn-danger" id="do-no2" type="button">ส่งตีกลับ</button>
+      <button class="btn btn-ghost" id="do-cancel" type="button">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
+
+<script src="config.js?v=6"></script>
+<script src="api.js?v=6"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var rows = [];
+
+  $("factory").textContent = J.factory;
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      $("f-emp").innerHTML = '<option value="">— ทุกคน —</option>' +
+        d.employees.map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    var d = new Date();
+    $("f-to").value = J.today();
+    $("f-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14)
+      .toISOString().slice(0, 10);
+    loadLots();
+    load();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_lots", { p_name: name, p_pin: pin, p_status: "all" }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  function loadLots() {
+    var m = J.me.get();
+    J.rpc("sup_lots", { p_name: m.name, p_pin: m.pin, p_status: "all" }).then(function (list) {
+      $("f-lot").innerHTML = '<option value="">— ทุกล็อต —</option>' +
+        list.map(function (l) {
+          return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+            J.esc(l.product_code) + "</option>";
+        }).join("");
+    }).catch(function () {});
+  }
+
+  /* ---------- รายการงาน ---------- */
+  var CHIP = {
+    pending:  '<span class="chip warn">รอตรวจ</span>',
+    approved: '<span class="chip ok">ยืนยันแล้ว</span>',
+    rejected: '<span class="chip bad">ตีกลับ</span>'
+  };
+
+  $("f-go").addEventListener("click", load);
+
+  function load() {
+    var m = J.me.get();
+    $("list").innerHTML = '<p class="hint">กำลังโหลด…</p>';
+    $("selbar").hidden = true;
+    J.rpc("sup_entries", {
+      p_name: m.name, p_pin: m.pin,
+      p_lot: $("f-lot").value || null,
+      p_emp: $("f-emp").value || null,
+      p_review: $("f-status").value,
+      p_from: $("f-from").value || null,
+      p_to: $("f-to").value || null,
+      p_limit: 200
+    }).then(function (list) {
+      rows = list || [];
+      render();
+    }).catch(function (err) {
+      $("list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>";
+    });
+  }
+
+  function render() {
+    if (!rows.length) {
+      $("list").innerHTML = '<p class="hint">ไม่พบรายการตามเงื่อนไข</p>';
+      $("selbar").hidden = true;
+      sync();
+      return;
+    }
+    $("selbar").hidden = false;
+    var pend = rows.filter(function (r) { return r.review_status === "pending"; }).length;
+    $("sum").textContent = "ทั้งหมด " + rows.length + " รายการ" + (pend ? " · รอตรวจ " + pend : "");
+
+    $("list").innerHTML = rows.map(function (r) {
+      var when = J.thDate(r.work_date) +
+        (r.time_start && r.time_end ? " · " + r.time_start + "–" + r.time_end : "") +
+        (r.minutes ? " (" + r.minutes + " นาที)" : "") +
+        (r.machine ? " · " + r.machine : "");
+      var seen = r.review_status !== "pending";
+      return '<div class="rev' + (seen ? " done" : "") + '">' +
+        '<input type="checkbox" data-id="' + J.esc(r.id) + '" aria-label="เลือกรายการ">' +
+        '<div class="body">' +
+          '<div class="l1"><span class="t">' +
+            J.esc(r.lot || "งานอื่น") + " · " + J.esc(r.step || "—") + " · " + J.esc(r.employee) +
+            " " + (CHIP[r.review_status] || "") +
+          '</span><span class="n">' + J.nf.format(r.qty_good) +
+            (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") + "</span></div>" +
+          '<div class="s">' + J.esc(when) + (r.note ? " · " + J.esc(r.note) : "") + "</div>" +
+          (r.review_status === "rejected" && r.review_note
+            ? '<div class="why">ตีกลับ: ' + J.esc(r.review_note) + "</div>" : "") +
+          (r.review_status === "approved" && r.reviewed_by
+            ? '<div class="s">ยืนยันโดย ' + J.esc(r.reviewed_by) + "</div>" : "") +
+          '<div class="tools">' +
+            (r.photos
+              ? '<button class="btn btn-sm btn-ghost" data-shots="' + J.esc(r.id) + '" type="button">ดูรูป ' + r.photos + " ใบ</button>"
+              : '<span class="chip idle">ไม่มีรูปหลักฐาน</span>') +
+          "</div>" +
+          '<div class="shots" data-box="' + J.esc(r.id) + '"></div>' +
+        "</div></div>";
+    }).join("");
+
+    Array.prototype.forEach.call($("list").querySelectorAll('input[type=checkbox]'), function (c) {
+      c.addEventListener("change", sync);
+    });
+    Array.prototype.forEach.call($("list").querySelectorAll("[data-shots]"), function (b) {
+      b.addEventListener("click", function () { showShots(b.dataset.shots, b); });
+    });
+    sync();
+  }
+
+  function showShots(id, btn) {
+    var box = $("list").querySelector('[data-box="' + id + '"]');
+    if (!box || box.dataset.loaded) return;
+    box.dataset.loaded = "1";
+    if (btn) { btn.disabled = true; btn.textContent = "กำลังโหลดรูป…"; }
+    var m = J.me.get();
+    J.rpc("app_entry_photos", { p_name: m.name, p_pin: m.pin, p_entry: id })
+      .then(function (ph) {
+        box.innerHTML = ph.map(function (x) {
+          return '<img src="' + x.data + '" alt="รูปหลักฐาน">';
+        }).join("");
+        Array.prototype.forEach.call(box.querySelectorAll("img"), function (im) {
+          im.addEventListener("click", function () {
+            $("lightbox-img").src = im.src;
+            $("lightbox").hidden = false;
+          });
+        });
+        if (btn) btn.remove();
+      })
+      .catch(function () {
+        box.dataset.loaded = "";
+        if (btn) { btn.disabled = false; btn.textContent = "โหลดรูปไม่สำเร็จ — ลองใหม่"; }
+      });
+  }
+
+  $("shot-all").addEventListener("click", function () {
+    Array.prototype.forEach.call($("list").querySelectorAll("[data-shots]"), function (b) {
+      showShots(b.dataset.shots, b);
+    });
+  });
+
+  /* ---------- เลือก / ยืนยัน / ตีกลับ ---------- */
+  function boxes() {
+    return Array.prototype.slice.call($("list").querySelectorAll('input[type=checkbox]'));
+  }
+  function picked() {
+    return boxes().filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.id; });
+  }
+
+  function sync() {
+    var ids = picked();
+    $("nsel").textContent = J.nf.format(ids.length);
+    var pcs = rows.filter(function (r) { return ids.indexOf(r.id) >= 0; })
+      .reduce(function (a, r) { return a + (Number(r.qty_good) || 0) + (Number(r.qty_bad) || 0); }, 0);
+    $("npc").textContent = J.nf.format(pcs);
+    $("bulk").hidden = ids.length === 0;
+    if (!ids.length) { $("why-box").hidden = true; }
+  }
+
+  $("sel-all").addEventListener("click", function () {
+    boxes().forEach(function (c) { c.checked = true; });
+    sync();
+  });
+  $("sel-none").addEventListener("click", function () {
+    boxes().forEach(function (c) { c.checked = false; });
+    sync();
+  });
+
+  function send(action, note) {
+    var ids = picked();
+    if (!ids.length) return;
+    var m = J.me.get();
+    $("do-ok").disabled = true; $("do-no2").disabled = true;
+    J.rpc("sup_review", {
+      p_name: m.name, p_pin: m.pin,
+      p_ids: ids, p_action: action, p_note: note || null
+    }).then(function (r) {
+      J.msg($("rev-msg"), (action === "approve" ? "ยืนยันแล้ว " : "ตีกลับแล้ว ") +
+        J.nf.format(r.n) + " รายการ", action === "approve" ? "ok" : "warn");
+      $("why").value = "";
+      $("why-box").hidden = true;
+      load();
+    }).catch(function (err) { J.msg($("rev-msg"), err.message, "err"); })
+      .then(function () { $("do-ok").disabled = false; $("do-no2").disabled = false; });
+  }
+
+  $("do-ok").addEventListener("click", function () { send("approve", null); });
+  $("do-no").addEventListener("click", function () {
+    $("why-box").hidden = false;
+    $("why").focus();
+  });
+  $("do-cancel").addEventListener("click", function () { $("why-box").hidden = true; });
+  $("do-no2").addEventListener("click", function () {
+    var w = $("why").value.trim();
+    if (!w) { J.msg($("rev-msg"), "ใส่เหตุผลที่ตีกลับก่อน", "err"); $("why").focus(); return; }
+    send("reject", w);
+  });
+  $("why").addEventListener("keydown", function (e) { if (e.key === "Enter") $("do-no2").click(); });
+
+  $("lightbox").addEventListener("click", function () { $("lightbox").hidden = true; });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") $("lightbox").hidden = true; });
+
+  /* ---------- เริ่ม ---------- */
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+</script>
+</body>
+</html>
