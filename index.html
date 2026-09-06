@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=7">
+<link rel="stylesheet" href="app.css?v=8">
 </head>
 <body>
 
@@ -187,8 +187,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=7"></script>
-<script src="api.js?v=7"></script>
+<script src="config.js?v=8"></script>
+<script src="api.js?v=8"></script>
 <script>
 (function () {
   "use strict";
@@ -470,6 +470,43 @@
     });
   });
 
+  function openFix(id, list) {
+    var r = list.filter(function (x) { return x.id === id; })[0];
+    var box = $("recent").querySelector('[data-edt="' + id + '"]');
+    if (!r || !box) return;
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML =
+      '<div class="row2">' +
+        '<div><label>จำนวนดี</label><input type="number" min="0" step="1" data-f="good" value="' + (r.qty_good || 0) + '"></div>' +
+        '<div><label>จำนวนเสีย</label><input type="number" min="0" step="1" data-f="bad" value="' + (r.qty_bad || 0) + '"></div>' +
+      "</div>" +
+      '<div style="margin-top:9px"><label>หมายเหตุ</label>' +
+        '<input type="text" data-f="note" value="' + J.esc(r.note || "") + '"></div>' +
+      '<div class="acts">' +
+        '<button class="btn btn-sm btn-primary" data-save="1" type="button">บันทึก</button>' +
+        '<button class="btn btn-sm btn-ghost" data-cancel="1" type="button">ยกเลิก</button>' +
+      "</div>";
+    var f = function (n) { return box.querySelector('[data-f="' + n + '"]'); };
+    box.querySelector("[data-cancel]").addEventListener("click", function () { box.hidden = true; });
+    box.querySelector("[data-save]").addEventListener("click", function () {
+      var m = J.me.get();
+      box.querySelector("[data-save]").disabled = true;
+      J.rpc("app_edit_entry", {
+        p_name: m.name, p_pin: m.pin, p_id: id,
+        p_good: Number(f("good").value || 0), p_bad: Number(f("bad").value || 0),
+        p_note: f("note").value,
+        p_time_start: r.time_start || null, p_time_end: r.time_end || null
+      }).then(function () {
+        J.msg($("form-msg"), "แก้ไขเรียบร้อย", "ok");
+        loadRecent(); loadLots();
+      }).catch(function (err) {
+        J.msg($("form-msg"), err.message, "err");
+        box.querySelector("[data-save]").disabled = false;
+      });
+    });
+  }
+
   function loadRecent() {
     var m = J.me.get();
     J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 15 }).then(function (list) {
@@ -508,9 +545,13 @@
             : "") + "</span>" +
           '<span class="n">' + J.nf.format(e.qty_good) +
           (e.qty_bad ? "<i>เสีย " + J.nf.format(e.qty_bad) + "</i>" : "") +
-          (e.can_delete ? ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(e.id) + '" type="button">ลบ</button>' : "") +
-          "</span></div>";
+          (e.can_delete ? ' <button class="btn btn-sm" data-fix="' + J.esc(e.id) + '" type="button">แก้</button>' +
+                          ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(e.id) + '" type="button">ลบ</button>' : "") +
+          '</span><div class="edt" data-edt="' + J.esc(e.id) + '" hidden></div></div>';
       }).join("");
+      Array.prototype.forEach.call($("recent").querySelectorAll("[data-fix]"), function (b) {
+        b.addEventListener("click", function () { openFix(b.dataset.fix, list); });
+      });
       Array.prototype.forEach.call($("recent").querySelectorAll("[data-del]"), function (b) {
         b.addEventListener("click", function () {
           if (!confirm("ลบรายการนี้?")) return;
