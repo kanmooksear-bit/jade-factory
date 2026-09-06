@@ -27,6 +27,25 @@
   .kpi .v small{font-size:12px;font-weight:400;color:var(--ink-3);margin-inline-start:4px}
   .kpi .f{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
   .kpi.bad .v{color:var(--alert)}
+  .lotcard{
+    background:var(--surface);border:1px solid var(--jade);border-radius:8px;
+    padding:14px 16px;margin-bottom:16px;
+  }
+  .lotcard[hidden]{display:none!important}
+  .lotcard .lc-top{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:8px}
+  .lotcard .lc-code{font-family:var(--display);font-size:22px;font-weight:600}
+  .lotcard .lc-prod{font-size:14px;color:var(--ink-2)}
+  .lotcard .lc-facts{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
+  .lotcard .lc-facts b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .lotcard .lc-prog{display:block;height:9px;background:var(--surface-2);border-radius:5px;
+                    overflow:hidden;margin:10px 0 6px;display:flex}
+  .lotcard .lc-prog i{display:block;height:100%}
+  .scope{
+    font-size:11.5px;padding:2px 10px;border-radius:999px;white-space:nowrap;
+    background:var(--jade-soft);color:var(--jade-ink);margin-inline-start:8px;
+  }
+  .lotlist{font-size:11px;color:var(--ink-3);font-weight:400;white-space:normal}
+  td .lotlist{display:block;margin-top:1px}
   .kpi.warn .v{color:var(--amber)}
   .kpi.warn{border-color:var(--amber-soft)}
 
@@ -50,8 +69,8 @@
   .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;margin-inline-end:6px;vertical-align:-1px}
 
   .hbars{display:flex;flex-direction:column;gap:9px}
-  .hrow{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center}
-  .hname{font-size:13.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hrow{display:grid;grid-template-columns:104px 1fr auto;gap:12px;align-items:center}
+  .hname{font-size:13.5px;color:var(--ink-2);line-height:1.35;overflow-wrap:anywhere}
   .htrack{display:block;background:var(--surface-2);border-radius:4px;height:20px;overflow:hidden}
   .hfill{display:block;background:var(--jade);height:100%;border-radius:4px;min-width:2px}
   .hval{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -112,9 +131,13 @@
     <div class="range">
       <div class="field"><label for="r-from">ตั้งแต่</label><input id="r-from" type="date"></div>
       <div class="field"><label for="r-to">ถึง</label><input id="r-to" type="date"></div>
+      <div class="field"><label for="r-lot">ล็อต</label>
+        <select id="r-lot"><option value="">— ทุกล็อต —</option></select></div>
       <button class="btn" id="r-go" type="button">ดูข้อมูล</button>
       <button class="btn btn-ghost" id="r-30" type="button">30 วันล่าสุด</button>
     </div>
+
+    <div class="lotcard" id="lotcard" hidden></div>
 
     <div class="kpis" id="kpis"></div>
 
@@ -143,6 +166,14 @@
         <span class="hint">ของที่ยังอยู่ในสายการผลิต</span>
       </div>
       <div class="panel scroll"><table id="lots"></table></div>
+    </section>
+
+    <section id="sec-over" hidden>
+      <div class="sec-head">
+        <h2>ขั้นตอนที่ลงเกินจำนวนล็อต</h2>
+        <span class="hint">ตัดเผื่อได้ ไม่ใช่ความผิด — แต่ควรรู้ว่าเผื่อไปเท่าไร</span>
+      </div>
+      <div class="panel scroll"><table id="over"></table></div>
     </section>
 
     <section>
@@ -271,25 +302,111 @@
   $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
   $("reload").addEventListener("click", load);
   $("r-go").addEventListener("click", load);
+  $("r-lot").addEventListener("change", load);
   $("r-30").addEventListener("click", function () { setLast30(); load(); });
 
   function load() {
     var m = J.me.get();
     J.rpc("sup_dashboard", {
       p_name: m.name, p_pin: m.pin,
-      p_from: $("r-from").value || null, p_to: $("r-to").value || null
+      p_from: $("r-from").value || null, p_to: $("r-to").value || null,
+      p_lot: $("r-lot").value || null
     }).then(render).catch(function (err) { alert(err.message); });
   }
 
+  /* ---------- ตัวช่วยเรื่องล็อต ---------- */
+  function paintScope(lot) {
+    var txt = lot ? "ล็อต " + lot : "ทุกล็อต";
+    Array.prototype.forEach.call(document.querySelectorAll(".sec-head"), function (h) {
+      var s = h.querySelector(".scope");
+      if (!s) { s = document.createElement("span"); s.className = "scope"; h.querySelector("h2").appendChild(s); }
+      s.textContent = txt;
+    });
+  }
+
+  function lotTag(arr, one) {
+    if (one || !arr || !arr.length) return "";
+    var a = arr.slice(0, 3).join(" · ");
+    return '<br><span class="lotlist">' + J.esc(a) +
+      (arr.length > 3 ? " +" + (arr.length - 3) : "") + "</span>";
+  }
+
+  function fillLotOptions(lots) {
+    var sel = $("r-lot");
+    if (sel.dataset.filled) return;
+    sel.dataset.filled = "1";
+    var keep = sel.value;
+    sel.innerHTML = '<option value="">— ทุกล็อต —</option>' +
+      (lots || []).map(function (l) {
+        return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+          J.esc(l.product_code) + (l.status === "open" ? "" : " (ปิดแล้ว)") + "</option>";
+      }).join("");
+    sel.value = keep;
+  }
+
+  function renderLotCard(info) {
+    var box = $("lotcard");
+    if (!info) { box.hidden = true; return; }
+    box.hidden = false;
+    var open = Number(info.qty_opened) || 0;
+    var ok = Number(info.qc_passed) || 0, wait = Number(info.qc_pending) || 0;
+    var bad = Number(info.total_bad) || 0, wip = Number(info.wip) || 0;
+    var pct = function (v) { return open ? (v / open * 100).toFixed(1) + "%" : "0%"; };
+    var late = info.due_date && info.due_date < J.today() && info.status === "open";
+    box.innerHTML =
+      '<div class="lc-top"><span class="lc-code">' + J.esc(info.code) + "</span>" +
+        '<span class="lc-prod">' + J.esc(info.product_code) + " · " + J.esc(info.product_name) +
+        " · หยก" + J.esc(info.jade) + "</span>" +
+        '<span class="chip ' + (info.status === "open" ? "ok" : "idle") + '">' +
+        (info.status === "open" ? "กำลังทำ" : "ปิดแล้ว") + "</span>" +
+        (late ? '<span class="chip bad">เลยกำหนดส่ง</span>' : "") + "</div>" +
+      '<span class="lc-prog">' +
+        '<i style="width:' + pct(ok)   + ';background:var(--jade)"></i>' +
+        '<i style="width:' + pct(wait) + ';background:var(--amber)"></i>' +
+        '<i style="width:' + pct(bad)  + ';background:var(--alert)"></i>' +
+      "</span>" +
+      '<div class="lc-facts">' +
+        "<span>เริ่มเมื่อ <b>" + J.esc(J.thDate(info.opened_at)) + "</b>" +
+          (info.days != null ? " (" + J.nf.format(info.days) + " วันแล้ว)" : "") + "</span>" +
+        "<span>เปิดล็อต <b>" + J.nf.format(open) + "</b> ชิ้น</span>" +
+        "<span>ผ่าน QC <b>" + J.nf.format(ok) + "</b></span>" +
+        (wait ? "<span>รอตรวจ <b>" + J.nf.format(wait) + "</b></span>" : "") +
+        "<span>เสีย <b>" + J.nf.format(bad) + "</b></span>" +
+        "<span>ค้างในสาย <b>" + J.nf.format(wip) + "</b></span>" +
+        "<span>ขั้นตอนล่าสุด <b>" + J.esc(info.last_step || "—") + "</b>" +
+          (info.last_date ? " เมื่อ " + J.esc(J.thDate(info.last_date)) : "") + "</span>" +
+        (info.due_date ? "<span>กำหนดส่ง <b>" + J.esc(J.thDate(info.due_date)) + "</b></span>" : "") +
+      "</div>";
+  }
+
+  function renderOver(rows, one) {
+    if (!rows || !rows.length) { $("sec-over").hidden = true; return; }
+    $("sec-over").hidden = false;
+    $("over").innerHTML =
+      "<thead><tr><th>ล็อต</th><th>ขั้นตอน</th><th class='num'>เปิดล็อต</th>" +
+      "<th class='num'>ลงไปแล้ว</th><th class='num'>เกิน</th></tr></thead><tbody>" +
+      rows.map(function (r) {
+        return "<tr><td>" + J.esc(r.lot) + "</td><td>" + J.esc(r.step) +
+          "</td><td class='num'>" + J.nf.format(r.lot_qty) +
+          "</td><td class='num'>" + J.nf.format(r.step_total) +
+          '</td><td class="num"><span class="chip warn">+' + J.nf.format(r.over) + "</span></td></tr>";
+      }).join("") + "</tbody>";
+  }
+
   function render(d) {
+    var one = d.lot || "";
+    fillLotOptions(d.lots || []);
+    paintScope(one);
+    renderLotCard(d.lot_info || null);
     renderKpis(d);
-    renderDaily(d.daily || []);
-    renderLots(d.lots || []);
-    renderByEmp(d.by_employee || []);
+    renderDaily(d.daily || [], one);
+    renderLots(d.lots || [], one);
+    renderOver(d.over_quota || [], one);
+    renderByEmp(d.by_employee || [], one);
     renderHeat(d.by_emp_step || []);
-    renderByTime(d.by_step || []);
-    renderByProd(d.by_product || []);
-    renderByStep(d.by_step || []);
+    renderByTime(d.by_step || [], one);
+    renderByProd(d.by_product || [], one);
+    renderByStep(d.by_step || [], one);
     renderOther(d.other_work || []);
   }
 
@@ -343,7 +460,7 @@
     }).join("");
   }
 
-  function renderDaily(rows) {
+  function renderDaily(rows, one) {
     var host = $("daily"), strip = $("defects"), axis = $("daxis");
     if (!rows.length) {
       host.innerHTML = '<p class="empty">ยังไม่มีข้อมูลในช่วงนี้</p>';
@@ -377,21 +494,32 @@
       note.push("ยังไม่มีชิ้นงานผ่าน QC ในช่วงนี้ — งานยังอยู่ระหว่างขั้นตอน");
     }
     if (topB) note.push("ของเสียสูงสุด " + J.nf.format(topB) + " ชิ้น/วัน");
+    if (!one) {
+      var all = [];
+      rows.forEach(function (r) {
+        (r.lots || []).forEach(function (c) { if (all.indexOf(c) === -1) all.push(c); });
+      });
+      if (all.length) note.push("ล็อตในช่วงนี้: " + all.join(" · "));
+    }
     $("daily-note").textContent = note.join(" · ");
   }
 
-  function renderLots(lots) {
-    var open = lots.filter(function (l) { return l.status === "open"; });
+  function renderLots(lots, one) {
+    var open = lots.filter(function (l) {
+      return one ? l.code === one : l.status === "open";
+    });
     if (!open.length) { $("lots").innerHTML = '<tr><td class="empty">ไม่มีล็อตที่กำลังทำอยู่</td></tr>'; return; }
     $("lots").innerHTML =
-      "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>เปิด</th><th class='num'>ผ่าน QC</th>" +
+      "<thead><tr><th>ล็อต</th><th>สินค้า</th><th>เริ่มเมื่อ</th><th class='num'>เปิด</th><th class='num'>ผ่าน QC</th>" +
       "<th class='num'>รอตรวจ</th>" +
       "<th class='num'>เสีย</th><th class='num'>ค้างในสาย</th><th>ขั้นตอนล่าสุด</th><th>กำหนดส่ง</th></tr></thead><tbody>" +
       open.map(function (l) {
         var late = l.due_date && l.due_date < J.today();
         var wait = Number(l.qc_pending) || 0;
         return "<tr><td>" + J.esc(l.code) + "</td><td>" + J.esc(l.product_code) + " " +
-          J.esc(l.product_name) + "</td><td class='num'>" + J.nf.format(l.qty_opened) +
+          J.esc(l.product_name) + "</td><td>" + J.esc(J.thDate(l.opened_at)) +
+          (l.days != null ? ' <span class="lotlist">' + J.nf.format(l.days) + " วัน</span>" : "") +
+          "</td><td class='num'>" + J.nf.format(l.qty_opened) +
           "</td><td class='num'>" + J.nf.format(l.qc_passed) + "</td><td class='num'>" +
           (wait ? '<span class="chip warn">' + J.nf.format(wait) + "</span>" : "—") + "</td><td class='num'>" +
           J.nf.format(l.total_bad) + "</td><td class='num'>" + J.nf.format(l.wip) + "</td><td>" +
@@ -401,13 +529,13 @@
       }).join("") + "</tbody>";
   }
 
-  function renderByEmp(rows) {
+  function renderByEmp(rows, one) {
     if (!rows.length) { $("byemp").innerHTML = '<p class="empty">ยังไม่มีข้อมูล</p>'; return; }
     var max = Math.max.apply(null, rows.map(function (r) { return Number(r.qty) || 0; })) || 1;
     $("byemp").innerHTML = rows.map(function (r) {
       var q = Number(r.qty) || 0, b = Number(r.bad) || 0, mi = Number(r.minutes) || 0;
       var tq = r.timed_qty == null ? null : Number(r.timed_qty) || 0;
-      return '<div class="hrow"><span class="hname">' + J.esc(r.name) + "</span>" +
+      return '<div class="hrow"><span class="hname">' + J.esc(r.name) + lotTag(r.lots, one) + "</span>" +
         '<span class="htrack"><span class="hfill" style="width:' + (q / max * 100).toFixed(1) + '%"></span></span>' +
         '<span class="hval">' + J.nf.format(q) +
         (mi ? '<b class="rate">' + hoursTxt(mi) + " ชม." +
@@ -447,14 +575,14 @@
     }).join("") + "มาก (สูงสุด " + J.nf.format(max) + " ชิ้น)";
   }
 
-  function renderByTime(rows) {
+  function renderByTime(rows, one) {
     var list = rows.filter(function (r) { return (Number(r.minutes) || 0) > 0; })
       .map(function (r) {
         var mi = Number(r.minutes) || 0;
         var q = r.timed_qty == null
           ? (Number(r.qty) || 0) + (Number(r.bad) || 0)
           : Number(r.timed_qty) || 0;
-        return { step: r.step, qty: q, minutes: mi, rate: q / (mi / 60) };
+        return { step: r.step, qty: q, minutes: mi, rate: q / (mi / 60), lots: r.lots };
       })
       .sort(function (a, c) { return c.minutes - a.minutes; });
     if (!list.length) {
@@ -466,7 +594,7 @@
       "<thead><tr><th>ขั้นตอน</th><th class='num'>ชั่วโมง</th><th class='num'>ชิ้น</th>" +
       "<th class='num'>ชิ้น/ชม.</th><th></th></tr></thead><tbody>" +
       list.map(function (x) {
-        return "<tr><td>" + J.esc(x.step) + "</td><td class='num'>" + hoursTxt(x.minutes) +
+        return "<tr><td>" + J.esc(x.step) + lotTag(x.lots, one) + "</td><td class='num'>" + hoursTxt(x.minutes) +
           "</td><td class='num'>" + J.nf.format(x.qty) + "</td><td class='num'>" +
           J.nf.format(Math.round(x.rate)) + "</td>" +
           '<td style="width:34%"><span class="htrack" style="height:12px">' +
@@ -474,7 +602,7 @@
       }).join("") + "</tbody>";
   }
 
-  function renderByProd(rows) {
+  function renderByProd(rows, one) {
     if (!rows.length) { $("byprod").innerHTML = '<tr><td class="empty">ยังไม่มีข้อมูล</td></tr>'; return; }
     $("byprod").innerHTML =
       "<thead><tr><th>รหัส</th><th>สินค้า</th><th>ชนิดหยก</th><th class='num'>ผ่าน QC</th>" +
@@ -483,18 +611,18 @@
         var qc = Number(r.qc) || 0, bad = Number(r.bad) || 0;
         var rate = qc + bad > 0 ? bad / (qc + bad) * 100 : 0;
         var cls = qc + bad === 0 ? "idle" : bad === 0 ? "ok" : rate >= 5 ? "bad" : "warn";
-        return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.name) + "</td><td>" +
-          J.esc(r.jade) + "</td><td class='num'>" + J.nf.format(qc) + "</td><td class='num'>" +
+        return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.name) + lotTag(r.lots, one) +
+          "</td><td>" + J.esc(r.jade) + "</td><td class='num'>" + J.nf.format(qc) + "</td><td class='num'>" +
           J.nf.format(bad) + '</td><td><span class="chip ' + cls + '">' +
           pctTxt(bad, qc + bad) + "</span></td><td class='num'>" +
           J.nf.format(Number(r.all_steps) || 0) + "</td></tr>";
       }).join("") + "</tbody>";
   }
 
-  function renderByStep(rows) {
+  function renderByStep(rows, one) {
     var list = rows.filter(function (r) { return Number(r.bad) > 0; }).map(function (r) {
       var q = Number(r.qty) || 0, b = Number(r.bad) || 0;
-      return { step: r.step, qty: q, bad: b, rate: q + b > 0 ? b / (q + b) * 100 : 0 };
+      return { step: r.step, qty: q, bad: b, lots: r.lots, rate: q + b > 0 ? b / (q + b) * 100 : 0 };
     }).sort(function (a, c) { return c.rate - a.rate; });
     if (!list.length) { $("bystep").innerHTML = '<tr><td class="empty">ไม่พบของเสียในช่วงนี้</td></tr>'; return; }
     var maxR = Math.max.apply(null, list.map(function (x) { return x.rate; })) || 1;
@@ -502,7 +630,7 @@
       "<thead><tr><th>ขั้นตอน</th><th class='num'>ชิ้นรวม</th><th class='num'>เสีย</th>" +
       "<th>อัตราเสีย</th><th></th></tr></thead><tbody>" +
       list.map(function (x) {
-        return "<tr><td>" + J.esc(x.step) + "</td><td class='num'>" + J.nf.format(x.qty) +
+        return "<tr><td>" + J.esc(x.step) + lotTag(x.lots, one) + "</td><td class='num'>" + J.nf.format(x.qty) +
           "</td><td class='num'>" + J.nf.format(x.bad) + '</td><td><span class="chip ' +
           (x.rate >= 5 ? "bad" : "warn") + '">' + pctTxt(x.bad, x.qty + x.bad) + "</span></td>" +
           '<td style="width:34%"><span class="htrack" style="height:12px">' +
