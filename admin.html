@@ -88,9 +88,14 @@
           <input id="n-qty" type="number" inputmode="numeric" min="1" step="1">
         </div>
         <div class="field">
-          <label for="n-due">กำหนดส่ง (ถ้ามี)</label>
-          <input id="n-due" type="date">
+          <label for="n-open">วันที่เริ่มล็อต</label>
+          <input id="n-open" type="date">
         </div>
+      </div>
+      <p class="hint" style="margin:-6px 0 14px">ปกติเป็นวันนี้ — ถ้าเป็นล็อตเก่าที่เพิ่งเอามาบันทึก ให้ใส่วันที่เริ่มทำจริง รหัสล็อตจะอิงเดือนนั้น</p>
+      <div class="field">
+        <label for="n-due">กำหนดส่ง (ถ้ามี)</label>
+        <input id="n-due" type="date">
       </div>
       <div class="field">
         <label for="n-note">หมายเหตุ</label>
@@ -180,6 +185,7 @@
     $("who").hidden = false;
     $("who-name").textContent = J.me.get().name;
     var d = new Date();
+    $("n-open").value = J.today();
     $("e-to").value = J.today();
     $("e-from").value = new Date(d.getFullYear(), d.getMonth() - 1, d.getDate())
       .toISOString().slice(0, 10);
@@ -259,10 +265,14 @@
     $("n-go").disabled = true;
     J.rpc("sup_open_lot", {
       p_name: m.name, p_pin: m.pin, p_product: prod, p_qty: qty,
-      p_due: $("n-due").value || null, p_note: $("n-note").value || null
+      p_due: $("n-due").value || null, p_note: $("n-note").value || null,
+      p_opened: $("n-open").value || null
     }).then(function (r) {
-      J.msg($("open-msg"), "เปิดล็อต " + r.code + " แล้ว — แจ้งพนักงานได้เลย", "ok");
+      var back = r.opened_at && r.opened_at !== J.today();
+      J.msg($("open-msg"), "เปิดล็อต " + r.code + " แล้ว" +
+        (back ? " — ย้อนหลังวันที่ " + J.thLong(r.opened_at) : " — แจ้งพนักงานได้เลย"), "ok");
       $("n-qty").value = ""; $("n-note").value = ""; $("n-due").value = "";
+      $("n-open").value = J.today();
       lotFilter = "open"; setTab(); loadLots();
     }).catch(function (err) { J.msg($("open-msg"), err.message, "err"); })
       .then(function () { $("n-go").disabled = false; });
@@ -346,8 +356,12 @@
         '<div><label>กำหนดส่ง (เว้นว่าง = ไม่กำหนด)</label><input type="text" data-f="due" placeholder="วว/ดด/ปปปป" value="' +
           J.esc(l.due_date ? J.formatThai(l.due_date) : "") + '"></div>' +
       "</div>" +
-      '<div style="margin-top:9px"><label>หมายเหตุ</label>' +
-        '<input type="text" data-f="note" value="' + J.esc(l.note || "") + '"></div>' +
+      '<div class="row2" style="margin-top:9px">' +
+        '<div><label>วันที่เริ่มล็อต</label><input type="text" data-f="open" placeholder="วว/ดด/ปปปป" value="' +
+          J.esc(l.opened_at ? J.formatThai(l.opened_at) : "") + '"></div>' +
+        '<div><label>หมายเหตุ</label><input type="text" data-f="note" value="' +
+          J.esc(l.note || "") + '"></div>' +
+      "</div>" +
       '<p class="hint" style="margin:8px 0 0">ล็อตนี้ผ่าน QC และเสียไปแล้วรวม ' + J.nf.format(used) +
         ' ชิ้น — ลดจำนวนต่ำกว่านี้ไม่ได้</p>' +
       '<div class="acts">' +
@@ -363,11 +377,15 @@
       var dueRaw = f("due").value.trim();
       var due = dueRaw ? J.parseThai(dueRaw) : null;
       if (dueRaw && !due) { J.msg($("lot-msg"), "กำหนดส่งไม่ถูกต้อง — พิมพ์เป็น วว/ดด/ปปปป", "err"); return; }
+      var openRaw = f("open").value.trim();
+      var open = openRaw ? J.parseThai(openRaw) : null;
+      if (!open) { J.msg($("lot-msg"), "วันที่เริ่มล็อตไม่ถูกต้อง — พิมพ์เป็น วว/ดด/ปปปป", "err"); return; }
       var m = J.me.get();
       J.rpc("sup_edit_lot", {
         p_name: m.name, p_pin: m.pin, p_code: code,
         p_qty: Number(f("qty").value || 0) || null,
         p_due: due, p_clear_due: !dueRaw,
+        p_opened: open,
         p_note: f("note").value
       }).then(function () { J.msg($("lot-msg"), "แก้ล็อต " + code + " เรียบร้อย", "ok"); loadLots(); })
         .catch(function (err) { J.msg($("lot-msg"), err.message, "err"); });
