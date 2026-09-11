@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=13">
 <style>
   .wrap{max-width:1080px}
   .topbar-in{max-width:1080px}
@@ -92,16 +92,26 @@
       <p class="hint" style="margin-bottom:12px">ต้นทุน/ชิ้น = (ค่าหยกของล็อต + ค่าแรงจากชั่วโมงที่ลงจริง + ค่าโสหุ้ย) ÷ ชิ้นที่ผ่าน QC</p>
       <div class="two">
         <div class="field">
-          <label for="s-hpd">ชั่วโมงทำงานต่อวัน</label>
+          <label for="s-hpd">ชั่วโมงทำงานต่อวัน (ของคน)</label>
           <input id="s-hpd" type="number" min="1" max="24" step="0.5">
         </div>
         <div class="field">
-          <label for="s-oh">ค่าโสหุ้ยต่อชั่วโมงงาน (บาท)</label>
-          <input id="s-oh" type="number" min="0" step="1">
+          <label for="s-ohm">ค่าโสหุ้ยต่อเดือน (บาท)</label>
+          <input id="s-ohm" type="number" min="0" step="100">
         </div>
       </div>
+      <p class="hint" style="margin:-4px 0 12px">ค่าเช่า + ค่าไฟ + ค่าเสื่อมเครื่อง รวมทั้งเดือน ใส่ยอดเดียว — ระบบหารด้วยชั่วโมงที่โรงงานเดินจริงของเดือนนั้นให้เอง<br>ชั่วโมงเดินงาน = <b>เครื่อง CNC นับ 24 ชม./วัน</b> ตั้งแต่วันเข้าเครื่องถึงวันเอาออก + ชั่วโมงที่คนลงเวลาไว้ ล็อตไหนนอนในเครื่องนานก็แบกโสหุ้ยมากกว่า</p>
+      <details style="margin-bottom:12px">
+        <summary class="hint" style="cursor:pointer">กรอกเป็นต่อชั่วโมงเองแทน (ขั้นสูง)</summary>
+        <div class="field" style="margin-top:10px">
+          <label for="s-oh">ค่าโสหุ้ยต่อชั่วโมงเดินงาน (บาท)</label>
+          <input id="s-oh" type="number" min="0" step="1">
+          <span class="hint">ใช้ก็ต่อเมื่อช่อง "ต่อเดือน" เป็น 0 — คิดจากชั่วโมงเครื่อง + ชั่วโมงคน เหมือนกัน</span>
+        </div>
+      </details>
       <div class="msg" id="set-msg" hidden></div>
       <button class="btn" id="s-save" type="button">บันทึกค่าตั้งต้น</button>
+      <div id="oh-months" style="margin-top:14px"></div>
       <p class="hint" style="margin-top:10px">ค่าแรงรายวันของแต่ละคนตั้งที่หน้า ตั้งค่า → พนักงาน · ค่าหยกของแต่ละล็อตกรอกได้ในตารางข้างล่าง</p>
     </div>
 
@@ -139,8 +149,8 @@
   </div>
 </main>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=13"></script>
+<script src="api.js?v=13"></script>
 <script>
 (function () {
   "use strict";
@@ -198,6 +208,41 @@
     J.rpc("sup_settings", { p_name: m.name, p_pin: m.pin }).then(function (s) {
       $("s-hpd").value = s.hours_per_day == null ? 8 : s.hours_per_day;
       $("s-oh").value = s.overhead_per_hour == null ? 0 : s.overhead_per_hour;
+      $("s-ohm").value = s.overhead_per_month == null ? 0 : s.overhead_per_month;
+    }).catch(function () {});
+    loadOverhead();
+  }
+
+  var THMON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  function monthTxt(ym) {
+    var p = String(ym).split("-");
+    if (p.length < 2) return ym;
+    return THMON[Number(p[1]) - 1] + " " + (Number(p[0]) + 543 - 2500);
+  }
+
+  function loadOverhead() {
+    var m = J.me.get();
+    J.rpc("sup_overhead", { p_name: m.name, p_pin: m.pin, p_months: 6 }).then(function (d) {
+      var box = $("oh-months"), list = d.months || [];
+      if (!list.length) {
+        box.innerHTML = '<p class="hint">ยังไม่มีชั่วโมงเดินงานให้คิด — พอมีงานเข้า-ออกเครื่องหรือมีการลงเวลา ตัวเลขต่อชั่วโมงจะขึ้นตรงนี้</p>';
+        return;
+      }
+      var mode = d.mode === "month"
+        ? 'คิดจากค่าโสหุ้ยต่อเดือน ' + money(d.per_month) + ' บาท'
+        : 'ยังไม่ได้กรอกต่อเดือน — ใช้อัตราคงที่ ' + money(d.per_hour) + ' บาท/ชม.';
+      box.innerHTML =
+        '<p class="hint" style="margin-bottom:6px">' + J.esc(mode) + "</p>" +
+        '<div class="scroll"><table><thead><tr><th>เดือน</th>' +
+        "<th class='money'>ชม. เครื่อง</th><th class='money'>ชม. คน</th>" +
+        "<th class='money'>รวม</th><th class='money'>โสหุ้ย/ชม.</th></tr></thead><tbody>" +
+        list.map(function (r) {
+          return "<tr><td>" + J.esc(monthTxt(r.ym)) + "</td>" +
+            '<td class="money">' + (Number(r.machine_hours) || 0).toFixed(0) + "</td>" +
+            '<td class="money">' + (Number(r.labour_hours) || 0).toFixed(1) + "</td>" +
+            '<td class="money">' + (Number(r.base_hours) || 0).toFixed(1) + "</td>" +
+            '<td class="money"><b>' + money(r.rate) + "</b></td></tr>";
+        }).join("") + "</tbody></table></div>";
     }).catch(function () {});
   }
 
@@ -206,9 +251,12 @@
     $("s-save").disabled = true;
     J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "hours_per_day", p_num: Number($("s-hpd").value) })
       .then(function () {
+        return J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "overhead_per_month", p_num: Number($("s-ohm").value) });
+      })
+      .then(function () {
         return J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "overhead_per_hour", p_num: Number($("s-oh").value) });
       })
-      .then(function () { J.msg($("set-msg"), "บันทึกแล้ว — ตัวเลขข้างล่างคิดใหม่ให้เลย", "ok"); load(); })
+      .then(function () { J.msg($("set-msg"), "บันทึกแล้ว — ตัวเลขข้างล่างคิดใหม่ให้เลย", "ok"); loadOverhead(); load(); })
       .catch(function (err) { J.msg($("set-msg"), err.message, "err"); })
       .then(function () { $("s-save").disabled = false; });
   });
@@ -347,6 +395,13 @@
         '<span><i class="swatch" style="background:var(--jade)"></i>ค่าแรง ' + money(lab) + "</span>" +
         '<span><i class="swatch" style="background:var(--amber)"></i>โสหุ้ย ' + money(oh) + "</span>" +
         "<span><b>รวม " + money(tot) + " บาท</b></span></div>";
+
+    if (oh > 0 || Number(d.machine_hours) > 0) {
+      html += '<p class="hint" style="margin-top:6px">โสหุ้ยคิดจาก ชั่วโมงเครื่อง ' +
+        (Number(d.machine_hours) || 0).toFixed(0) + " ชม. + ชั่วโมงคน " +
+        (Number(d.labour_hours) || 0).toFixed(1) + " ชม. × " + money(d.overhead_rate) + " บาท/ชม." +
+        (d.overhead_mode === "month" ? " (อัตราที่ได้จากค่าโสหุ้ยต่อเดือน)" : " (อัตราคงที่ที่กรอกไว้)") + "</p>";
+    }
 
     html += '<div class="kpis" style="margin-top:16px">' + [
       { k: "ต้นทุนต่อชิ้น", v: pp == null ? "—" : money(pp), u: "บาท",
