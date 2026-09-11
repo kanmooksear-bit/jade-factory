@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=12">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -115,6 +115,7 @@
             <option value="pending">รอตรวจ</option>
             <option value="approved">ยืนยันแล้ว</option>
             <option value="rejected">ตีกลับ</option>
+            <option value="inmachine">อยู่ในเครื่อง</option>
             <option value="all">ทั้งหมด</option>
           </select>
         </div>
@@ -162,8 +163,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=12"></script>
+<script src="api.js?v=12"></script>
 <script>
 (function () {
   "use strict";
@@ -233,7 +234,8 @@
   var CHIP = {
     pending:  '<span class="chip warn">รอตรวจ</span>',
     approved: '<span class="chip ok">ยืนยันแล้ว</span>',
-    rejected: '<span class="chip bad">ตีกลับ</span>'
+    rejected: '<span class="chip bad">ตีกลับ</span>',
+    inmachine:'<span class="chip">อยู่ในเครื่อง</span>'
   };
 
   $("f-go").addEventListener("click", load);

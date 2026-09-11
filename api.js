@@ -64,12 +64,13 @@ window.JADE = (function () {
   }
   var onQueue = null;
 
-  function submit(args) {
-    return rpc("app_submit", args).catch(function (err) {
+  function submit(args, fn) {
+    fn = fn || "app_submit";
+    return rpc(fn, args).catch(function (err) {
       // ส่งไม่ได้เพราะเน็ต → เก็บเข้าคิว  (ถ้าฐานข้อมูลปฏิเสธ ให้ขึ้น error ตามจริง)
       if (!navigator.onLine || /Failed to fetch|NetworkError|เชื่อมต่อไม่สำเร็จ/i.test(err.message)) {
         var q = queue();
-        q.push(args);
+        q.push(fn === "app_submit" ? args : { fn: fn, args: args });
         setQueue(q);
         return { ok: true, queued: true };
       }
@@ -83,7 +84,8 @@ window.JADE = (function () {
     var sent = 0;
     return q.reduce(function (chain, item) {
       return chain.then(function () {
-        return rpc("app_submit", item).then(function () { sent++; },
+        var it = (item && item.fn && item.args) ? item : { fn: "app_submit", args: item };
+        return rpc(it.fn, it.args).then(function () { sent++; },
           function (err) { if (!/Failed to fetch|NetworkError/i.test(err.message)) sent++; /* ทิ้งรายการที่ผิดกติกา */ });
       });
     }, Promise.resolve()).then(function () {

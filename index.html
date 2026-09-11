@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=10">
+<link rel="stylesheet" href="app.css?v=12">
 </head>
 <body>
 
@@ -81,22 +81,32 @@
           <select id="f-step"></select>
         </div>
 
+        <!-- ขั้นตอนที่ใช้เครื่อง ทำ 2 จังหวะ: เอาเข้า แล้วค่อยเอาออก + นับจำนวน -->
+        <div class="tabs" id="cnc-mode" hidden>
+          <button class="tab" id="m-in" aria-selected="true" type="button">เอาเข้าเครื่อง</button>
+          <button class="tab" id="m-out" aria-selected="false" type="button">เอาออกจากเครื่อง</button>
+        </div>
+
         <div class="field" id="wrap-machine" hidden>
-          <label for="f-machine">เครื่อง CNC</label>
+          <label for="f-machine">เครื่อง</label>
           <select id="f-machine"></select>
         </div>
 
-        <div id="wrap-cnc" hidden>
-          <p class="hint" style="margin:0 0 10px">สองช่องนี้ไม่บังคับ — ใส่ไว้เพื่อดูว่างานอยู่ในเครื่องกี่วัน</p>
-          <div class="field">
-            <label for="f-cstart">วันที่เอาเข้าเครื่อง</label>
-            <input id="f-cstart" type="date">
-          </div>
-          <div class="field">
-            <label for="f-cend">วันที่เอาออกจากเครื่อง</label>
-            <input id="f-cend" type="date">
-          </div>
-          <p class="hint" style="margin:-4px 0 14px">ถ้างานยังอยู่ในเครื่อง ยังไม่เสร็จ ให้ลบ "วันที่เอาออก" ทิ้งแล้วเว้นว่างไว้ก่อน</p>
+        <div class="field" id="wrap-cin" hidden>
+          <label for="f-cstart">วันที่เอาเข้าเครื่อง</label>
+          <input id="f-cstart" type="date">
+          <span class="hint">ยังไม่ต้องนับจำนวน — ค่อยนับตอนเอาออกจากเครื่อง</span>
+        </div>
+
+        <div class="field" id="wrap-job" hidden>
+          <label for="f-job">งานที่อยู่ในเครื่องตอนนี้</label>
+          <select id="f-job"><option value="">— กำลังโหลด —</option></select>
+          <span class="hint" id="job-hint"></span>
+        </div>
+
+        <div class="field" id="wrap-cout" hidden>
+          <label for="f-cend">วันที่เอาออกจากเครื่อง</label>
+          <input id="f-cend" type="date">
         </div>
 
         <div id="wrap-time" hidden>
@@ -113,7 +123,7 @@
           <span class="durnote" id="dur-note"></span>
         </div>
 
-        <div class="two">
+        <div class="two" id="wrap-counts">
           <div class="field">
             <label for="f-good">จำนวนดี (ชิ้น)</label>
             <input id="f-good" type="number" inputmode="numeric" min="0" step="1" value="">
@@ -124,7 +134,7 @@
           </div>
         </div>
 
-        <div class="field">
+        <div class="field" id="wrap-date">
           <label for="f-date">วันที่ทำงาน</label>
           <input id="f-date" type="date">
         </div>
@@ -134,11 +144,11 @@
           <input id="f-note" type="text" placeholder="เช่น เจอตำหนิที่ฐาน">
         </div>
 
-        <div class="field">
+        <div class="field" id="wrap-shot">
           <label for="f-shot">รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
-          <input id="f-shot" type="file" accept="image/*" capture="environment" multiple>
+          <input id="f-shot" type="file" accept="image/*" multiple>
           <div class="shots" id="shot-preview"></div>
-          <span class="hint" id="shot-hint">ถ่ายรูปงานที่ทำเสร็จไว้เป็นหลักฐาน</span>
+          <span class="hint" id="shot-hint">ถ่ายใหม่ หรือเลือกรูปที่มีอยู่แล้วในเครื่องก็ได้</span>
         </div>
 
         <button class="btn btn-primary btn-lg" id="submit-prod" type="button">ส่งบันทึก</button>
@@ -165,6 +175,13 @@
             <input id="o-date" type="date">
           </div>
         </div>
+        <div class="field">
+          <label for="o-shot">รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
+          <input id="o-shot" type="file" accept="image/*" multiple>
+          <div class="shots" id="shot-preview2"></div>
+          <span class="hint">ถ่ายใหม่ หรือเลือกรูปที่มีอยู่แล้วในเครื่องก็ได้</span>
+        </div>
+
         <button class="btn btn-primary btn-lg" id="submit-other" type="button">ส่งบันทึก</button>
       </div>
     </div>
@@ -196,8 +213,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=10"></script>
-<script src="api.js?v=10"></script>
+<script src="config.js?v=12"></script>
+<script src="api.js?v=12"></script>
 <script>
 (function () {
   "use strict";
@@ -295,14 +312,94 @@
   function onStepChange() {
     var s = stepInfo($("f-step").value);
     var needs = !!(s && s.needs_machine);
-    $("wrap-machine").hidden = !needs;
-    $("wrap-cnc").hidden = !needs;
-    // ปกติจะลงบันทึกตอนงานออกจากเครื่องแล้ว จึงเติมวันนี้ให้เป็นค่าตั้งต้น ลบทิ้งได้ถ้ายังไม่เสร็จ
-    if (needs && !$("f-cend").value) $("f-cend").value = $("f-date").value || J.today();
-    // CNC ใช้วันที่เข้า–ออกเครื่องแทน จึงไม่ต้องลงเวลารายชั่วโมง
+    $("cnc-mode").hidden = !needs;
+    // ขั้นตอนที่ใช้เครื่อง ใช้วันเข้า–ออกเครื่องแทน จึงไม่ต้องลงเวลารายชั่วโมง
     $("wrap-time").hidden = !s || needs;
+    if (needs) { if (!$("f-cstart").value) $("f-cstart").value = J.today(); }
+    applyCncMode();
     updateDuration();
   }
+
+  /* ---------- งานเข้า–ออกเครื่อง (2 จังหวะ) ---------- */
+  var cncMode = "in", jobs = [];
+
+  function isMachineStep() {
+    var s = stepInfo($("f-step").value);
+    return !!(s && s.needs_machine);
+  }
+
+  function applyCncMode() {
+    var machine = isMachineStep();
+    var out = machine && cncMode === "out";
+    var into = machine && cncMode === "in";
+
+    $("m-in").setAttribute("aria-selected", String(into));
+    $("m-out").setAttribute("aria-selected", String(out));
+
+    // เอาออกจากเครื่อง: เลือกจากรายการงานที่อยู่ในเครื่อง ไม่ต้องเลือกล็อตเอง
+    $("f-lot").parentNode.hidden = out;
+    $("lotinfo").hidden = out || !$("f-lot").value;
+    $("wrap-machine").hidden = !into;
+    $("wrap-cin").hidden = !into;
+    $("wrap-job").hidden = !out;
+    $("wrap-cout").hidden = !out;
+
+    // เข้าเครื่องยังไม่นับจำนวน
+    $("wrap-counts").hidden = into;
+    $("wrap-date").hidden = machine;
+    $("wrap-shot").hidden = into;
+
+    $("submit-prod").textContent = into ? "บันทึกเข้าเครื่อง"
+                                 : out  ? "บันทึกออกจากเครื่อง + จำนวน"
+                                        : "ส่งบันทึก";
+    if (out) {
+      if (!$("f-cend").value) $("f-cend").value = J.today();
+      loadJobs();
+    }
+  }
+
+  function loadJobs() {
+    var m = J.me.get();
+    $("f-job").innerHTML = '<option value="">— กำลังโหลด —</option>';
+    J.rpc("app_cnc_open", { p_name: m.name, p_pin: m.pin }).then(function (rows) {
+      jobs = rows || [];
+      var step = $("f-step").value;
+      var mine = jobs.filter(function (j) { return j.step === step; });
+      if (!mine.length) {
+        $("f-job").innerHTML = '<option value="">— ไม่มีงานค้างในเครื่อง —</option>';
+        $("job-hint").textContent = "ยังไม่มีงานที่เอาเข้าเครื่องไว้ — ต้องกด “เอาเข้าเครื่อง” ก่อน";
+        return;
+      }
+      $("f-job").innerHTML = mine.map(function (j) {
+        return '<option value="' + J.esc(j.id) + '">' + J.esc(j.lot) + " · " + J.esc(j.machine || "—") +
+          " · เข้าเมื่อ " + J.esc(J.thDate(j.cnc_start)) + "</option>";
+      }).join("");
+      showJob();
+    }).catch(function (err) {
+      $("f-job").innerHTML = '<option value="">— โหลดไม่สำเร็จ —</option>';
+      $("job-hint").textContent = err.message;
+    });
+  }
+
+  function jobById(id) {
+    for (var i = 0; i < jobs.length; i++) if (jobs[i].id === id) return jobs[i];
+    return null;
+  }
+
+  function showJob() {
+    var j = jobById($("f-job").value);
+    if (!j) { $("job-hint").textContent = ""; $("lotinfo").hidden = true; return; }
+    $("job-hint").textContent = j.product_code + " · " + j.product_name +
+      " · อยู่ในเครื่องมา " + J.nf.format(j.days) + " วัน · เอาเข้าโดย " + j.in_by +
+      (j.note ? " · " + j.note : "");
+    $("lotinfo").hidden = false;
+    $("lottext").textContent = j.lot + " · " + j.product_code + " · " + j.product_name;
+    J.setPhoto($("lotpic"), j.product_code, true);
+  }
+
+  $("m-in").addEventListener("click", function () { cncMode = "in"; applyCncMode(); });
+  $("m-out").addEventListener("click", function () { cncMode = "out"; applyCncMode(); });
+  $("f-job").addEventListener("change", showJob);
 
   function updateDuration() {
     var box = $("dur-note");
@@ -368,9 +465,9 @@
   $("f-tend").addEventListener("timechange", updateDuration);
 
   /* ---------- ส่งบันทึก ---------- */
-  function send(args, btn, clear) {
+  function send(args, btn, clear, fn) {
     btn.disabled = true;
-    J.submit(args).then(function (r) {
+    J.submit(args, fn).then(function (r) {
       J.msg($("form-msg"), r && r.queued
         ? "เน็ตไม่ติด — เก็บไว้ในเครื่องแล้ว จะส่งให้เองเมื่อเน็ตกลับมา"
         : "บันทึกเรียบร้อย ขอบคุณครับ", r && r.queued ? "warn" : "ok");
@@ -385,11 +482,14 @@
 
   /* ---------- รูปหลักฐาน ---------- */
   function renderShots() {
-    $("shot-preview").innerHTML = shots.map(function (s, i) {
+    var html = shots.map(function (s, i) {
       return '<span class="shot"><img src="' + s + '" alt="รูปหลักฐาน">' +
         '<button type="button" data-rm="' + i + '" aria-label="ลบรูป">×</button></span>';
     }).join("");
-    Array.prototype.forEach.call($("shot-preview").querySelectorAll("[data-rm]"), function (b) {
+    $("shot-preview").innerHTML = html;
+    $("shot-preview2").innerHTML = html;
+    Array.prototype.forEach.call(
+      document.querySelectorAll("#shot-preview [data-rm], #shot-preview2 [data-rm]"), function (b) {
       b.addEventListener("click", function () {
         shots.splice(Number(b.dataset.rm), 1);
         renderShots();
@@ -400,9 +500,9 @@
       : "ถ่ายรูปงานที่ทำเสร็จไว้เป็นหลักฐาน";
   }
 
-  $("f-shot").addEventListener("change", function (e) {
+  function onPickShots(e) {
     var files = Array.prototype.slice.call(e.target.files || []);
-    $("f-shot").value = "";
+    e.target.value = "";
     if (!files.length) return;
     var room = 3 - shots.length;
     if (room <= 0) { $("shot-hint").textContent = "ครบ 3 รูปแล้ว ลบรูปเดิมก่อนถ้าจะเปลี่ยน"; return; }
@@ -415,7 +515,9 @@
         if (--left === 0) renderShots();
       });
     });
-  });
+  }
+  $("f-shot").addEventListener("change", onPickShots);
+  $("o-shot").addEventListener("change", onPickShots);
 
   function uploadShots(entryId) {
     var m = J.me.get();
@@ -444,11 +546,49 @@
     var m = J.me.get();
     var lot = $("f-lot").value, step = $("f-step").value;
     var good = Number($("f-good").value || 0), bad = Number($("f-bad").value || 0);
-    if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
     if (!step) { J.msg($("form-msg"), "เลือกขั้นตอนก่อน", "err"); return; }
+
+    /* ---- ขั้นตอนที่ใช้เครื่อง: 2 จังหวะ ---- */
+    if (isMachineStep()) {
+      if (cncMode === "in") {
+        if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
+        if (!$("f-machine").value) { J.msg($("form-msg"), "เลือกเครื่องก่อน", "err"); return; }
+        send({
+          p_name: m.name, p_pin: m.pin, p_lot: lot, p_step: step,
+          p_machine: $("f-machine").value,
+          p_date: $("f-cstart").value || J.today(),
+          p_note: $("f-note").value || null
+        }, $("submit-prod"), function (r) {
+          $("f-note").value = "";
+          if (r && r.busy) {
+            J.msg($("form-msg"), "บันทึกแล้ว — แต่เครื่องนี้มีงานค้างอยู่ก่อนแล้ว: " + r.busy +
+              " ถ้าลงผิดเครื่อง ให้ลบรายการนี้ทิ้งแล้วลงใหม่", "warn");
+          } else {
+            J.msg($("form-msg"), "บันทึกเข้าเครื่องแล้ว — พอเอาออกให้กดแท็บ “เอาออกจากเครื่อง” แล้วใส่จำนวน", "ok");
+          }
+        }, "app_cnc_in");
+        return;
+      }
+      var jid = $("f-job").value;
+      if (!jid) { J.msg($("form-msg"), "เลือกงานที่จะเอาออกจากเครื่องก่อน", "err"); return; }
+      if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
+      send({
+        p_name: m.name, p_pin: m.pin, p_id: jid,
+        p_good: good, p_bad: bad,
+        p_date: $("f-cend").value || J.today(),
+        p_note: $("f-note").value || null
+      }, $("submit-prod"), function (r) {
+        $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
+        if (r && r.id) uploadShots(r.id);
+        loadJobs();
+      }, "app_cnc_out");
+      return;
+    }
+
+    if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
     if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
     var s = stepInfo(step);
-    var isCnc = !!(s && s.needs_machine);
+    var isCnc = false;
     var t1 = isCnc ? null : ($("f-tstart").value || null);
     var t2 = isCnc ? null : ($("f-tend").value || null);
     if (!isCnc && (!t1 || !t2) && !skipTime) {
@@ -555,6 +695,7 @@
           (e.category === "other" ? " · งานอื่น" : "");
         var chip = e.review_status === "approved" ? '<span class="chip ok">หัวหน้ายืนยันแล้ว</span>'
                  : e.review_status === "rejected" ? '<span class="chip bad">ถูกตีกลับ</span>'
+                 : e.review_status === "inmachine" ? '<span class="chip">อยู่ในเครื่อง</span>'
                  : '<span class="chip warn">รอหัวหน้าตรวจ</span>';
         return '<div class="row"><span class="main"><span class="t">' + J.esc(title) +
           " " + chip +
@@ -565,6 +706,9 @@
             : "") +
           (e.review_status === "approved"
             ? '<br><span class="s">ยืนยันแล้ว แก้หรือลบเองไม่ได้ ถ้าผิดให้แจ้งหัวหน้า</span>'
+            : "") +
+          (e.review_status === "inmachine"
+            ? '<br><span class="s">ยังไม่นับจำนวน — พอเอาออกจากเครื่องให้กดแท็บ “เอาออกจากเครื่อง” แล้วใส่จำนวน</span>'
             : "") +
           (e.lot_qty && e.step_total > e.lot_qty
             ? '<br><span class="s" style="color:var(--amber)">ขั้นตอนนี้ลงรวม ' +
