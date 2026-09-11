@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=12">
+<link rel="stylesheet" href="app.css?v=13">
 </head>
 <body>
 
@@ -145,10 +145,10 @@
         </div>
 
         <div class="field" id="wrap-shot">
-          <label for="f-shot">รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
-          <input id="f-shot" type="file" accept="image/*" multiple>
+          <label>รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-sm" data-pick="cam" type="button">ถ่ายรูป</button><button class="btn btn-sm" data-pick="lib" type="button">เลือกจากอัลบั้ม</button></div>
           <div class="shots" id="shot-preview"></div>
-          <span class="hint" id="shot-hint">ถ่ายใหม่ หรือเลือกรูปที่มีอยู่แล้วในเครื่องก็ได้</span>
+          <span class="hint" id="shot-hint">เลือกได้ว่าจะเปิดกล้องถ่ายใหม่ หรือหยิบรูปที่ถ่ายไว้แล้วจากอัลบั้ม</span>
         </div>
 
         <button class="btn btn-primary btn-lg" id="submit-prod" type="button">ส่งบันทึก</button>
@@ -176,8 +176,8 @@
           </div>
         </div>
         <div class="field">
-          <label for="o-shot">รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
-          <input id="o-shot" type="file" accept="image/*" multiple>
+          <label>รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-sm" data-pick="cam" type="button">ถ่ายรูป</button><button class="btn btn-sm" data-pick="lib" type="button">เลือกจากอัลบั้ม</button></div>
           <div class="shots" id="shot-preview2"></div>
           <span class="hint">ถ่ายใหม่ หรือเลือกรูปที่มีอยู่แล้วในเครื่องก็ได้</span>
         </div>
@@ -185,6 +185,10 @@
         <button class="btn btn-primary btn-lg" id="submit-other" type="button">ส่งบันทึก</button>
       </div>
     </div>
+
+    <!-- ช่องเลือกไฟล์ที่ซ่อนไว้ — ปุ่มด้านบนเป็นตัวสั่งเปิด -->
+    <input id="shot-cam" type="file" accept="image/*" capture="environment" multiple hidden>
+    <input id="shot-lib" type="file" accept="image/*" multiple hidden>
 
     <!-- รายการล่าสุด -->
     <div class="card">
@@ -213,8 +217,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=12"></script>
-<script src="api.js?v=12"></script>
+<script src="config.js?v=13"></script>
+<script src="api.js?v=13"></script>
 <script>
 (function () {
   "use strict";
@@ -516,8 +520,13 @@
       });
     });
   }
-  $("f-shot").addEventListener("change", onPickShots);
-  $("o-shot").addEventListener("change", onPickShots);
+  $("shot-cam").addEventListener("change", onPickShots);
+  $("shot-lib").addEventListener("change", onPickShots);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pick]"), function (b) {
+    b.addEventListener("click", function () {
+      $(b.dataset.pick === "cam" ? "shot-cam" : "shot-lib").click();
+    });
+  });
 
   function uploadShots(entryId) {
     var m = J.me.get();
