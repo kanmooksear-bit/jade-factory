@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>KPI แผนกผลิต — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=14">
+<style>
+  .wrap{max-width:1000px}
+  .topbar-in{max-width:1000px}
+  .range{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+  .range .field{margin:0;min-width:150px}
+  section{margin-bottom:26px}
+  .sec-head{display:flex;gap:8px 16px;align-items:baseline;justify-content:space-between;
+            flex-wrap:wrap;margin-bottom:10px}
+  .sec-head h2{font-size:19px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+
+  .cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));margin-bottom:20px}
+  .kcard{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);
+         border-radius:8px;padding:16px 18px}
+  .kcard.pass{border-left-color:var(--jade)}
+  .kcard.fail{border-left-color:var(--alert)}
+  .kcard.none{border-left-color:var(--line)}
+  .kcard .tag{font-size:11.5px;letter-spacing:.1em;color:var(--ink-3)}
+  .kcard .nm{font-size:15px;margin:2px 0 8px}
+  .kcard .big{font-family:var(--display);font-size:38px;font-weight:600;line-height:1;
+              font-variant-numeric:tabular-nums}
+  .kcard.pass .big{color:var(--jade-ink)}
+  .kcard.fail .big{color:var(--alert)}
+  .kcard.none .big{color:var(--ink-3)}
+  .kcard .tg{font-size:12.5px;color:var(--ink-3);margin-top:6px;font-variant-numeric:tabular-nums}
+  .kcard .sum{font-size:13px;color:var(--ink-2);margin-top:8px;font-variant-numeric:tabular-nums}
+  .kcard .verdict{margin-top:10px}
+
+  .meter{display:block;height:9px;background:var(--surface-2);border-radius:5px;overflow:hidden;
+         margin-top:10px;position:relative}
+  .meter i{display:block;height:100%;border-radius:5px}
+  .meter u{position:absolute;inset-block:0;width:2px;background:var(--ink-3);text-decoration:none}
+  .empty{padding:26px 10px;text-align:center;color:var(--ink-3);font-size:14px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">KPI แผนกผลิต</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
+    <a href="kpi.html" class="on">KPI</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="range">
+      <div class="field"><label for="r-from">ตั้งแต่</label>
+        <input id="r-from" data-thai-date type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป"></div>
+      <div class="field"><label for="r-to">ถึง</label>
+        <input id="r-to" data-thai-date type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป"></div>
+      <button class="btn" id="r-go" type="button">ดู KPI</button>
+      <button class="btn btn-sm btn-ghost" data-quick="m0" type="button">เดือนนี้</button>
+      <button class="btn btn-sm btn-ghost" data-quick="m1" type="button">เดือนที่แล้ว</button>
+      <button class="btn btn-sm btn-ghost" data-quick="y" type="button">ปีนี้</button>
+    </div>
+
+    <p class="hint" id="scope" style="margin-bottom:14px"></p>
+
+    <div class="cards" id="cards"></div>
+
+    <section>
+      <div class="sec-head">
+        <h2>ย้อนหลัง 6 เดือน</h2>
+        <span class="hint">คิดจากล็อตที่ปิดในเดือนนั้น</span>
+      </div>
+      <div class="panel scroll"><table id="months"></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ล็อตที่ปิดในช่วงนี้</h2>
+        <span class="hint">ตัวเลขที่เอามาคิด KPI มาจากตารางนี้</span>
+      </div>
+      <div class="panel scroll"><table id="closed"></table></div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ของเสียเกิดตรงไหน</h2>
+        <span class="hint">นับจากวันที่ลงงานในช่วงที่เลือก</span>
+      </div>
+      <div class="two">
+        <div class="panel scroll"><table id="bstep"></table></div>
+        <div class="panel scroll"><table id="bemp"></table></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <h2>ล็อตที่ยังทำอยู่</h2>
+        <span class="hint">ยังไม่เอามาคิดคะแนน — ดูไว้ว่าเดือนหน้าจะเป็นยังไง</span>
+      </div>
+      <div class="panel scroll"><table id="open"></table></div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js?v=14"></script>
+<script src="api.js?v=14"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var D = null;
+
+  $("factory").textContent = J.factory;
+
+  function pctTxt(v) { return v == null ? "—" : (Number(v)).toFixed(1) + "%"; }
+  var THMON = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+  function monthTxt(ym) {
+    var p = String(ym).split("-");
+    if (p.length < 2) return ym;
+    return THMON[Number(p[1]) - 1] + " " + (Number(p[0]) + 543 - 2500);
+  }
+
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    quick("m0");
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_kpi", { p_name: name, p_pin: pin }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- ช่วงเวลา ---------- */
+  function iso(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function quick(which) {
+    var now = new Date(), a, b;
+    if (which === "m0") { a = new Date(now.getFullYear(), now.getMonth(), 1); b = now; }
+    else if (which === "m1") {
+      a = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      b = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else { a = new Date(now.getFullYear(), 0, 1); b = now; }
+    $("r-from").value = J.formatThai(iso(a));
+    $("r-to").value = J.formatThai(iso(b));
+    J.enhanceDates();
+    load();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-quick]"), function (b) {
+    b.addEventListener("click", function () { quick(b.dataset.quick); });
+  });
+  $("r-go").addEventListener("click", load);
+
+  function load() {
+    var m = J.me.get();
+    $("cards").innerHTML = '<p class="hint">กำลังโหลด…</p>';
+    J.rpc("sup_kpi", {
+      p_name: m.name, p_pin: m.pin,
+      p_from: J.parseThai($("r-from").value) || null,
+      p_to: J.parseThai($("r-to").value) || null
+    }).then(function (d) { D = d; render(); })
+      .catch(function (err) { $("cards").innerHTML = '<p class="msg err">' + J.esc(err.message) + "</p>"; });
+  }
+
+  /* ---------- แสดงผล ---------- */
+  function card(k, opts) {
+    var has = k.pct != null;
+    var cls = !has ? "none" : (k.pass ? "pass" : "fail");
+    var w = has ? Math.max(2, Math.min(100, Number(k.pct))) : 0;
+    var col = !has ? "var(--line)" : (k.pass ? "var(--jade)" : "var(--alert)");
+    return '<div class="kcard ' + cls + '">' +
+      '<div class="tag">' + J.esc(opts.tag) + "</div>" +
+      '<div class="nm">' + J.esc(k.name) + "</div>" +
+      '<div class="big">' + pctTxt(k.pct) + "</div>" +
+      '<div class="tg">เป้า ' + (opts.lte ? "≤ " : "≥ ") + Number(k.target) + "%</div>" +
+      '<span class="meter"><i style="width:' + w + '%;background:' + col + '"></i>' +
+        '<u style="inset-inline-start:' + Math.min(100, Number(k.target)) + '%"></u></span>' +
+      '<div class="sum">' + J.esc(opts.sum) + "</div>" +
+      '<div class="verdict">' + (!has
+        ? '<span class="chip idle">ยังไม่มีข้อมูล</span>'
+        : (k.pass ? '<span class="chip ok">ผ่านเป้า</span>' : '<span class="chip bad">ต่ำกว่าเป้า</span>')) +
+      "</div></div>";
+  }
+
+  function render() {
+    var d = D, n = J.nf;
+    var nd = d.no_data_lots || [];
+    $("scope").innerHTML = "ล็อตที่ปิดระหว่าง " + J.esc(J.formatThai(d.range.from)) + " – " +
+      J.esc(J.formatThai(d.range.to)) + " ที่มีการลงงานจริง <b>" + n.format(d.lots_closed) +
+      "</b> ล็อต · ล็อตที่ยังทำอยู่ไม่ถูกนำมาคิดคะแนน" +
+      (nd.length
+        ? '<br><span style="color:var(--amber)">ข้าม ' + nd.length +
+          " ล็อตที่ปิดไปโดยไม่มีการลงงานเลย (" +
+          nd.map(function (r) { return J.esc(r.code); }).join(", ") +
+          ") — ถ้าล็อตพวกนี้ทำจริงแต่ลืมลงงาน ตัวเลข KPI จะยังไม่ครบ</span>"
+        : "");
+
+    $("cards").innerHTML =
+      card(d.kpi1, { tag: "KPI 1 · ผลงานตามแผน",
+        sum: "เปิดล็อตรวม " + n.format(d.kpi1.plan) + " ชิ้น · ผลิตได้ " + n.format(d.kpi1.actual) + " ชิ้น" }) +
+      card(d.kpi2, { tag: "KPI 2 · คุณภาพ", lte: true,
+        sum: "เปิดล็อตรวม " + n.format(d.kpi2.plan) + " ชิ้น · ของเสีย " + n.format(d.kpi2.bad) + " ชิ้น" }) +
+      card(d.kpi3, { tag: "KPI 3 · เวลา (ถ้ากรอกกำหนดส่ง)",
+        sum: d.kpi3.lots_with_due
+          ? "ล็อตที่มีกำหนดส่ง " + n.format(d.kpi3.lots_with_due) + " ล็อต · ทันกำหนด " + n.format(d.kpi3.ontime)
+          : "ยังไม่มีล็อตไหนกรอกกำหนดส่ง" });
+
+    // ---- ย้อนหลัง 6 เดือน ----
+    var ms = d.by_month || [];
+    $("months").innerHTML = !ms.length
+      ? '<tr><td class="empty">ยังไม่มีล็อตที่ปิดในช่วง 6 เดือนนี้</td></tr>'
+      : "<thead><tr><th>เดือน</th><th class='num'>ล็อตที่ปิด</th><th class='num'>เปิดล็อต</th>" +
+        "<th class='num'>ผลิตได้</th><th class='num'>ผลผลิตตามแผน</th>" +
+        "<th class='num'>ของเสีย</th><th class='num'>% ของเสีย</th></tr></thead><tbody>" +
+        ms.map(function (r) {
+          return "<tr><td>" + J.esc(monthTxt(r.ym)) + "</td>" +
+            "<td class='num'>" + n.format(r.lots) + "</td>" +
+            "<td class='num'>" + n.format(r.plan) + "</td>" +
+            "<td class='num'>" + n.format(r.made) + "</td>" +
+            "<td class='num'>" + chip(r.yield_pct, 95, false) + "</td>" +
+            "<td class='num'>" + n.format(r.bad) + "</td>" +
+            "<td class='num'>" + chip(r.defect_pct, 3, true) + "</td></tr>";
+        }).join("") + "</tbody>";
+
+    // ---- ล็อตที่ปิด ----
+    var cl = d.closed_lots || [];
+    $("closed").innerHTML = !cl.length
+      ? '<tr><td class="empty">ไม่มีล็อตที่ปิดในช่วงนี้</td></tr>'
+      : "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>เปิดล็อต</th><th class='num'>ผลิตได้</th>" +
+        "<th class='num'>% ตามแผน</th><th class='num'>เสีย</th><th class='num'>% เสีย</th>" +
+        "<th class='num'>ค้าง</th><th>ปิดเมื่อ</th><th>กำหนดส่ง</th></tr></thead><tbody>" +
+        cl.map(function (r) {
+          var late = r.late_days;
+          return "<tr><td>" + J.esc(r.code) + "</td>" +
+            "<td>" + J.esc(r.product_code || "") + "</td>" +
+            "<td class='num'>" + n.format(r.qty_opened) + "</td>" +
+            "<td class='num'>" + n.format(r.made) + "</td>" +
+            "<td class='num'>" + chip(r.yield_pct, 95, false) + "</td>" +
+            "<td class='num'>" + n.format(r.bad) + "</td>" +
+            "<td class='num'>" + chip(r.defect_pct, 3, true) + "</td>" +
+            "<td class='num'>" + (r.wip ? '<span class="chip warn">' + n.format(r.wip) + "</span>" : "0") + "</td>" +
+            "<td>" + J.esc(J.formatThai(r.closed_date)) + "</td>" +
+            "<td>" + (r.due_date
+              ? J.esc(J.formatThai(r.due_date)) +
+                (late > 0 ? ' <span class="chip bad">ช้า ' + late + " ว.</span>"
+                          : ' <span class="chip ok">ทัน</span>')
+              : '<span class="muted">—</span>') + "</td></tr>";
+        }).join("") + "</tbody>";
+
+    // ---- ของเสียรายขั้นตอน / รายคน ----
+    var bs = d.bad_by_step || [];
+    $("bstep").innerHTML = !bs.length
+      ? '<tr><td class="empty">ช่วงนี้ยังไม่มีของเสีย</td></tr>'
+      : "<thead><tr><th>ขั้นตอน</th><th class='num'>เสีย</th><th class='num'>ดี</th></tr></thead><tbody>" +
+        bs.map(function (r) {
+          return "<tr><td>" + J.esc(r.step) + "</td><td class='num'><b>" + n.format(r.bad) +
+            "</b></td><td class='num'>" + n.format(r.good) + "</td></tr>";
+        }).join("") + "</tbody>";
+
+    var be = d.bad_by_emp || [];
+    $("bemp").innerHTML = !be.length
+      ? '<tr><td class="empty">ช่วงนี้ยังไม่มีของเสีย</td></tr>'
+      : "<thead><tr><th>พนักงาน</th><th class='num'>เสีย</th><th class='num'>% ของงานตัวเอง</th></tr></thead><tbody>" +
+        be.map(function (r) {
+          return "<tr><td>" + J.esc(r.name) + "</td><td class='num'><b>" + n.format(r.bad) +
+            "</b></td><td class='num'>" + pctTxt(r.bad_pct) + "</td></tr>";
+        }).join("") + "</tbody>";
+
+    // ---- ล็อตที่ยังทำอยู่ ----
+    var op = d.open_lots || [];
+    $("open").innerHTML = !op.length
+      ? '<tr><td class="empty">ไม่มีล็อตที่เปิดค้างอยู่</td></tr>'
+      : "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>เปิดล็อต</th><th class='num'>ผลิตได้</th>" +
+        "<th class='num'>เสีย</th><th class='num'>ค้าง</th><th>ขั้นล่าสุด</th><th>กำหนดส่ง</th></tr></thead><tbody>" +
+        op.map(function (r) {
+          var dl = r.days_left;
+          return "<tr><td>" + J.esc(r.code) + "</td>" +
+            "<td>" + J.esc(r.product_code || "") + "</td>" +
+            "<td class='num'>" + n.format(r.qty_opened) + "</td>" +
+            "<td class='num'>" + n.format(r.made) + "</td>" +
+            "<td class='num'>" + n.format(r.bad) + "</td>" +
+            "<td class='num'>" + n.format(r.wip) + "</td>" +
+            "<td>" + J.esc(r.last_step || "—") + "</td>" +
+            "<td>" + (r.due_date
+              ? J.esc(J.formatThai(r.due_date)) +
+                (dl < 0 ? ' <span class="chip bad">เลย ' + (-dl) + " ว.</span>"
+                        : dl <= 3 ? ' <span class="chip warn">อีก ' + dl + " ว.</span>" : "")
+              : '<span class="muted">—</span>') + "</td></tr>";
+        }).join("") + "</tbody>";
+  }
+
+  function chip(v, target, lte) {
+    if (v == null) return '<span class="muted">—</span>';
+    var ok = lte ? Number(v) <= target : Number(v) >= target;
+    return '<span class="chip ' + (ok ? "ok" : "bad") + '">' + Number(v).toFixed(1) + "%</span>";
+  }
+
+  /* ---------- เริ่ม ---------- */
+  loadBoot().then(function () {
+    var m = J.me.get();
+    if (m.name && m.pin && m.role === "supervisor") enterApp();
+  }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+})();
+</script>
+</body>
+</html>

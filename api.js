@@ -379,11 +379,33 @@ window.JADE = (function () {
   }
 
   /* ---------- เมนู: หัวหน้าเห็นครบ พนักงานเห็นเฉพาะลงงานผลิต + แดชบอร์ด ---------- */
-  var SUP_ONLY = ["admin.html", "review.html", "people.html", "cost.html", "manage.html", "log.html"];
+  var SUP_ONLY = ["admin.html", "review.html", "people.html", "cost.html", "kpi.html",
+                  "manage.html", "log.html"];
+
+  // เมนูที่เพิ่มทีหลัง — เติมให้ทุกหน้าเองจากที่นี่ที่เดียว
+  // [ href ของลิงก์ใหม่, ข้อความ, ให้ไปอยู่หลัง href ไหน]
+  var EXTRA_NAV = [["kpi.html", "KPI", "cost.html"]];
+
+  function fillNav() {
+    var nav = document.getElementById("nav") || document.querySelector("nav.nav");
+    if (!nav) return;
+    var here = (location.pathname.split("/").pop() || "index.html");
+    EXTRA_NAV.forEach(function (it) {
+      if (nav.querySelector('a[href="' + it[0] + '"]')) return;
+      var after = nav.querySelector('a[href="' + it[2] + '"]');
+      if (!after) return;
+      var a = document.createElement("a");
+      a.setAttribute("href", it[0]);
+      a.textContent = it[1];
+      if (here === it[0]) a.className = "on";
+      after.insertAdjacentElement("afterend", a);
+    });
+  }
 
   function paintNav(role) {
     var nav = document.getElementById("nav");
     if (!nav) return;
+    fillNav();
     var boss = role === "supervisor";
     Array.prototype.forEach.call(nav.querySelectorAll("a"), function (a) {
       a.hidden = !boss && SUP_ONLY.indexOf(a.getAttribute("href")) >= 0;
@@ -391,7 +413,7 @@ window.JADE = (function () {
     nav.hidden = false;
   }
 
-  function enhanceAll() { enhanceDates(); enhanceTimes(); }
+  function enhanceAll() { fillNav(); enhanceDates(); enhanceTimes(); }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enhanceAll);
   } else {
