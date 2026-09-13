@@ -384,7 +384,8 @@ window.JADE = (function () {
 
   // เมนูที่เพิ่มทีหลัง — เติมให้ทุกหน้าเองจากที่นี่ที่เดียว
   // [ href ของลิงก์ใหม่, ข้อความ, ให้ไปอยู่หลัง href ไหน]
-  var EXTRA_NAV = [["kpi.html", "KPI", "cost.html"]];
+  var EXTRA_NAV = [["kpi.html", "KPI", "cost.html"],
+                   ["rd.html", "งาน RD", "index.html"]];
 
   function fillNav() {
     var nav = document.getElementById("nav") || document.querySelector("nav.nav");

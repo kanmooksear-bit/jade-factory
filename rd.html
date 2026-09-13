@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>งาน RD — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=16">
+<style>
+  .flow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .flow span{font-size:12.5px;padding:6px 11px;border-radius:999px;background:var(--surface-2);
+             color:var(--ink-3)}
+  .flow span.on{background:var(--jade);color:var(--on-jade);font-weight:500}
+  .flow span.arrow{background:transparent;padding:6px 0;color:var(--ink-3)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">งาน RD</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav" id="nav" hidden>
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="rd.html" class="on">งาน RD</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
+    <a href="kpi.html">KPI</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="card">
+      <h2>ลงงาน RD</h2>
+      <div class="flow" id="flow"></div>
+
+      <div class="field">
+        <label for="f-lot">ล็อตงาน</label>
+        <select id="f-lot"><option value="">— เลือกล็อต —</option></select>
+      </div>
+      <div class="lotinfo" id="lotinfo" hidden>
+        <div class="withpic">
+          <img class="lotpic" id="lotpic" alt="" hidden>
+          <div class="txt" id="lottext"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-step">ขั้นตอน</label>
+        <select id="f-step"><option value="">— เลือกขั้นตอน —</option></select>
+      </div>
+
+      <div class="two">
+        <div class="field">
+          <label for="f-good">ทำได้ (ชิ้น/แบบ)</label>
+          <input id="f-good" type="number" inputmode="numeric" min="0" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="f-bad">ต้องแก้ / ตีกลับ</label>
+          <input id="f-bad" type="number" inputmode="numeric" min="0" placeholder="0">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="f-date">วันที่ทำ</label>
+        <input id="f-date" type="date">
+      </div>
+
+      <div class="two">
+        <div class="field">
+          <label for="f-tstart">เวลาเริ่ม</label>
+          <input id="f-tstart" type="time">
+        </div>
+        <div class="field">
+          <label for="f-tend">เวลาเสร็จ</label>
+          <input id="f-tend" type="time">
+        </div>
+      </div>
+      <div class="durnote" id="dur" hidden></div>
+
+      <div class="field">
+        <label for="f-note">หมายเหตุ (ไม่บังคับ)</label>
+        <textarea id="f-note" placeholder="เช่น แก้ตามที่ลูกค้าขอ / รอเจ้าของอนุมัติ"></textarea>
+      </div>
+
+      <div class="field">
+        <label>รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="btn btn-sm" data-pick="cam" type="button">ถ่ายรูป</button>
+          <button class="btn btn-sm" data-pick="lib" type="button">เลือกจากอัลบั้ม</button>
+        </div>
+        <div class="shots" id="shot-preview"></div>
+        <span class="hint" id="shot-hint">รูปแบบร่าง รูปต้นแบบ หรือรูปที่ลูกค้าส่งมาก็แนบได้</span>
+      </div>
+
+      <div class="msg" id="form-msg" hidden></div>
+      <button class="btn btn-primary btn-lg" id="submit" type="button">บันทึกงาน</button>
+    </div>
+
+    <input id="shot-cam" type="file" accept="image/*" capture="environment" multiple hidden>
+    <input id="shot-lib" type="file" accept="image/*" multiple hidden>
+
+    <section style="margin-top:22px">
+      <div class="sec-head" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <h2 style="font-size:18px">งาน RD ล่าสุดของฉัน</h2>
+        <a href="kpi.html" class="hint">ดู KPI ของแผนก →</a>
+      </div>
+      <div class="card"><div class="list" id="recent"></div></div>
+    </section>
+  </div>
+</main>
+
+<div class="queue" id="queue" hidden></div>
+
+<script src="config.js?v=16"></script>
+<script src="api.js?v=16"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var boot = null, lots = [], shots = [], rdSteps = [];
+
+  $("factory").textContent = J.factory;
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      boot = d;
+      rdSteps = (d.steps || []).filter(function (s) { return s.dept === "rd"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (d.employees || []).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+
+      $("f-step").innerHTML = !rdSteps.length
+        ? '<option value="">— ยังไม่มีขั้นตอนของ RD —</option>'
+        : '<option value="">— เลือกขั้นตอน —</option>' + rdSteps.map(function (s) {
+            return '<option value="' + J.esc(s.name) + '">' + J.esc(s.name) + "</option>";
+          }).join("");
+      $("flow").innerHTML = rdSteps.map(function (s, i) {
+        return (i ? '<span class="arrow">→</span>' : "") + "<span>" + J.esc(s.name) + "</span>";
+      }).join("") + (rdSteps.length ? '<span class="arrow">→</span><span>ส่งต่อฝ่ายผลิต</span>' : "");
+    });
+  }
+
+  function markFlow() {
+    var cur = $("f-step").value;
+    Array.prototype.forEach.call($("flow").querySelectorAll("span"), function (el) {
+      if (el.className !== "arrow") el.className = el.textContent === cur ? "on" : "";
+    });
+  }
+
+  function enterApp(role) {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    J.nav(role || J.me.get().role);
+    J.enhanceDates(); J.enhanceTimes();
+    $("f-date").value = J.today();
+    loadLots();
+    loadRecent();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("app_my_entries", { p_name: name, p_pin: pin, p_limit: 1 }).then(function () {
+      var role = "worker";
+      (boot.employees || []).forEach(function (e) { if (e.name === name) role = e.role; });
+      J.me.set(name, pin, role);
+      enterApp(role);
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- ล็อต ---------- */
+  function loadLots() {
+    return J.rpc("app_open_lots").then(function (d) {
+      lots = d || [];
+      var keep = $("f-lot").value;
+      $("f-lot").innerHTML = !lots.length
+        ? '<option value="">— ยังไม่มีล็อตที่เปิดอยู่ —</option>'
+        : '<option value="">— เลือกล็อต —</option>' + lots.map(function (l) {
+            return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+              J.esc(l.product_code) + " " + J.esc(l.product_name) + "</option>";
+          }).join("");
+      $("f-lot").value = keep;
+      showLotInfo();
+    });
+  }
+
+  function showLotInfo() {
+    var c = $("f-lot").value, l = null;
+    for (var i = 0; i < lots.length; i++) if (lots[i].code === c) l = lots[i];
+    var box = $("lotinfo");
+    if (!l) { box.hidden = true; return; }
+    box.hidden = false;
+    J.setPhoto($("lotpic"), l.product_code, l.has_photo);
+    $("lottext").innerHTML = "<b>" + J.esc(l.product_code) + "</b> " + J.esc(l.product_name) +
+      "<br>เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · เริ่ม " +
+      J.esc(J.thDate(l.opened_at)) +
+      (l.due_date ? " · กำหนดส่ง <b>" + J.esc(J.thDate(l.due_date)) + "</b>" : "");
+  }
+  $("f-lot").addEventListener("change", showLotInfo);
+  $("f-step").addEventListener("change", markFlow);
+
+  /* ---------- เวลา ---------- */
+  function updateDuration() {
+    var t = J.durationText($("f-tstart").value, $("f-tend").value);
+    var box = $("dur");
+    if (!t) { box.hidden = true; return; }
+    box.hidden = false;
+    box.textContent = t;
+    box.className = "durnote" + (t.indexOf("ต้องหลัง") >= 0 ? " bad" : "");
+  }
+  $("f-tstart").addEventListener("timechange", updateDuration);
+  $("f-tend").addEventListener("timechange", updateDuration);
+
+  /* ---------- รูป ---------- */
+  function renderShots() {
+    $("shot-preview").innerHTML = shots.map(function (s, i) {
+      return '<span class="shot"><img src="' + s + '" alt=""><button type="button" data-rm="' +
+        i + '">×</button></span>';
+    }).join("");
+    Array.prototype.forEach.call($("shot-preview").querySelectorAll("[data-rm]"), function (b) {
+      b.addEventListener("click", function () {
+        shots.splice(Number(b.dataset.rm), 1); renderShots();
+      });
+    });
+    $("shot-hint").textContent = shots.length
+      ? "แนบไว้ " + shots.length + " รูป (กดรูปเพื่อลบ)"
+      : "รูปแบบร่าง รูปต้นแบบ หรือรูปที่ลูกค้าส่งมาก็แนบได้";
+  }
+
+  function onPickShots(e) {
+    var files = Array.prototype.slice.call(e.target.files || []);
+    e.target.value = "";
+    if (!files.length) return;
+    var room = 3 - shots.length;
+    if (room <= 0) { $("shot-hint").textContent = "ครบ 3 รูปแล้ว ลบรูปเดิมก่อนถ้าจะเปลี่ยน"; return; }
+    files = files.slice(0, room);
+    $("shot-hint").textContent = "กำลังย่อรูป…";
+    var left = files.length;
+    files.forEach(function (f) {
+      J.shrinkImage(f, 1000, 0.62, function (data) {
+        if (data) shots.push(data);
+        if (--left === 0) renderShots();
+      });
+    });
+  }
+  $("shot-cam").addEventListener("change", onPickShots);
+  $("shot-lib").addEventListener("change", onPickShots);
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pick]"), function (b) {
+    b.addEventListener("click", function () {
+      $(b.dataset.pick === "cam" ? "shot-cam" : "shot-lib").click();
+    });
+  });
+
+  function uploadShots(entryId) {
+    var m = J.me.get();
+    var list = shots.slice();
+    shots = []; renderShots();
+    if (!list.length) return;
+    var done = 0;
+    list.reduce(function (chain, data) {
+      return chain.then(function () {
+        return J.rpc("app_add_photo", { p_name: m.name, p_pin: m.pin, p_entry: entryId, p_data: data })
+          .then(function () {
+            done++;
+            J.msg($("form-msg"), "กำลังส่งรูป " + done + "/" + list.length + "…", "ok");
+          });
+      });
+    }, Promise.resolve()).then(function () {
+      J.msg($("form-msg"), "บันทึกและแนบรูป " + done + " รูปเรียบร้อย", "ok");
+      loadRecent();
+    }).catch(function (err) {
+      J.msg($("form-msg"), "บันทึกงานแล้ว แต่แนบรูปไม่สำเร็จ: " + err.message, "warn");
+    });
+  }
+
+  /* ---------- ส่งบันทึก ---------- */
+  var skipTime = false;
+  $("submit").addEventListener("click", function () {
+    var m = J.me.get();
+    var lot = $("f-lot").value, step = $("f-step").value;
+    var good = Number($("f-good").value || 0), bad = Number($("f-bad").value || 0);
+    if (!step) { J.msg($("form-msg"), "เลือกขั้นตอนก่อน", "err"); return; }
+    if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
+    if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนที่ทำได้ หรือจำนวนที่ต้องแก้ อย่างน้อยหนึ่งช่อง", "err"); return; }
+    var t1 = $("f-tstart").value || null, t2 = $("f-tend").value || null;
+    if ((!t1 || !t2) && !skipTime) {
+      skipTime = true;
+      J.msg($("form-msg"), "ยังไม่ได้ใส่เวลาเริ่ม–เวลาเสร็จ ถ้าจำไม่ได้ กดส่งอีกครั้งเพื่อบันทึกโดยไม่มีเวลา", "warn");
+      return;
+    }
+    $("submit").disabled = true;
+    J.submit({
+      p_name: m.name, p_pin: m.pin, p_category: "production",
+      p_lot: lot, p_step: step, p_machine: null,
+      p_good: good, p_bad: bad,
+      p_date: $("f-date").value || J.today(),
+      p_cnc_start: null, p_cnc_end: null,
+      p_note: $("f-note").value || null,
+      p_time_start: t1, p_time_end: t2
+    }).then(function (r) {
+      J.msg($("form-msg"), r && r.queued
+        ? "เน็ตไม่ติด — เก็บไว้ในเครื่องแล้ว จะส่งให้เองเมื่อเน็ตกลับมา"
+        : "บันทึกเรียบร้อย ขอบคุณครับ", r && r.queued ? "warn" : "ok");
+      $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
+      $("f-tstart").value = ""; $("f-tend").value = "";
+      skipTime = false;
+      updateDuration();
+      if (r && r.id) uploadShots(r.id);
+      else if (shots.length) {
+        J.msg($("form-msg"), "เน็ตไม่ติด — บันทึกงานเก็บไว้แล้ว แต่รูปแนบไม่ได้ตอนออฟไลน์ ค่อยแนบใหม่ทีหลัง", "warn");
+        shots = []; renderShots();
+      }
+      loadLots(); loadRecent();
+    }).catch(function (err) { J.msg($("form-msg"), err.message, "err"); })
+      .then(function () { $("submit").disabled = false; });
+  });
+
+  /* ---------- รายการล่าสุด ---------- */
+  var CHIP = {
+    pending: '<span class="chip warn">รอตรวจ</span>',
+    approved: '<span class="chip ok">ผ่านแล้ว</span>',
+    rejected: '<span class="chip bad">ไม่ผ่าน</span>',
+    inmachine: '<span class="chip">อยู่ในเครื่อง</span>'
+  };
+
+  function loadRecent() {
+    var m = J.me.get();
+    var names = rdSteps.map(function (s) { return s.name; });
+    J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 30 }).then(function (list) {
+      var rows = (list || []).filter(function (r) { return names.indexOf(r.step) >= 0; }).slice(0, 15);
+      if (!rows.length) {
+        $("recent").innerHTML = '<p class="hint" style="padding:14px 0">ยังไม่มีงาน RD ที่ลงไว้</p>';
+        return;
+      }
+      $("recent").innerHTML = rows.map(function (r) {
+        return '<div class="row"><div class="main">' +
+          '<div class="t">' + J.esc(r.step) + " · " + J.esc(r.lot || "—") + "</div>" +
+          '<div class="s">' + J.esc(J.thDate(r.work_date)) +
+          (r.time_start && r.time_end ? " · " + J.esc(r.time_start) + "–" + J.esc(r.time_end) : "") +
+          (r.photos ? " · " + r.photos + " รูป" : "") +
+          (r.note ? " · " + J.esc(r.note) : "") + "</div></div>" +
+          '<div class="n">' + J.nf.format(r.qty_good) +
+          (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") +
+          "<br>" + (CHIP[r.review_status] || "") + "</div></div>";
+      }).join("");
+    }).catch(function () {});
+  }
+
+  /* ---------- คิวออฟไลน์ ---------- */
+  function paintQueue(n) {
+    var q = $("queue");
+    if (!n) { q.hidden = true; return; }
+    q.hidden = false;
+    q.textContent = "มี " + n + " รายการรอส่งเมื่อเน็ตกลับมา";
+  }
+  J.onQueueChange(paintQueue);
+  paintQueue(J.queueLength());
+
+  /* ---------- เริ่ม ---------- */
+  loadBoot().then(function () {
+    var m = J.me.get();
+    if (m.name && m.pin) enterApp(m.role);
+  }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+})();
+</script>
+</body>
+</html>
