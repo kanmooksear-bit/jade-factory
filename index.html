@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=13">
+<link rel="stylesheet" href="app.css?v=17">
 </head>
 <body>
 
@@ -217,8 +217,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=13"></script>
-<script src="api.js?v=13"></script>
+<script src="config.js?v=17"></script>
+<script src="api.js?v=17"></script>
 <script>
 (function () {
   "use strict";
@@ -246,7 +246,9 @@
           return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) +
             (e.role === "supervisor" ? " (หัวหน้า)" : "") + "</option>";
         }).join("");
-      var stepOpts = d.steps.map(function (s) {
+      // ขั้นตอนของ RD มีหน้าของตัวเองแล้ว (rd.html) หน้านี้จึงเอาออก
+      var prodSteps = (d.steps || []).filter(function (s) { return s.dept !== "rd"; });
+      var stepOpts = prodSteps.map(function (s) {
         return '<option value="' + J.esc(s.name) + '">' + J.esc(s.name) + "</option>";
       }).join("");
       $("f-step").innerHTML = '<option value="">— เลือกขั้นตอน —</option>' + stepOpts;
@@ -686,8 +688,12 @@
   /* ---------- รายการล่าสุด ---------- */
   function loadRecent() {
     var m = J.me.get();
-    J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 15 }).then(function (list) {
-      if (!list || !list.length) { $("recent").innerHTML = '<p class="hint">ยังไม่มีรายการ</p>'; return; }
+    J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 30 }).then(function (all) {
+      // งาน RD ไปดู/ลบที่หน้า "งาน RD" แทน
+      var rdNames = ((boot && boot.steps) || []).filter(function (s) { return s.dept === "rd"; })
+        .map(function (s) { return s.name; });
+      var list = (all || []).filter(function (e) { return rdNames.indexOf(e.step) < 0; }).slice(0, 15);
+      if (!list.length) { $("recent").innerHTML = '<p class="hint">ยังไม่มีรายการ</p>'; return; }
       $("recent").innerHTML = list.map(function (e) {
         var title = e.category === "other"
           ? (e.note || "งานอื่น")

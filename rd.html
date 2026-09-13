@@ -383,9 +383,21 @@
           (r.photos ? " · " + r.photos + " รูป" : "") +
           (r.note ? " · " + J.esc(r.note) : "") + "</div></div>" +
           '<div class="n">' + J.nf.format(r.qty_good) +
-          (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") +
-          "<br>" + (CHIP[r.review_status] || "") + "</div></div>";
+          (r.qty_bad ? "<i>ต้องแก้ " + J.nf.format(r.qty_bad) + "</i>" : "") +
+          "<br>" + (CHIP[r.review_status] || "") +
+          (r.can_delete ? ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(r.id) +
+                          '" type="button">ลบ</button>' : "") +
+          "</div></div>";
       }).join("");
+      Array.prototype.forEach.call($("recent").querySelectorAll("[data-del]"), function (b) {
+        b.addEventListener("click", function () {
+          if (!confirm("ลบรายการนี้?")) return;
+          var mm = J.me.get();
+          J.rpc("app_delete_entry", { p_name: mm.name, p_pin: mm.pin, p_id: b.dataset.del })
+            .then(function () { loadRecent(); loadLots(); })
+            .catch(function (err) { alert(err.message); });
+        });
+      });
     }).catch(function () {});
   }
 
