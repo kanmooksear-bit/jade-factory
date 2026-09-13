@@ -7,14 +7,21 @@
 <title>งาน RD — โรงงานหยก</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=16">
+<link rel="stylesheet" href="app.css?v=18">
 <style>
   .flow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   .flow span{font-size:12.5px;padding:6px 11px;border-radius:999px;background:var(--surface-2);
              color:var(--ink-3)}
   .flow span.on{background:var(--jade);color:var(--on-jade);font-weight:500}
   .flow span.arrow{background:transparent;padding:6px 0;color:var(--ink-3)}
+  .prj{border-top:1px solid var(--line-2);padding:11px 0}
+  .prj:first-child{border-top:0}
+  .prj .top{display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  .prj .nm{font-size:14.5px}
+  .prj .cd{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .prj .s{font-size:12.5px;color:var(--ink-3);margin-top:3px;font-variant-numeric:tabular-nums}
+  .prj .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .newbox{background:var(--surface-2);border-radius:8px;padding:13px;margin-top:12px}
 </style>
 </head>
 <body>
@@ -61,19 +68,16 @@
   </section>
 
   <div id="app" hidden>
+
+    <!-- ---------- ลงงาน ---------- -->
     <div class="card">
       <h2>ลงงาน RD</h2>
       <div class="flow" id="flow"></div>
 
       <div class="field">
-        <label for="f-lot">ล็อตงาน</label>
-        <select id="f-lot"><option value="">— เลือกล็อต —</option></select>
-      </div>
-      <div class="lotinfo" id="lotinfo" hidden>
-        <div class="withpic">
-          <img class="lotpic" id="lotpic" alt="" hidden>
-          <div class="txt" id="lottext"></div>
-        </div>
+        <label for="f-prj">แบบ / โครงการ</label>
+        <select id="f-prj"><option value="">— เลือกโครงการ —</option></select>
+        <span class="hint" id="prj-hint">ยังไม่มีโครงการ? เปิดใหม่ได้ที่ข้างล่าง — ไม่ต้องรอเปิดล็อตผลิต</span>
       </div>
 
       <div class="field">
@@ -83,11 +87,11 @@
 
       <div class="two">
         <div class="field">
-          <label for="f-good">ทำได้ (ชิ้น/แบบ)</label>
-          <input id="f-good" type="number" inputmode="numeric" min="0" placeholder="0">
+          <label for="f-good">ทำได้ (แบบ/ชิ้น)</label>
+          <input id="f-good" type="number" inputmode="numeric" min="0" placeholder="1">
         </div>
         <div class="field">
-          <label for="f-bad">ต้องแก้ / ตีกลับ</label>
+          <label for="f-bad">ต้องแก้ (รอบ)</label>
           <input id="f-bad" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
       </div>
@@ -111,7 +115,7 @@
 
       <div class="field">
         <label for="f-note">หมายเหตุ (ไม่บังคับ)</label>
-        <textarea id="f-note" placeholder="เช่น แก้ตามที่ลูกค้าขอ / รอเจ้าของอนุมัติ"></textarea>
+        <textarea id="f-note" placeholder="เช่น ลูกค้าขอแก้ปีก / รอเจ้าของอนุมัติ"></textarea>
       </div>
 
       <div class="field">
@@ -131,8 +135,54 @@
     <input id="shot-cam" type="file" accept="image/*" capture="environment" multiple hidden>
     <input id="shot-lib" type="file" accept="image/*" multiple hidden>
 
+    <!-- ---------- โครงการ ---------- -->
     <section style="margin-top:22px">
-      <div class="sec-head" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <h2 style="font-size:18px">แบบ / โครงการ</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="p-filter" style="padding:6px 9px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:13px;background:var(--surface);color:var(--ink)">
+            <option value="open">ที่ทำอยู่</option>
+            <option value="all">ทั้งหมด</option>
+            <option value="done">ที่สำเร็จ</option>
+            <option value="cancelled">ที่ยกเลิก</option>
+          </select>
+          <button class="btn btn-sm" id="p-new" type="button">+ เปิดโครงการใหม่</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="newbox" id="newbox" hidden>
+          <div class="field">
+            <label for="n-title">ชื่อแบบ / โครงการ</label>
+            <input id="n-title" type="text" placeholder="เช่น พระปิดตา รุ่นใหม่ / แก้แบบเตารีด v3">
+          </div>
+          <div class="two">
+            <div class="field">
+              <label for="n-prod">สินค้าที่เกี่ยวข้อง (ถ้ามี)</label>
+              <select id="n-prod"><option value="">— ไม่ระบุ —</option></select>
+            </div>
+            <div class="field">
+              <label for="n-due">กำหนดส่งให้ฝ่ายผลิต</label>
+              <input id="n-due" type="date">
+            </div>
+          </div>
+          <div class="field">
+            <label for="n-note">หมายเหตุ</label>
+            <input id="n-note" type="text" placeholder="เช่น ลูกค้าสั่งพิเศษ 200 องค์">
+          </div>
+          <div class="msg" id="new-msg" hidden></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" id="n-go" type="button">เปิดโครงการ</button>
+            <button class="btn btn-ghost" id="n-cancel" type="button">ยกเลิก</button>
+          </div>
+        </div>
+        <div id="projects"></div>
+      </div>
+    </section>
+
+    <!-- ---------- งานล่าสุด ---------- -->
+    <section style="margin-top:22px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
         <h2 style="font-size:18px">งาน RD ล่าสุดของฉัน</h2>
         <a href="kpi.html" class="hint">ดู KPI ของแผนก →</a>
       </div>
@@ -143,16 +193,27 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=16"></script>
-<script src="api.js?v=16"></script>
+<script src="config.js?v=18"></script>
+<script src="api.js?v=18"></script>
 <script>
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var J = window.JADE;
-  var boot = null, lots = [], shots = [], rdSteps = [];
+  var boot = null, projects = [], shots = [], rdSteps = [];
 
   $("factory").textContent = J.factory;
+
+  var ST = {
+    open: '<span class="chip warn">ทำอยู่</span>',
+    done: '<span class="chip ok">สำเร็จ</span>',
+    cancelled: '<span class="chip idle">ยกเลิก</span>'
+  };
+  var CHIP = {
+    pending: '<span class="chip warn">รอตรวจ</span>',
+    approved: '<span class="chip ok">ผ่านแล้ว</span>',
+    rejected: '<span class="chip bad">ไม่ผ่าน</span>'
+  };
 
   /* ---------- เข้าใช้งาน ---------- */
   function loadBoot() {
@@ -174,6 +235,12 @@
       $("flow").innerHTML = rdSteps.map(function (s, i) {
         return (i ? '<span class="arrow">→</span>' : "") + "<span>" + J.esc(s.name) + "</span>";
       }).join("") + (rdSteps.length ? '<span class="arrow">→</span><span>ส่งต่อฝ่ายผลิต</span>' : "");
+
+      $("n-prod").innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+        (d.products || []).map(function (p) {
+          return '<option value="' + J.esc(p.code) + '">' + J.esc(p.code) + " · " +
+            J.esc(p.name) + "</option>";
+        }).join("");
     });
   }
 
@@ -192,7 +259,7 @@
     J.nav(role || J.me.get().role);
     J.enhanceDates(); J.enhanceTimes();
     $("f-date").value = J.today();
-    loadLots();
+    loadProjects();
     loadRecent();
   }
 
@@ -200,7 +267,7 @@
     var name = $("l-name").value, pin = $("l-pin").value;
     if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
     $("l-go").disabled = true;
-    J.rpc("app_my_entries", { p_name: name, p_pin: pin, p_limit: 1 }).then(function () {
+    J.rpc("app_rd_projects", { p_name: name, p_pin: pin, p_status: "open" }).then(function () {
       var role = "worker";
       (boot.employees || []).forEach(function (e) { if (e.name === name) role = e.role; });
       J.me.set(name, pin, role);
@@ -211,36 +278,107 @@
   $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
   $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
 
-  /* ---------- ล็อต ---------- */
-  function loadLots() {
-    return J.rpc("app_open_lots").then(function (d) {
-      lots = d || [];
-      var keep = $("f-lot").value;
-      $("f-lot").innerHTML = !lots.length
-        ? '<option value="">— ยังไม่มีล็อตที่เปิดอยู่ —</option>'
-        : '<option value="">— เลือกล็อต —</option>' + lots.map(function (l) {
-            return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
-              J.esc(l.product_code) + " " + J.esc(l.product_name) + "</option>";
-          }).join("");
-      $("f-lot").value = keep;
-      showLotInfo();
+  /* ---------- โครงการ ---------- */
+  function loadProjects() {
+    var m = J.me.get();
+    return J.rpc("app_rd_projects", { p_name: m.name, p_pin: m.pin, p_status: $("p-filter").value })
+      .then(function (list) {
+        projects = list || [];
+        renderProjects();
+        return J.rpc("app_rd_projects", { p_name: m.name, p_pin: m.pin, p_status: "open" });
+      }).then(function (open) {
+        var keep = $("f-prj").value;
+        var arr = open || [];
+        $("f-prj").innerHTML = !arr.length
+          ? '<option value="">— ยังไม่มีโครงการที่เปิดอยู่ —</option>'
+          : '<option value="">— เลือกโครงการ —</option>' + arr.map(function (p) {
+              return '<option value="' + J.esc(p.code) + '">' + J.esc(p.code) + " · " +
+                J.esc(p.name) + "</option>";
+            }).join("");
+        $("f-prj").value = keep;
+      }).catch(function (err) {
+        $("projects").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>";
+      });
+  }
+
+  function renderProjects() {
+    if (!projects.length) {
+      $("projects").innerHTML = '<p class="hint" style="padding:14px 0">ยังไม่มีโครงการในกลุ่มนี้</p>';
+      return;
+    }
+    $("projects").innerHTML = projects.map(function (p) {
+      var late = p.status === "open" && p.days_left != null && p.days_left < 0;
+      var soon = p.status === "open" && p.days_left != null && p.days_left >= 0 && p.days_left <= 3;
+      return '<div class="prj"><div class="top"><span class="nm">' + J.esc(p.name) +
+        (p.product_code ? ' <span class="cd">(' + J.esc(p.product_code) + ")</span>" : "") +
+        "</span>" + (ST[p.status] || "") + "</div>" +
+        '<div class="cd">' + J.esc(p.code) + "</div>" +
+        '<div class="s">ลงงานแล้ว ' + J.nf.format(p.steps_done) + " ครั้ง" +
+        (p.last_step ? " · ล่าสุด " + J.esc(p.last_step) : "") +
+        (p.fixes ? ' · <span style="color:var(--alert)">แก้ ' + J.nf.format(p.fixes) + " รอบ</span>" : "") +
+        (p.due_date ? " · กำหนดส่ง " + J.esc(J.thDate(p.due_date)) +
+          (late ? ' <span class="chip bad">เลย ' + (-p.days_left) + " ว.</span>"
+                : soon ? ' <span class="chip warn">อีก ' + p.days_left + " ว.</span>" : "") : "") +
+        (p.closed_date ? " · ปิด " + J.esc(J.thDate(p.closed_date)) : "") +
+        (p.note ? "<br>" + J.esc(p.note) : "") + "</div>" +
+        (p.status === "open"
+          ? '<div class="acts">' +
+            '<button class="btn btn-sm" data-use="' + J.esc(p.code) + '" type="button">ลงงานโครงการนี้</button>' +
+            '<button class="btn btn-sm btn-primary" data-done="' + J.esc(p.code) + '" type="button">ปิดว่าสำเร็จ</button>' +
+            '<button class="btn btn-sm btn-danger" data-cancel="' + J.esc(p.code) + '" type="button">ยกเลิก</button>' +
+            "</div>"
+          : '<div class="acts"><button class="btn btn-sm btn-ghost" data-reopen="' + J.esc(p.code) +
+            '" type="button">เปิดใหม่</button></div>') + "</div>";
+    }).join("");
+
+    bind("use", function (code) {
+      $("f-prj").value = code;
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+    bind("done", function (code) { setStatus(code, "done", "ปิดโครงการ " + code + " ว่าสำเร็จ?"); });
+    bind("cancel", function (code) { setStatus(code, "cancelled", "ยกเลิกโครงการ " + code + "?"); });
+    bind("reopen", function (code) { setStatus(code, "open", "เปิดโครงการ " + code + " ขึ้นมาใหม่?"); });
+  }
+
+  function bind(attr, fn) {
+    Array.prototype.forEach.call($("projects").querySelectorAll("[data-" + attr + "]"), function (b) {
+      b.addEventListener("click", function () { fn(b.dataset[attr]); });
     });
   }
 
-  function showLotInfo() {
-    var c = $("f-lot").value, l = null;
-    for (var i = 0; i < lots.length; i++) if (lots[i].code === c) l = lots[i];
-    var box = $("lotinfo");
-    if (!l) { box.hidden = true; return; }
-    box.hidden = false;
-    J.setPhoto($("lotpic"), l.product_code, l.has_photo);
-    $("lottext").innerHTML = "<b>" + J.esc(l.product_code) + "</b> " + J.esc(l.product_name) +
-      "<br>เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · เริ่ม " +
-      J.esc(J.thDate(l.opened_at)) +
-      (l.due_date ? " · กำหนดส่ง <b>" + J.esc(J.thDate(l.due_date)) + "</b>" : "");
+  function setStatus(code, status, ask) {
+    if (!confirm(ask)) return;
+    var m = J.me.get();
+    J.rpc("app_rd_close", { p_name: m.name, p_pin: m.pin, p_code: code, p_status: status })
+      .then(loadProjects)
+      .catch(function (err) { alert(err.message); });
   }
-  $("f-lot").addEventListener("change", showLotInfo);
-  $("f-step").addEventListener("change", markFlow);
+
+  $("p-filter").addEventListener("change", loadProjects);
+  $("p-new").addEventListener("click", function () {
+    $("newbox").hidden = !$("newbox").hidden;
+    if (!$("newbox").hidden) $("n-title").focus();
+  });
+  $("n-cancel").addEventListener("click", function () { $("newbox").hidden = true; });
+
+  $("n-go").addEventListener("click", function () {
+    var m = J.me.get();
+    var title = $("n-title").value.trim();
+    if (!title) { J.msg($("new-msg"), "ตั้งชื่อแบบ/โครงการก่อน", "err"); return; }
+    $("n-go").disabled = true;
+    J.rpc("app_rd_open", {
+      p_name: m.name, p_pin: m.pin, p_title: title,
+      p_product: $("n-prod").value || null,
+      p_due: $("n-due").value || null,
+      p_note: $("n-note").value || null
+    }).then(function (r) {
+      J.msg($("new-msg"), "เปิดโครงการ " + r.code + " แล้ว", "ok");
+      $("n-title").value = ""; $("n-note").value = ""; $("n-due").value = "";
+      $("n-prod").value = "";
+      return loadProjects().then(function () { $("f-prj").value = r.code; });
+    }).catch(function (err) { J.msg($("new-msg"), err.message, "err"); })
+      .then(function () { $("n-go").disabled = false; });
+  });
 
   /* ---------- เวลา ---------- */
   function updateDuration() {
@@ -253,6 +391,7 @@
   }
   $("f-tstart").addEventListener("timechange", updateDuration);
   $("f-tend").addEventListener("timechange", updateDuration);
+  $("f-step").addEventListener("change", markFlow);
 
   /* ---------- รูป ---------- */
   function renderShots() {
@@ -261,9 +400,7 @@
         i + '">×</button></span>';
     }).join("");
     Array.prototype.forEach.call($("shot-preview").querySelectorAll("[data-rm]"), function (b) {
-      b.addEventListener("click", function () {
-        shots.splice(Number(b.dataset.rm), 1); renderShots();
-      });
+      b.addEventListener("click", function () { shots.splice(Number(b.dataset.rm), 1); renderShots(); });
     });
     $("shot-hint").textContent = shots.length
       ? "แนบไว้ " + shots.length + " รูป (กดรูปเพื่อลบ)"
@@ -320,11 +457,11 @@
   var skipTime = false;
   $("submit").addEventListener("click", function () {
     var m = J.me.get();
-    var lot = $("f-lot").value, step = $("f-step").value;
+    var prj = $("f-prj").value, step = $("f-step").value;
     var good = Number($("f-good").value || 0), bad = Number($("f-bad").value || 0);
+    if (!prj) { J.msg($("form-msg"), "เลือกโครงการก่อน (หรือเปิดโครงการใหม่ข้างล่าง)", "err"); return; }
     if (!step) { J.msg($("form-msg"), "เลือกขั้นตอนก่อน", "err"); return; }
-    if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
-    if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนที่ทำได้ หรือจำนวนที่ต้องแก้ อย่างน้อยหนึ่งช่อง", "err"); return; }
+    if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนที่ทำได้ หรือจำนวนรอบที่ต้องแก้", "err"); return; }
     var t1 = $("f-tstart").value || null, t2 = $("f-tend").value || null;
     if ((!t1 || !t2) && !skipTime) {
       skipTime = true;
@@ -333,14 +470,12 @@
     }
     $("submit").disabled = true;
     J.submit({
-      p_name: m.name, p_pin: m.pin, p_category: "production",
-      p_lot: lot, p_step: step, p_machine: null,
+      p_name: m.name, p_pin: m.pin, p_project: prj, p_step: step,
       p_good: good, p_bad: bad,
       p_date: $("f-date").value || J.today(),
-      p_cnc_start: null, p_cnc_end: null,
       p_note: $("f-note").value || null,
       p_time_start: t1, p_time_end: t2
-    }).then(function (r) {
+    }, "app_rd_submit").then(function (r) {
       J.msg($("form-msg"), r && r.queued
         ? "เน็ตไม่ติด — เก็บไว้ในเครื่องแล้ว จะส่งให้เองเมื่อเน็ตกลับมา"
         : "บันทึกเรียบร้อย ขอบคุณครับ", r && r.queued ? "warn" : "ok");
@@ -353,37 +488,29 @@
         J.msg($("form-msg"), "เน็ตไม่ติด — บันทึกงานเก็บไว้แล้ว แต่รูปแนบไม่ได้ตอนออฟไลน์ ค่อยแนบใหม่ทีหลัง", "warn");
         shots = []; renderShots();
       }
-      loadLots(); loadRecent();
+      loadProjects(); loadRecent();
     }).catch(function (err) { J.msg($("form-msg"), err.message, "err"); })
       .then(function () { $("submit").disabled = false; });
   });
 
-  /* ---------- รายการล่าสุด ---------- */
-  var CHIP = {
-    pending: '<span class="chip warn">รอตรวจ</span>',
-    approved: '<span class="chip ok">ผ่านแล้ว</span>',
-    rejected: '<span class="chip bad">ไม่ผ่าน</span>',
-    inmachine: '<span class="chip">อยู่ในเครื่อง</span>'
-  };
-
+  /* ---------- งานล่าสุด ---------- */
   function loadRecent() {
     var m = J.me.get();
-    var names = rdSteps.map(function (s) { return s.name; });
-    J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 30 }).then(function (list) {
-      var rows = (list || []).filter(function (r) { return names.indexOf(r.step) >= 0; }).slice(0, 15);
+    J.rpc("app_my_entries", { p_name: m.name, p_pin: m.pin, p_limit: 40 }).then(function (list) {
+      var rows = (list || []).filter(function (r) { return !!r.project; }).slice(0, 15);
       if (!rows.length) {
         $("recent").innerHTML = '<p class="hint" style="padding:14px 0">ยังไม่มีงาน RD ที่ลงไว้</p>';
         return;
       }
       $("recent").innerHTML = rows.map(function (r) {
         return '<div class="row"><div class="main">' +
-          '<div class="t">' + J.esc(r.step) + " · " + J.esc(r.lot || "—") + "</div>" +
-          '<div class="s">' + J.esc(J.thDate(r.work_date)) +
+          '<div class="t">' + J.esc(r.step) + " · " + J.esc(r.project_name || r.project) + "</div>" +
+          '<div class="s">' + J.esc(r.project) + " · " + J.esc(J.thDate(r.work_date)) +
           (r.time_start && r.time_end ? " · " + J.esc(r.time_start) + "–" + J.esc(r.time_end) : "") +
           (r.photos ? " · " + r.photos + " รูป" : "") +
           (r.note ? " · " + J.esc(r.note) : "") + "</div></div>" +
           '<div class="n">' + J.nf.format(r.qty_good) +
-          (r.qty_bad ? "<i>ต้องแก้ " + J.nf.format(r.qty_bad) + "</i>" : "") +
+          (r.qty_bad ? "<i>แก้ " + J.nf.format(r.qty_bad) + "</i>" : "") +
           "<br>" + (CHIP[r.review_status] || "") +
           (r.can_delete ? ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(r.id) +
                           '" type="button">ลบ</button>' : "") +
@@ -394,7 +521,7 @@
           if (!confirm("ลบรายการนี้?")) return;
           var mm = J.me.get();
           J.rpc("app_delete_entry", { p_name: mm.name, p_pin: mm.pin, p_id: b.dataset.del })
-            .then(function () { loadRecent(); loadLots(); })
+            .then(function () { loadRecent(); loadProjects(); })
             .catch(function (err) { alert(err.message); });
         });
       });

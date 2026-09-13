@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=15">
+<link rel="stylesheet" href="app.css?v=18">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -132,6 +132,14 @@
       <div class="panel scroll"><table id="lots"></table></div>
     </section>
 
+    <section id="sec-rd" hidden>
+      <div class="sec-head">
+        <h2>แบบ / โครงการ RD</h2>
+        <span class="hint">ที่ปิดในช่วงนี้ + ที่ยังทำอยู่</span>
+      </div>
+      <div class="panel scroll"><table id="rdtab"></table></div>
+    </section>
+
     <section>
       <div class="sec-head">
         <h2>ของเสียเกิดตรงไหน</h2>
@@ -154,8 +162,8 @@
   </div>
 </main>
 
-<script src="config.js?v=15"></script>
-<script src="api.js?v=15"></script>
+<script src="config.js?v=18"></script>
+<script src="api.js?v=18"></script>
 <script>
 (function () {
   "use strict";
@@ -166,6 +174,9 @@
   $("factory").textContent = J.factory;
 
   function pctTxt(v) { return v == null ? "—" : Number(v).toFixed(1) + "%"; }
+  function isProj(dp) {
+    return (dp.kpis || []).some(function (k) { return String(k.metric).indexOf("proj_") === 0; });
+  }
 
   function loadBoot() {
     return J.rpc("app_bootstrap").then(function (d) {
@@ -286,12 +297,19 @@
     var cls = !has ? "none" : (pass ? "pass" : "fail");
     var w = has ? Math.max(2, Math.min(100, Number(k.pct))) : 0;
     var col = !has ? "var(--line)" : (pass ? "var(--jade)" : "var(--alert)");
-    var sum = k.metric === "yield"
-        ? "เปิดล็อต " + J.nf.format(dept.plan) + " · ผ่านแผนก " + J.nf.format(dept.made)
-      : k.metric === "defect"
-        ? "เปิดล็อต " + J.nf.format(dept.plan) + " · เสีย " + J.nf.format(dept.bad)
-        : (dept.with_due ? "มีกำหนดส่ง " + J.nf.format(dept.with_due) + " ล็อต · ทัน " + J.nf.format(dept.ontime)
-                         : "ยังไม่มีล็อตไหนกรอกกำหนดส่ง");
+    var sum =
+        k.metric === "yield"  ? "เปิดล็อต " + J.nf.format(dept.plan) + " · ผ่านแผนก " + J.nf.format(dept.made)
+      : k.metric === "defect" ? "เปิดล็อต " + J.nf.format(dept.plan) + " · เสีย " + J.nf.format(dept.bad)
+      : k.metric === "ontime" ? (dept.with_due
+          ? "มีกำหนดส่ง " + J.nf.format(dept.with_due) + " ล็อต · ทัน " + J.nf.format(dept.ontime)
+          : "ยังไม่มีล็อตไหนกรอกกำหนดส่ง")
+      : k.metric === "proj_done" ? "โครงการที่ปิด " + J.nf.format(dept.proj_total) +
+          " · สำเร็จ " + J.nf.format(dept.proj_done)
+      : k.metric === "proj_fix"  ? "โครงการที่ปิด " + J.nf.format(dept.proj_total) +
+          " · มีรอบแก้ " + J.nf.format(dept.proj_fix)
+      : (dept.proj_due
+          ? "มีกำหนดส่ง " + J.nf.format(dept.proj_due) + " โครงการ · ทัน " + J.nf.format(dept.proj_ontime)
+          : "ยังไม่มีโครงการไหนกรอกกำหนดส่ง");
     return '<div class="kcard ' + cls + '" data-k="' + J.esc(dept.code) + ":" + k.seq + '">' +
       '<button class="pen" type="button" data-edit="' + J.esc(dept.code) + ":" + k.seq + '">แก้เป้า</button>' +
       '<div class="tag">KPI ' + k.seq + "</div>" +
@@ -332,7 +350,9 @@
     $("depts").innerHTML = (d.depts || []).map(function (dp) {
       return '<div class="dept"><div class="dept-head"><h2>' + J.esc(dp.name) + "</h2>" +
         '<span class="s">' + (dp.steps ? n.format(dp.steps) + " ขั้นตอน · " : "ยังไม่ได้กำหนดขั้นตอน · ") +
-        (dp.lots ? n.format(dp.lots) + " ล็อตที่มีงานของแผนกนี้" : "ไม่มีงานในช่วงนี้") + "</span></div>" +
+        (isProj(dp)
+          ? (dp.proj_total ? n.format(dp.proj_total) + " โครงการที่ปิดในช่วงนี้" : "ยังไม่มีโครงการที่ปิดในช่วงนี้")
+          : (dp.lots ? n.format(dp.lots) + " ล็อตที่มีงานของแผนกนี้" : "ไม่มีงานในช่วงนี้")) + "</span></div>" +
         '<div class="cards">' + (dp.kpis || []).map(function (k) { return card(dp, k); }).join("") +
         "</div></div>";
     }).join("");
@@ -374,6 +394,31 @@
                 : "") + "</tr>";
           }).join("");
         }).join("") + "</tbody>";
+
+    // ---- โครงการ RD ----
+    var rp = d.rd_projects || [];
+    $("sec-rd").hidden = !rp.length;
+    if (rp.length) {
+      var STN = { open: '<span class="chip warn">ทำอยู่</span>',
+                  done: '<span class="chip ok">สำเร็จ</span>',
+                  cancelled: '<span class="chip idle">ยกเลิก</span>' };
+      $("rdtab").innerHTML =
+        "<thead><tr><th>รหัส</th><th>ชื่อแบบ / โครงการ</th><th>สินค้า</th><th>สถานะ</th>" +
+        "<th class='num'>ลงงาน</th><th class='num'>รอบแก้</th><th>กำหนดส่ง</th><th>ปิดเมื่อ</th></tr></thead><tbody>" +
+        rp.map(function (r) {
+          return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.name) + "</td>" +
+            "<td>" + J.esc(r.product_code || "—") + "</td>" +
+            "<td>" + (STN[r.status] || "") + "</td>" +
+            "<td class='num'>" + n.format(r.steps_done) + "</td>" +
+            "<td class='num'>" + (r.fixes ? '<span class="chip bad">' + n.format(r.fixes) + "</span>" : "0") + "</td>" +
+            "<td>" + (r.due_date ? J.esc(J.formatThai(r.due_date)) : '<span class="muted">—</span>') + "</td>" +
+            "<td>" + (r.closed_date
+              ? J.esc(J.formatThai(r.closed_date)) +
+                (r.late_days > 0 ? ' <span class="chip bad">ช้า ' + r.late_days + " ว.</span>"
+                 : r.late_days != null ? ' <span class="chip ok">ทัน</span>' : "")
+              : '<span class="muted">—</span>') + "</td></tr>";
+        }).join("") + "</tbody>";
+    }
 
     // ---- ของเสีย ----
     var bs = d.bad_by_step || [];
