@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=17">
+<link rel="stylesheet" href="app.css?v=19">
 </head>
 <body>
 
@@ -175,6 +175,19 @@
             <input id="o-date" type="date">
           </div>
         </div>
+
+        <div class="two">
+          <div class="field">
+            <label for="o-tstart">เริ่มกี่โมง</label>
+            <input id="o-tstart" type="time">
+          </div>
+          <div class="field">
+            <label for="o-tend">เสร็จกี่โมง</label>
+            <input id="o-tend" type="time">
+          </div>
+        </div>
+        <span class="durnote" id="o-dur"></span>
+        <p class="hint" style="margin:4px 0 14px">ลงเวลาแล้วชั่วโมงจะไปรวมในแดชบอร์ดเหมือนงานผลิต — ถ้าเป็นวันลาเต็มวันจะไม่ใส่ก็ได้</p>
         <div class="field">
           <label>รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-sm" data-pick="cam" type="button">ถ่ายรูป</button><button class="btn btn-sm" data-pick="lib" type="button">เลือกจากอัลบั้ม</button></div>
@@ -217,8 +230,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=17"></script>
-<script src="api.js?v=17"></script>
+<script src="config.js?v=19"></script>
+<script src="api.js?v=19"></script>
 <script>
 (function () {
   "use strict";
@@ -470,6 +483,15 @@
   $("f-tstart").addEventListener("timechange", updateDuration);
   $("f-tend").addEventListener("timechange", updateDuration);
 
+  function updateOtherDuration() {
+    var t = J.durationText($("o-tstart").value, $("o-tend").value);
+    var box = $("o-dur");
+    box.textContent = t || "";
+    box.className = "durnote" + (t && t.indexOf("ต้องหลัง") >= 0 ? " bad" : "");
+  }
+  $("o-tstart").addEventListener("timechange", updateOtherDuration);
+  $("o-tend").addEventListener("timechange", updateOtherDuration);
+
   /* ---------- ส่งบันทึก ---------- */
   function send(args, btn, clear, fn) {
     btn.disabled = true;
@@ -640,9 +662,13 @@
       p_lot: null, p_step: $("o-step").value || null, p_machine: null,
       p_good: Number($("o-good").value || 0), p_bad: 0,
       p_date: $("o-date").value || J.today(),
-      p_cnc_start: null, p_cnc_end: null, p_note: note
+      p_cnc_start: null, p_cnc_end: null, p_note: note,
+      p_time_start: $("o-tstart").value || null,
+      p_time_end: $("o-tend").value || null
     }, $("submit-other"), function (r) {
       $("o-note").value = ""; $("o-good").value = "";
+      $("o-tstart").value = ""; $("o-tend").value = "";
+      updateOtherDuration();
       if (r && r.id) uploadShots(r.id);
     });
   });
