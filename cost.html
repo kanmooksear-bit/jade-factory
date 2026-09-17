@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=22">
+<link rel="stylesheet" href="app.css?v=23">
 <style>
   .wrap{max-width:1080px}
   .topbar-in{max-width:1080px}
@@ -149,8 +149,8 @@
   </div>
 </main>
 
-<script src="config.js?v=22"></script>
-<script src="api.js?v=22"></script>
+<script src="config.js?v=23"></script>
+<script src="api.js?v=23"></script>
 <script>
 (function () {
   "use strict";
@@ -235,14 +235,25 @@
         '<p class="hint" style="margin-bottom:6px">' + J.esc(mode) + "</p>" +
         '<div class="scroll"><table><thead><tr><th>เดือน</th>' +
         "<th class='money'>ชม. เครื่อง</th><th class='money'>ชม. คน</th>" +
-        "<th class='money'>รวม</th><th class='money'>โสหุ้ย/ชม.</th></tr></thead><tbody>" +
+        "<th class='money'>รวม</th><th class='money'>โสหุ้ย/ชม.</th>" +
+        "<th class='money'>ค่าแรงที่จ่าย</th><th class='money'>ลงตรงได้</th>" +
+        "<th class='money'>เกลี่ยเพิ่ม/ชม.</th></tr></thead><tbody>" +
         list.map(function (r) {
+          var cov = r.covered_pct == null ? null : Number(r.covered_pct);
           return "<tr><td>" + J.esc(monthTxt(r.ym)) + "</td>" +
             '<td class="money">' + (Number(r.machine_hours) || 0).toFixed(0) + "</td>" +
             '<td class="money">' + (Number(r.labour_hours) || 0).toFixed(1) + "</td>" +
             '<td class="money">' + (Number(r.base_hours) || 0).toFixed(1) + "</td>" +
-            '<td class="money"><b>' + money(r.rate) + "</b></td></tr>";
-        }).join("") + "</tbody></table></div>";
+            '<td class="money"><b>' + money(r.rate) + "</b></td>" +
+            '<td class="money">' + money(r.wage_paid) +
+              (Number(r.man_days) ? ' <span class="hint">(' + J.nf.format(r.man_days) + " คน-วัน)</span>" : "") + "</td>" +
+            '<td class="money">' + money(r.wage_direct) +
+              (cov == null ? "" : ' <span class="hint">' + cov.toFixed(0) + "%</span>") + "</td>" +
+            '<td class="money">' + money(r.spread_rate) + "</td></tr>";
+        }).join("") + "</tbody></table></div>" +
+        '<p class="hint" style="margin-top:8px">ค่าแรงที่จ่ายจริงทั้งเดือน (รวมวันลา) จะถูกเกลี่ยลงล็อตให้ครบทุกบาท — ' +
+        "ช่อง “ลงตรงได้” คือส่วนที่ผูกกับเวลาที่พนักงานลงไว้ ส่วนที่เหลือเกลี่ยตามชั่วโมงงานของแต่ละล็อต " +
+        "ยิ่งลงเวลาครบ ต้นทุนยิ่งชี้ถูกล็อต</p>";
     }).catch(function () {});
   }
 
@@ -396,6 +407,12 @@
         '<span><i class="swatch" style="background:var(--amber)"></i>โสหุ้ย ' + money(oh) + "</span>" +
         "<span><b>รวม " + money(tot) + " บาท</b></span></div>";
 
+    if (Number(d.labour_spread) > 0 || Number(d.labour_direct) > 0) {
+      html += '<p class="hint" style="margin-top:6px">ค่าแรงคิดจาก เวลาที่ลงไว้ ' +
+        money(d.labour_direct) + " บาท + ส่วนที่เกลี่ยจากค่าแรงที่จ่ายจริงแต่ไม่ได้ลงงาน " +
+        money(d.labour_spread) + " บาท (ค่าแรงที่จ่ายทั้งเดือนถูกเกลี่ยลงล็อตจนครบ)</p>";
+    }
+
     if (oh > 0 || Number(d.machine_hours) > 0) {
       html += '<p class="hint" style="margin-top:6px">โสหุ้ยคิดจาก ชั่วโมงเครื่อง ' +
         (Number(d.machine_hours) || 0).toFixed(0) + " ชม. + ชั่วโมงคน " +
@@ -429,7 +446,8 @@
     }
     if (d.timed_entries < d.total_entries) {
       html += '<p class="msg warn">มี ' + (d.total_entries - d.timed_entries) +
-        ' รายการที่ไม่ได้ลงเวลาเริ่ม–เสร็จ ค่าแรงส่วนนั้นคิดไม่ได้ ต้นทุนจริงจะสูงกว่านี้</p>';
+        " รายการที่ไม่ได้ลงเวลาเริ่ม–เสร็จ ยอดค่าแรงรวมยังครบ (เกลี่ยให้แล้ว) " +
+        "แต่จะบอกไม่ได้ว่าเวลาหมดไปกับขั้นตอนไหน ตัวเลขรายขั้นตอนข้างล่างจึงคลาดเคลื่อน</p>";
     }
     if ((d.no_wage || []).length) {
       html += '<p class="msg warn">ยังไม่ได้ตั้งค่าแรงรายวันให้: ' + J.esc((d.no_wage || []).join(", ")) +
