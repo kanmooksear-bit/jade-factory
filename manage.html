@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -310,12 +310,21 @@
             </select>
           </div>
         </div>
-        <div class="field">
-          <label for="t-active">สถานะ</label>
-          <select id="t-active">
-            <option value="1">ใช้งานอยู่</option>
-            <option value="0">ปิดใช้ / เลิกทำแล้ว</option>
-          </select>
+        <div class="two">
+          <div class="field">
+            <label for="t-dept">แผนก</label>
+            <select id="t-dept">
+              <option value="prod">ผลิตแกะสลักหยก</option>
+              <option value="rd">RD วิจัยและพัฒนา</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="t-active">สถานะ</label>
+            <select id="t-active">
+              <option value="1">ใช้งานอยู่</option>
+              <option value="0">ปิดใช้ / เลิกทำแล้ว</option>
+            </select>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" id="t-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
@@ -408,8 +417,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -448,8 +457,7 @@
     $("who-name").textContent = J.me.get().name;
     var d = new Date();
     $("s-to").value = J.today();
-    $("s-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14)
-      .toISOString().slice(0, 10);
+    $("s-from").value = J.daysAgo(14);
     loadEmployees();
     loadProducts();
     loadLotOptions();
@@ -519,7 +527,8 @@
       p_role: $("e-role").value,
       p_active: $("e-active").value === "1",
       p_new_pin: $("e-pin").value || null,
-      p_daily_wage: $("e-wage").value === "" ? null : Number($("e-wage").value)
+      // ว่าง = ตั้งใจลบค่าแรงออก ส่ง -1 ให้เซิร์ฟเวอร์ล้างเป็นว่าง
+      p_daily_wage: $("e-wage").value === "" ? (editEmp ? -1 : null) : Number($("e-wage").value)
     }).then(function (r) {
       J.msg($("emp-msg"), (r.created ? "เพิ่ม " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
       resetEmpForm();
@@ -620,6 +629,8 @@
   $("p-save").addEventListener("click", function () {
     var m = J.me.get();
     var num = function (id) { var v = $(id).value; return v === "" ? null : Number(v); };
+    // ช่องเงินที่ลบให้ว่าง = ตั้งใจล้างค่า (ส่ง -1) ไม่ใช่ "ไม่เปลี่ยน"
+    var money = function (id) { var v = $(id).value; return v === "" ? (editProd ? -1 : null) : Number(v); };
     $("p-save").disabled = true;
     J.rpc("sup_save_product", {
       p_name: m.name, p_pin: m.pin,
@@ -633,7 +644,7 @@
       p_color: $("p-color").value || null,
       p_origin: $("p-origin").value || null,
       p_detail: $("p-detail").value || null,
-      p_cost: num("p-cost"), p_price: num("p-price")
+      p_cost: money("p-cost"), p_price: money("p-price")
     }).then(function (r) {
       J.msg($("prod-msg"), (r.created ? "เพิ่มสินค้า " : "บันทึกสินค้า ") + r.code + " เรียบร้อย", "ok");
       resetProdForm();
@@ -732,6 +743,7 @@
     $("step-title").textContent = "เพิ่มขั้นตอนใหม่";
     $("t-name").value = ""; $("t-seq").value = "";
     $("t-qc").value = "0"; $("t-mach").value = "0"; $("t-active").value = "1";
+    $("t-dept").value = "prod";
     $("t-cancel").hidden = true;
   }
   $("t-cancel").addEventListener("click", resetStepForm);
@@ -743,7 +755,7 @@
       p_name: m.name, p_pin: m.pin, p_target: editStep,
       p_new_name: $("t-name").value, p_seq: Number($("t-seq").value || 0),
       p_is_qc: $("t-qc").value === "1", p_needs_machine: $("t-mach").value === "1",
-      p_active: $("t-active").value === "1"
+      p_active: $("t-active").value === "1", p_dept: $("t-dept").value
     }).then(function (r) {
       J.msg($("step-msg"), "บันทึกขั้นตอน " + r.name + " เรียบร้อย", "ok");
       resetStepForm(); loadSteps();
@@ -760,6 +772,7 @@
           '<span class="main"><span class="t">' + J.esc(x.name) +
           (x.is_qc ? ' <span class="chip ok">QC</span>' : "") +
           (x.needs_machine ? ' <span class="chip warn">ใช้เครื่อง</span>' : "") +
+          (x.dept === "rd" ? ' <span class="chip">RD</span>' : "") +
           (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') + "</span><br>" +
           '<span class="s">ลงงานไปแล้ว ' + J.nf.format(x.entries) + " รายการ</span></span>" +
           '<span class="act"><button class="btn btn-sm" data-step="' + J.esc(x.name) + '" type="button">แก้ไข</button></span>' +
@@ -773,6 +786,7 @@
           $("t-name").value = x.name; $("t-seq").value = x.seq;
           $("t-qc").value = x.is_qc ? "1" : "0";
           $("t-mach").value = x.needs_machine ? "1" : "0";
+          $("t-dept").value = x.dept || "prod";
           $("t-active").value = x.active ? "1" : "0";
           $("t-cancel").hidden = false;
           window.scrollTo({ top: 0, behavior: "smooth" });

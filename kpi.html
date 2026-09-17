@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=18">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -110,9 +110,9 @@
       <div class="field" style="min-width:210px"><label for="r-lot">ล็อต</label>
         <select id="r-lot"><option value="">ทุกล็อตที่ปิดในช่วงวันที่</option></select></div>
       <div class="field"><label for="r-from">ตั้งแต่</label>
-        <input id="r-from" data-thai-date type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป"></div>
+        <input id="r-from" type="date"></div>
       <div class="field"><label for="r-to">ถึง</label>
-        <input id="r-to" data-thai-date type="text" inputmode="numeric" placeholder="วว/ดด/ปปปป"></div>
+        <input id="r-to" type="date"></div>
       <button class="btn" id="r-go" type="button">ดู KPI</button>
       <button class="btn btn-sm btn-ghost" data-quick="m0" type="button">เดือนนี้</button>
       <button class="btn btn-sm btn-ghost" data-quick="m1" type="button">เดือนที่แล้ว</button>
@@ -162,8 +162,8 @@
   </div>
 </main>
 
-<script src="config.js?v=18"></script>
-<script src="api.js?v=18"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -267,9 +267,8 @@
       a = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       b = new Date(now.getFullYear(), now.getMonth(), 0);
     } else { a = new Date(now.getFullYear(), 0, 1); b = now; }
-    $("r-from").value = J.formatThai(iso(a));
-    $("r-to").value = J.formatThai(iso(b));
-    J.enhanceDates();
+    $("r-from").value = iso(a);
+    $("r-to").value = iso(b);
     load();
   }
   Array.prototype.forEach.call(document.querySelectorAll("[data-quick]"), function (b) {
@@ -283,8 +282,8 @@
     $("depts").innerHTML = '<p class="hint">กำลังโหลด…</p>';
     J.rpc("sup_kpi", {
       p_name: m.name, p_pin: m.pin,
-      p_from: J.parseThai($("r-from").value) || null,
-      p_to: J.parseThai($("r-to").value) || null,
+      p_from: $("r-from").value || null,
+      p_to: $("r-to").value || null,
       p_lot: $("r-lot").value || null
     }).then(function (d) { D = d; render(); })
       .catch(function (err) { $("depts").innerHTML = '<p class="msg err">' + J.esc(err.message) + "</p>"; });

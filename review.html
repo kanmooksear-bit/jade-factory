@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=12">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -153,6 +153,7 @@
     <span class="cnt">เลือกไว้ <b id="nsel">0</b> รายการ · <b id="npc">0</b> ชิ้น</span>
     <button class="btn btn-primary" id="do-ok" type="button">ยืนยัน</button>
     <button class="btn btn-danger" id="do-no" type="button">ตีกลับ</button>
+    <button class="btn btn-ghost" id="do-undo" type="button">เปิดให้แก้ใหม่</button>
     <div class="why-box" id="why-box" hidden>
       <input id="why" type="text" placeholder="ตีกลับเพราะอะไร — พนักงานจะเห็นข้อความนี้">
       <button class="btn btn-danger" id="do-no2" type="button">ส่งตีกลับ</button>
@@ -163,8 +164,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=12"></script>
-<script src="api.js?v=12"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -198,8 +199,7 @@
     $("who-name").textContent = J.me.get().name;
     var d = new Date();
     $("f-to").value = J.today();
-    $("f-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14)
-      .toISOString().slice(0, 10);
+    $("f-from").value = J.daysAgo(14);
     loadLots();
     load();
   }
@@ -440,25 +440,39 @@
     sync();
   });
 
+  var ACT_WORD = { approve: "ยืนยันแล้ว ", reject: "ตีกลับแล้ว ", reopen: "เปิดให้แก้ใหม่แล้ว " };
+
   function send(action, note) {
     var ids = picked();
     if (!ids.length) return;
+    // ยืนยันแล้วพนักงานแก้เองไม่ได้ ถ้ากดทีเดียวหลายสิบรายการต้องถามก่อน
+    if (action === "approve" && ids.length > 1 &&
+        !confirm("ยืนยัน " + ids.length + " รายการพร้อมกัน?\nหลังยืนยันแล้ว พนักงานจะแก้เองไม่ได้")) return;
     var m = J.me.get();
-    $("do-ok").disabled = true; $("do-no2").disabled = true;
+    $("do-ok").disabled = true; $("do-no2").disabled = true; $("do-undo").disabled = true;
     J.rpc("sup_review", {
       p_name: m.name, p_pin: m.pin,
       p_ids: ids, p_action: action, p_note: note || null
     }).then(function (r) {
-      J.msg($("rev-msg"), (action === "approve" ? "ยืนยันแล้ว " : "ตีกลับแล้ว ") +
+      J.msg($("rev-msg"), (ACT_WORD[action] || "") +
         J.nf.format(r.n) + " รายการ", action === "approve" ? "ok" : "warn");
       $("why").value = "";
       $("why-box").hidden = true;
       load();
     }).catch(function (err) { J.msg($("rev-msg"), err.message, "err"); })
-      .then(function () { $("do-ok").disabled = false; $("do-no2").disabled = false; });
+      .then(function () {
+        $("do-ok").disabled = false; $("do-no2").disabled = false; $("do-undo").disabled = false;
+      });
   }
 
   $("do-ok").addEventListener("click", function () { send("approve", null); });
+  // ยืนยันผิด ต้องมีทางแก้ — ดึงกลับมาเป็น "รอตรวจ" ให้พนักงานแก้ได้อีกครั้ง
+  $("do-undo").addEventListener("click", function () {
+    var n = picked().length;
+    if (!n) return;
+    if (!confirm("ดึง " + n + " รายการกลับมาเป็น “รอตรวจ” เพื่อให้พนักงานแก้ได้ใหม่?")) return;
+    send("reopen", null);
+  });
   $("do-no").addEventListener("click", function () {
     $("why-box").hidden = false;
     $("why").focus();

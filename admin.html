@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -126,7 +126,7 @@
         </div>
         <div class="field">
           <label for="s-pin">PIN ใหม่</label>
-          <input id="s-pin" type="text" inputmode="numeric" placeholder="อย่างน้อย 4 ตัว">
+          <input id="s-pin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="อย่างน้อย 4 ตัว ไม่ใช่ 1234">
         </div>
       </div>
       <button class="btn" id="s-go" type="button">ตั้ง PIN ใหม่</button>
@@ -144,8 +144,8 @@
   </section>
 </main>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -163,9 +163,6 @@
         (sup.length ? sup : d.employees).map(function (e) {
           return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
         }).join("");
-      Array.prototype.forEach.call($("lots").querySelectorAll("[data-pic]"), function (im) {
-        J.setPhoto(im, im.dataset.pic, true);
-      });
       allProducts = d.products || [];
       fillAttr("n-color",  "color",  "— ทุกสี —",           d.attrs || []);
       fillAttr("n-jade",   "jade",   "— หยกทุกชนิด —",      d.attrs || []);
@@ -187,8 +184,7 @@
     var d = new Date();
     $("n-open").value = J.today();
     $("e-to").value = J.today();
-    $("e-from").value = new Date(d.getFullYear(), d.getMonth() - 1, d.getDate())
-      .toISOString().slice(0, 10);
+    $("e-from").value = J.monthsAgo(1);
     loadLots();
   }
 
@@ -324,6 +320,10 @@
           '<div class="edt" data-edt="' + J.esc(l.code) + '" hidden></div>' +
           "</div>";
       }).join("");
+      // รูปสินค้าของล็อต ต้องโหลดหลังวาดรายการเสร็จ ไม่ใช่ตอนเปิดหน้า
+      Array.prototype.forEach.call($("lots").querySelectorAll("[data-pic]"), function (im) {
+        J.setPhoto(im, im.dataset.pic, true);
+      });
       Array.prototype.forEach.call($("lots").querySelectorAll("[data-fix]"), function (b) {
         b.addEventListener("click", function () { openLotFix(b.dataset.fix, list); });
       });
@@ -404,7 +404,9 @@
   $("s-go").addEventListener("click", function () {
     var m = J.me.get();
     var t = $("s-target").value, p = $("s-pin").value;
+    if (!t) { J.msg($("pin-msg"), "เลือกพนักงานก่อน", "err"); return; }
     if (p.length < 4) { J.msg($("pin-msg"), "PIN ต้องยาวอย่างน้อย 4 ตัว", "err"); return; }
+    if (!confirm("ตั้ง PIN ใหม่ให้ " + t + "?\nPIN เดิมจะใช้ไม่ได้ทันที ต้องบอก PIN ใหม่ให้เขาด้วย")) return;
     J.rpc("sup_set_pin", { p_name: m.name, p_pin: m.pin, p_target: t, p_new_pin: p })
       .then(function () { $("s-pin").value = ""; J.msg($("pin-msg"), "ตั้ง PIN ใหม่ให้ " + t + " แล้ว", "ok"); })
       .catch(function (err) { J.msg($("pin-msg"), err.message, "err"); });

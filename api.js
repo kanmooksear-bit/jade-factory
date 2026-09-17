@@ -81,15 +81,22 @@ window.JADE = (function () {
   function flush() {
     var q = queue();
     if (!q.length || !navigator.onLine) return Promise.resolve(0);
-    var sent = 0;
+    var sent = 0, keep = [];
+    // เก็บทีละรายการว่าอันไหนส่งได้ อันไหนต้องเก็บไว้ลองใหม่
+    // (เดิมนับแค่จำนวนแล้วตัดหัวคิว ถ้ารายการแรกส่งไม่ผ่านแต่รายการหลังผ่าน
+    //  งานของรายการแรกจะหาย ส่วนรายการหลังจะถูกส่งซ้ำกลายเป็นงานซ้ำ)
     return q.reduce(function (chain, item) {
       return chain.then(function () {
         var it = (item && item.fn && item.args) ? item : { fn: "app_submit", args: item };
-        return rpc(it.fn, it.args).then(function () { sent++; },
-          function (err) { if (!/Failed to fetch|NetworkError/i.test(err.message)) sent++; /* ทิ้งรายการที่ผิดกติกา */ });
+        return rpc(it.fn, it.args).then(
+          function () { sent++; },
+          function (err) {
+            // เน็ตยังไม่ติด = เก็บไว้ลองใหม่ · ฐานข้อมูลปฏิเสธ = ทิ้ง (ส่งซ้ำก็ไม่ผ่านอยู่ดี)
+            if (/Failed to fetch|NetworkError|เชื่อมต่อไม่สำเร็จ/i.test(err.message)) keep.push(item);
+          });
       });
     }, Promise.resolve()).then(function () {
-      setQueue(q.slice(sent));
+      setQueue(keep);
       return sent;
     });
   }
@@ -105,9 +112,20 @@ window.JADE = (function () {
     var s = Number(p[2]) + " " + TH_M[Number(p[1]) - 1];
     return withYear === false ? s : s + " " + (Number(p[0]) + 543);
   }
-  function today() {
+  function isoOf(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function today() { return isoOf(new Date()); }
+  // ย้อนหลัง n วันจากวันนี้ ตามเวลาเครื่อง
+  // (toISOString ใช้เวลา UTC ไทยเป็น +7 เที่ยงคืนบ้านเราคือเมื่อวานของ UTC จึงคลาดไป 1 วันเสมอ)
+  function daysAgo(n) {
     var d = new Date();
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    return isoOf(new Date(d.getFullYear(), d.getMonth(), d.getDate() - (n || 0)));
+  }
+  function monthsAgo(n) {
+    var d = new Date();
+    return isoOf(new Date(d.getFullYear(), d.getMonth() - (n || 0), d.getDate()));
   }
   var nf = new Intl.NumberFormat("th-TH");
   function esc(s) {
@@ -426,7 +444,8 @@ window.JADE = (function () {
     queueLength: function () { return queue().length; },
     onQueueChange: function (fn) { onQueue = fn; },
     configured: configured,
-    thDate: thDate, today: today, nf: nf, esc: esc, msg: msg,
+    thDate: thDate, today: today, daysAgo: daysAgo, monthsAgo: monthsAgo,
+    nf: nf, esc: esc, msg: msg,
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
     shrinkImage: shrinkImage,

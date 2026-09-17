@@ -7,7 +7,7 @@
 <title>งาน RD — โรงงานหยก</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="app.css?v=18">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .flow{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
   .flow span{font-size:12.5px;padding:6px 11px;border-radius:999px;background:var(--surface-2);
@@ -176,6 +176,7 @@
             <button class="btn btn-ghost" id="n-cancel" type="button">ยกเลิก</button>
           </div>
         </div>
+        <div class="msg" id="prj-msg" hidden></div>
         <div id="projects"></div>
       </div>
     </section>
@@ -184,7 +185,7 @@
     <section style="margin-top:22px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
         <h2 style="font-size:18px">งาน RD ล่าสุดของฉัน</h2>
-        <a href="kpi.html" class="hint">ดู KPI ของแผนก →</a>
+        <a href="kpi.html" class="hint" id="kpi-link" hidden>ดู KPI ของแผนก →</a>
       </div>
       <div class="card"><div class="list" id="recent"></div></div>
     </section>
@@ -193,8 +194,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=18"></script>
-<script src="api.js?v=18"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -257,6 +258,8 @@
     $("who").hidden = false;
     $("who-name").textContent = J.me.get().name;
     J.nav(role || J.me.get().role);
+    // หน้า KPI เป็นของหัวหน้า พนักงานกดเข้าไปจะเจอแต่ error
+    $("kpi-link").hidden = (role || J.me.get().role) !== "supervisor";
     J.enhanceDates(); J.enhanceTimes();
     $("f-date").value = J.today();
     loadProjects();
@@ -326,9 +329,12 @@
             '<button class="btn btn-sm" data-use="' + J.esc(p.code) + '" type="button">ลงงานโครงการนี้</button>' +
             '<button class="btn btn-sm btn-primary" data-done="' + J.esc(p.code) + '" type="button">ปิดว่าสำเร็จ</button>' +
             '<button class="btn btn-sm btn-danger" data-cancel="' + J.esc(p.code) + '" type="button">ยกเลิก</button>' +
+            '<button class="btn btn-sm btn-ghost" data-del="' + J.esc(p.code) + '" type="button">ลบทิ้ง</button>' +
             "</div>"
           : '<div class="acts"><button class="btn btn-sm btn-ghost" data-reopen="' + J.esc(p.code) +
-            '" type="button">เปิดใหม่</button></div>') + "</div>";
+            '" type="button">เปิดใหม่</button>' +
+            '<button class="btn btn-sm btn-ghost" data-del="' + J.esc(p.code) + '" type="button">ลบทิ้ง</button>' +
+            "</div>") + "</div>";
     }).join("");
 
     bind("use", function (code) {
@@ -338,6 +344,32 @@
     bind("done", function (code) { setStatus(code, "done", "ปิดโครงการ " + code + " ว่าสำเร็จ?"); });
     bind("cancel", function (code) { setStatus(code, "cancelled", "ยกเลิกโครงการ " + code + "?"); });
     bind("reopen", function (code) { setStatus(code, "open", "เปิดโครงการ " + code + " ขึ้นมาใหม่?"); });
+    bind("del", function (code) { delProject(code, false); });
+  }
+
+  // ลบโครงการทิ้งถาวร — ใช้ตอนเปิดผิด หรือเป็นของทดลอง
+  // ถ้ามีงานลงไว้แล้ว เซิร์ฟเวอร์จะไม่ยอมลบรอบแรก ต้องยืนยันซ้ำ
+  function delProject(code, force) {
+    var p = null, i;
+    for (i = 0; i < projects.length; i++) if (projects[i].code === code) p = projects[i];
+    var nm = p ? p.name : code;
+    if (!force && !confirm("ลบโครงการ " + code + " (" + nm + ") ทิ้งถาวร?\nงานที่ลงไว้ในโครงการนี้จะถูกลบไปด้วย และเอากลับมาไม่ได้")) return;
+    var m = J.me.get();
+    J.rpc("app_rd_delete", { p_name: m.name, p_pin: m.pin, p_code: code, p_force: !!force })
+      .then(function (r) {
+        loadProjects();
+        loadRecent();
+        J.msg($("prj-msg"), "ลบโครงการ " + code + " แล้ว" +
+          (r && r.entries ? " (ลบงานที่ลงไว้ " + r.entries + " รายการไปด้วย)" : ""), "ok");
+      })
+      .catch(function (err) {
+        // "มีการลงงานอยู่ N รายการ — ถ้าจะลบจริงต้องยืนยันอีกครั้ง"
+        if (!force && err.message && err.message.indexOf("ยืนยันอีกครั้ง") >= 0) {
+          if (confirm(err.message + "\n\nยืนยันลบ " + code + " ทิ้งจริง ๆ?")) delProject(code, true);
+          return;
+        }
+        alert(err.message);
+      });
   }
 
   function bind(attr, fn) {

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -107,8 +107,8 @@
   </div>
 </main>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -127,13 +127,16 @@
     { k: "lot",      t: "ล็อตงาน" },
     { k: "machine",  t: "เครื่องจักร" },
     { k: "step",     t: "ขั้นตอน" },
+    { k: "rd",       t: "งาน RD" },
+    { k: "setting",  t: "ค่าตั้งต้น" },
     { k: "auth",     t: "เข้าใช้งาน" }
   ];
 
   var ACT = {
     create: "ลงบันทึก", update: "แก้ไข", edit: "แก้ตัวเลข", delete: "ลบทิ้ง",
     approve: "ยืนยันงาน", reject: "ตีกลับงาน", reopen: "เปิดให้แก้ใหม่",
-    photo_add: "แนบรูป", photo_delete: "ลบรูป", login: "เข้าใช้งาน"
+    photo_add: "แนบรูป", photo_delete: "ลบรูป", login: "เข้าใช้งาน",
+    open: "เปิดโครงการ", done: "ปิดว่าสำเร็จ", cancelled: "ยกเลิกโครงการ"
   };
   var AREA_T = {};
   ROOMS.forEach(function (r) { AREA_T[r.k] = r.t; });
@@ -175,8 +178,7 @@
     $("who-name").textContent = J.me.get().name;
     var d = new Date();
     $("f-to").value = J.today();
-    $("f-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 30)
-      .toISOString().slice(0, 10);
+    $("f-from").value = J.daysAgo(30);
     refresh();
   }
 

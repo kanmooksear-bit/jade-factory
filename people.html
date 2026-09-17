@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=22">
 <style>
   .wrap{max-width:1080px}
   .topbar-in{max-width:1080px}
@@ -105,8 +105,8 @@
   </div>
 </main>
 
-<script src="config.js?v=9"></script>
-<script src="api.js?v=9"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -143,8 +143,7 @@
   function setRange(days) {
     var d = new Date();
     $("r-to").value = J.today();
-    $("r-from").value = new Date(d.getFullYear(), d.getMonth(), d.getDate() - days)
-      .toISOString().slice(0, 10);
+    $("r-from").value = J.daysAgo(days);
   }
 
   $("l-go").addEventListener("click", function () {

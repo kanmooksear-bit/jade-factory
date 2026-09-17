@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=19">
+<link rel="stylesheet" href="app.css?v=22">
 </head>
 <body>
 
@@ -192,7 +192,7 @@
           <label>รูปหลักฐาน (ไม่บังคับ · สูงสุด 3 รูป)</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"><button class="btn btn-sm" data-pick="cam" type="button">ถ่ายรูป</button><button class="btn btn-sm" data-pick="lib" type="button">เลือกจากอัลบั้ม</button></div>
           <div class="shots" id="shot-preview2"></div>
-          <span class="hint">ถ่ายใหม่ หรือเลือกรูปที่มีอยู่แล้วในเครื่องก็ได้</span>
+          <span class="hint" id="shot-hint2">ถ่ายใหม่ หรือเลือกรูปที่มีอยู่แล้วในเครื่องก็ได้</span>
         </div>
 
         <button class="btn btn-primary btn-lg" id="submit-other" type="button">ส่งบันทึก</button>
@@ -230,8 +230,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=19"></script>
-<script src="api.js?v=19"></script>
+<script src="config.js?v=22"></script>
+<script src="api.js?v=22"></script>
 <script>
 (function () {
   "use strict";
@@ -277,7 +277,8 @@
   }
 
   function loadLots() {
-    return J.rpc("app_open_lots").then(function (d) {
+    var m = J.me.get();
+    return J.rpc("app_open_lots", { p_name: m.name, p_pin: m.pin }).then(function (d) {
       lots = d || [];
       $("f-lot").innerHTML = !lots.length
         ? '<option value="">— ยังไม่มีล็อตที่เปิดอยู่ —</option>'
@@ -504,11 +505,17 @@
       loadRecent();
       window.scrollTo({ top: 0, behavior: "smooth" });
     }).catch(function (err) {
+      skipTime = false;   // ส่งไม่ผ่าน = เริ่มนับใหม่ ไม่งั้นครั้งหน้าจะข้ามเวลาไปเงียบ ๆ
       J.msg($("form-msg"), err.message, "err");
     }).then(function () { btn.disabled = false; });
   }
 
   /* ---------- รูปหลักฐาน ---------- */
+  // แท็บงานอื่นมีช่องบอกสถานะของตัวเอง ต้องอัปเดตทั้งคู่ ไม่งั้นฝั่งงานอื่นเงียบสนิท
+  function shotHint(t) {
+    $("shot-hint").textContent = t;
+    if ($("shot-hint2")) $("shot-hint2").textContent = t;
+  }
   function renderShots() {
     var html = shots.map(function (s, i) {
       return '<span class="shot"><img src="' + s + '" alt="รูปหลักฐาน">' +
@@ -523,9 +530,9 @@
         renderShots();
       });
     });
-    $("shot-hint").textContent = shots.length
+    shotHint(shots.length
       ? shots.length + " รูปพร้อมส่ง (แนบให้อัตโนมัติหลังกดส่งบันทึก)"
-      : "ถ่ายรูปงานที่ทำเสร็จไว้เป็นหลักฐาน";
+      : "ถ่ายรูปงานที่ทำเสร็จไว้เป็นหลักฐาน");
   }
 
   function onPickShots(e) {
@@ -533,9 +540,9 @@
     e.target.value = "";
     if (!files.length) return;
     var room = 3 - shots.length;
-    if (room <= 0) { $("shot-hint").textContent = "ครบ 3 รูปแล้ว ลบรูปเดิมก่อนถ้าจะเปลี่ยน"; return; }
+    if (room <= 0) { shotHint("ครบ 3 รูปแล้ว ลบรูปเดิมก่อนถ้าจะเปลี่ยน"); return; }
     files = files.slice(0, room);
-    $("shot-hint").textContent = "กำลังย่อรูป…";
+    shotHint("กำลังย่อรูป…");
     var left = files.length;
     files.forEach(function (f) {
       J.shrinkImage(f, 1000, 0.62, function (data) {
