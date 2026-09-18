@@ -125,7 +125,7 @@
       $("r-emp").innerHTML = '<option value="">— เลือกคน —</option>' +
         d.employees.map(function (e) {
           return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) +
-            (e.role === "supervisor" ? " (หัวหน้า)" : "") + "</option>";
+            (e.role === "supervisor" ? " (หัวหน้า)" : e.role === "stock" ? " (คนดูแลคลัง)" : "") + "</option>";
         }).join("");
       var saved = J.me.get();
       if (saved.name) $("l-name").value = saved.name;
@@ -191,7 +191,8 @@
     html += '<div class="who-card">' +
       '<span class="nm">' + J.esc(w.name) + "</span> " +
       (w.code ? '<span class="chip idle">' + J.esc(w.code) + "</span> " : "") +
-      (w.role === "supervisor" ? '<span class="chip ok">หัวหน้า</span> ' : "") +
+      (w.role === "supervisor" ? '<span class="chip ok">หัวหน้า</span> '
+        : w.role === "stock" ? '<span class="chip warn">คนดูแลคลัง</span> ' : "") +
       (w.active ? "" : '<span class="chip bad">พักงาน</span>') +
       '<div class="facts">' +
         "<span>มาทำงาน <b>" + J.nf.format(days) + "</b> วัน</span>" +

@@ -457,8 +457,10 @@
     }).catch(function (e) { J.msg($("login-msg"), e.message, "err"); });
   }
 
-  function start(role) {
-    isBoss = role === "supervisor";
+  // role คือตำแหน่งจริง (worker / stock / supervisor)
+  // canManage = ดูแลคลังได้ (หัวหน้า หรือ คนดูแลคลัง)
+  function start(role, canManage) {
+    isBoss = !!canManage;
     $("login").hidden = true;
     $("app").hidden = false;
     $("who").hidden = false;
@@ -483,8 +485,8 @@
     J.msg($("login-msg"), "");
     $("l-go").disabled = true;
     J.rpc("app_stock_list", { p_name: name, p_pin: pin }).then(function (d) {
-      J.me.set(name, pin, d.is_boss ? "supervisor" : "worker");
-      start(d.is_boss ? "supervisor" : "worker");
+      J.me.set(name, pin, d.role || (d.is_boss ? "supervisor" : "worker"));
+      start(d.role || "worker", d.is_boss);
       paint(d);
     }).catch(function (e) {
       J.msg($("login-msg"), e.message, "err");
@@ -1039,8 +1041,8 @@
     var m = J.me.get();
     if (m.name && m.pin) {
       J.rpc("app_stock_list", { p_name: m.name, p_pin: m.pin }).then(function (d) {
-        J.me.set(m.name, m.pin, d.is_boss ? "supervisor" : "worker");
-        start(d.is_boss ? "supervisor" : "worker");
+        J.me.set(m.name, m.pin, d.role || (d.is_boss ? "supervisor" : "worker"));
+        start(d.role || "worker", d.is_boss);
         paint(d);
       }).catch(function () {});
     }
