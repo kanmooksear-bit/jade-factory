@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=22">
+<link rel="stylesheet" href="app.css?v=25">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -107,8 +107,8 @@
   </div>
 </main>
 
-<script src="config.js?v=22"></script>
-<script src="api.js?v=22"></script>
+<script src="config.js?v=25"></script>
+<script src="api.js?v=25"></script>
 <script>
 (function () {
   "use strict";
@@ -128,6 +128,7 @@
     { k: "machine",  t: "เครื่องจักร" },
     { k: "step",     t: "ขั้นตอน" },
     { k: "rd",       t: "งาน RD" },
+    { k: "stock",    t: "คลังวัสดุ" },
     { k: "setting",  t: "ค่าตั้งต้น" },
     { k: "auth",     t: "เข้าใช้งาน" }
   ];
@@ -136,7 +137,8 @@
     create: "ลงบันทึก", update: "แก้ไข", edit: "แก้ตัวเลข", delete: "ลบทิ้ง",
     approve: "ยืนยันงาน", reject: "ตีกลับงาน", reopen: "เปิดให้แก้ใหม่",
     photo_add: "แนบรูป", photo_delete: "ลบรูป", login: "เข้าใช้งาน",
-    open: "เปิดโครงการ", done: "ปิดว่าสำเร็จ", cancelled: "ยกเลิกโครงการ"
+    open: "เปิดโครงการ", done: "ปิดว่าสำเร็จ", cancelled: "ยกเลิกโครงการ",
+    request: "ขอเบิกของ", receive: "รับของเข้า", count: "นับสต็อก"
   };
   var AREA_T = {};
   ROOMS.forEach(function (r) { AREA_T[r.k] = r.t; });
@@ -151,7 +153,8 @@
 
   var TONE = {
     approve: "ok", reject: "bad", delete: "bad", photo_delete: "bad",
-    create: "idle", update: "warn", edit: "warn", reopen: "warn", photo_add: "idle", login: "idle"
+    create: "idle", update: "warn", edit: "warn", reopen: "warn", photo_add: "idle", login: "idle",
+    request: "idle", receive: "ok", count: "warn"
   };
 
   /* ---------- เข้าใช้งาน ---------- */

@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>คลังวัสดุ — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=25">
+<style>
+  .wrap{max-width:1000px}
+  .topbar-in{max-width:1000px}
+  .kpis{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:14px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+  .kpi .k{font-size:11.5px;letter-spacing:.08em;color:var(--ink-3)}
+  .kpi .v{font-family:var(--display);font-size:26px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
+  .kpi.warn .v{color:var(--amber)}
+  .kpi.bad .v{color:var(--alert)}
+  .kpi.go{border-color:var(--jade)}
+  .kpi.go .v{color:var(--jade-ink)}
+
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .toolbar .grow{flex:1 1 200px}
+  .toolbar input[type=search],.toolbar input[type=text]{
+    width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:7px;
+    background:var(--surface-2);color:var(--ink);font:inherit;font-size:15px}
+
+  .mrow{display:flex;gap:10px;align-items:center;justify-content:space-between;
+        border-top:1px solid var(--line-2);padding:10px 0;flex-wrap:wrap}
+  .mrow:first-child{border-top:0}
+  .mrow .main{min-width:0;flex:1 1 220px}
+  .mrow .nm{font-size:14.5px;overflow-wrap:anywhere}
+  .mrow .sub{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .mrow .bal{font-variant-numeric:tabular-nums;font-size:17px;font-weight:600;white-space:nowrap}
+  .mrow .act{display:flex;gap:6px;align-items:center;flex:none}
+  .mrow input.q{width:74px;padding:8px;border:1px solid var(--line);border-radius:6px;
+                background:var(--surface-2);color:var(--ink);font:inherit;text-align:center;
+                font-variant-numeric:tabular-nums}
+
+  .cart{background:var(--jade-soft);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+  .cart .ln{display:flex;justify-content:space-between;gap:10px;padding:5px 0;font-size:14px}
+  .cart .ln b{font-variant-numeric:tabular-nums}
+
+  .doc{border-top:1px solid var(--line-2);padding:12px 0}
+  .doc:first-child{border-top:0}
+  .doc .top{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+  .doc .no{font-family:var(--display);font-size:15px}
+  .doc .li{font-size:13px;color:var(--ink-2);padding:2px 0;font-variant-numeric:tabular-nums}
+  .doc .btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .empty{padding:26px 10px;text-align:center;color:var(--ink-3);font-size:14px}
+  td.money,th.money{text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">คลังวัสดุ</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav" id="nav" hidden>
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="tabs">
+      <button class="tab" id="tab-take" aria-selected="true" type="button">เบิกของ</button>
+      <button class="tab" id="tab-docs" aria-selected="false" type="button">ใบเบิก</button>
+      <button class="tab" id="tab-in" aria-selected="false" type="button" hidden>รับของเข้า</button>
+      <button class="tab" id="tab-mat" aria-selected="false" type="button" hidden>จัดการวัสดุ</button>
+    </div>
+
+    <!-- ---------- เบิกของ ---------- -->
+    <section id="pane-take" class="card">
+      <h2>เบิกของจากคลัง</h2>
+      <div class="msg" id="take-msg" hidden></div>
+
+      <div id="cart-box" hidden>
+        <div class="cart">
+          <div id="cart-lines"></div>
+        </div>
+        <div class="field">
+          <label for="t-purpose">เบิกไปทำอะไร</label>
+          <input id="t-purpose" type="text" placeholder="เช่น เปลี่ยนดอกกัดเครื่อง CNC 2">
+        </div>
+        <div class="field">
+          <label for="t-lot">ล็อตงาน (ถ้ามี)</label>
+          <select id="t-lot"><option value="">— ไม่ระบุ —</option></select>
+        </div>
+        <button class="btn btn-primary btn-lg" id="t-go" type="button">ส่งใบเบิกให้หัวหน้าอนุมัติ</button>
+        <p class="hint" style="margin-top:8px">ของยังไม่ถูกตัดออกจากคลัง จนกว่าหัวหน้าจะกดอนุมัติ</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="grow"><input id="s-q" type="search" placeholder="ค้นชื่อหรือรหัสวัสดุ เช่น ดอกเอนมิล หรือ MAT-009"></div>
+        <button class="btn btn-sm" id="s-low" type="button" aria-pressed="false">เฉพาะที่ใกล้หมด</button>
+      </div>
+      <div id="mat-list"><p class="empty">กำลังโหลด…</p></div>
+    </section>
+
+    <!-- ---------- ใบเบิก ---------- -->
+    <section id="pane-docs" class="card" hidden>
+      <h2>ใบเบิก / ใบรับเข้า</h2>
+      <div class="msg" id="docs-msg" hidden></div>
+      <div class="toolbar">
+        <select id="d-scope" style="flex:0 0 auto"><option value="mine">ของฉัน</option></select>
+        <select id="d-status" style="flex:0 0 auto">
+          <option value="all">ทุกสถานะ</option>
+          <option value="pending">รออนุมัติ</option>
+          <option value="approved">อนุมัติแล้ว</option>
+          <option value="rejected">ไม่อนุมัติ</option>
+        </select>
+        <button class="btn btn-sm" id="d-go" type="button">โหลดใหม่</button>
+      </div>
+      <div id="doc-list"><p class="empty">กำลังโหลด…</p></div>
+    </section>
+
+    <!-- ---------- รับของเข้า (หัวหน้า) ---------- -->
+    <section id="pane-in" class="card" hidden>
+      <h2>รับของเข้าคลัง</h2>
+      <div class="msg" id="in-msg" hidden></div>
+      <div id="incart-box" hidden>
+        <div class="cart"><div id="incart-lines"></div></div>
+        <div class="two">
+          <div class="field">
+            <label for="i-date">วันที่รับ</label>
+            <input id="i-date" type="date">
+          </div>
+          <div class="field">
+            <label for="i-note">หมายเหตุ</label>
+            <input id="i-note" type="text" placeholder="เช่น ซื้อจากร้านเจริญ">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="i-go" type="button">บันทึกรับเข้า</button>
+      </div>
+      <div class="toolbar">
+        <div class="grow"><input id="is-q" type="search" placeholder="ค้นวัสดุที่รับเข้า"></div>
+      </div>
+      <div id="in-list"><p class="empty">พิมพ์ชื่อวัสดุเพื่อค้นหา</p></div>
+    </section>
+
+    <!-- ---------- จัดการวัสดุ (หัวหน้า) ---------- -->
+    <section id="pane-mat" class="card" hidden>
+      <h2>เพิ่ม / แก้วัสดุ</h2>
+      <div class="msg" id="mat-msg" hidden></div>
+      <div class="two">
+        <div class="field">
+          <label for="m-code">รหัส (เว้นว่าง = ออกให้อัตโนมัติ)</label>
+          <input id="m-code" type="text" placeholder="MAT-188">
+        </div>
+        <div class="field">
+          <label for="m-unit">หน่วยนับ</label>
+          <input id="m-unit" type="text" placeholder="ดอก / แพค / ชิ้น">
+        </div>
+      </div>
+      <div class="field">
+        <label for="m-name">ชื่อวัสดุ</label>
+        <input id="m-name" type="text" placeholder="เช่น ดอกเอนมิล D.3mm">
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="m-low">เตือนเมื่อเหลือไม่เกิน</label>
+          <input id="m-low" type="number" inputmode="numeric" min="0" placeholder="5">
+        </div>
+        <div class="field">
+          <label for="m-open">ยอดตั้งต้น (เฉพาะตอนเพิ่มใหม่)</label>
+          <input id="m-open" type="number" inputmode="numeric" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="field">
+        <label for="m-note">หมายเหตุ</label>
+        <input id="m-note" type="text" placeholder="เช่น แพคละ 50 ดอก">
+      </div>
+      <button class="btn btn-primary" id="m-save" type="button">บันทึกวัสดุ</button>
+      <p class="hint" style="margin-top:10px">ใส่รหัสที่มีอยู่แล้ว = แก้ของเดิม · การนับสต็อกทำได้จากปุ่ม “นับ” ในหน้าเบิกของ</p>
+    </section>
+
+    <!-- ---------- ประวัติวัสดุ ---------- -->
+    <section id="pane-card" class="card" hidden>
+      <div class="top" style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <h2 id="card-title" style="margin-bottom:8px">ประวัติวัสดุ</h2>
+        <button class="btn btn-sm btn-ghost" id="card-close" type="button">ปิด</button>
+      </div>
+      <div id="card-body"></div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js?v=25"></script>
+<script src="api.js?v=25"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var isBoss = false, items = [], cart = {}, inCart = {}, onlyLow = false;
+
+  $("factory").textContent = J.factory;
+
+  function nf(v) { return J.nf.format(Number(v) || 0); }
+
+  function chipFor(st) {
+    var k = st === "ปกติ" ? "ok" : st === "ใกล้หมด" ? "warn" : "bad";
+    return '<span class="chip ' + k + '">' + J.esc(st) + "</span>";
+  }
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        d.employees.map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var m = J.me.get();
+      if (m.name) $("l-name").value = m.name;
+    }).catch(function (e) { J.msg($("login-msg"), e.message, "err"); });
+  }
+
+  function start(role) {
+    isBoss = role === "supervisor";
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    J.nav(role);
+    if (isBoss) {
+      $("tab-in").hidden = false;
+      $("tab-mat").hidden = false;
+      $("d-scope").innerHTML = '<option value="all">ทั้งโรงงาน</option><option value="mine">ของฉัน</option>';
+    }
+    $("i-date").value = J.today();
+    loadLots();
+    loadList();
+    loadDocs();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN ก่อน", "err"); return; }
+    J.msg($("login-msg"), "");
+    $("l-go").disabled = true;
+    J.rpc("app_stock_list", { p_name: name, p_pin: pin }).then(function (d) {
+      J.me.set(name, pin, d.is_boss ? "supervisor" : "worker");
+      start(d.is_boss ? "supervisor" : "worker");
+      paint(d);
+    }).catch(function (e) {
+      J.msg($("login-msg"), e.message, "err");
+    }).then(function () { $("l-go").disabled = false; });
+  });
+
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- แท็บ ---------- */
+  var TABS = ["take", "docs", "in", "mat"];
+  function showTab(which) {
+    TABS.forEach(function (k) {
+      $("tab-" + k).setAttribute("aria-selected", String(k === which));
+      $("pane-" + k).hidden = k !== which;
+    });
+    $("pane-card").hidden = true;
+    if (which === "docs") loadDocs();
+  }
+  TABS.forEach(function (k) {
+    $("tab-" + k).addEventListener("click", function () { showTab(k); });
+  });
+
+  /* ---------- รายการวัสดุ ---------- */
+  function loadList() {
+    var m = J.me.get();
+    return J.rpc("app_stock_list", {
+      p_name: m.name, p_pin: m.pin,
+      p_q: $("s-q").value || null, p_only_low: onlyLow
+    }).then(paint).catch(function (e) { J.msg($("take-msg"), e.message, "err"); });
+  }
+
+  function paint(d) {
+    if (!d) return;
+    items = d.items || [];
+    var s = d.summary || {};
+    var k = [
+      ['<div class="kpi"><div class="k">รายการวัสดุ</div><div class="v">' + nf(s.items) + "</div></div>"],
+      ['<div class="kpi warn"><div class="k">ใกล้หมด</div><div class="v">' + nf(s.low) + "</div></div>"],
+      ['<div class="kpi bad"><div class="k">หมดแล้ว</div><div class="v">' + nf(s.out) + "</div></div>"]
+    ];
+    if (Number(s.negative) > 0) {
+      k.push(['<div class="kpi bad"><div class="k">ยอดติดลบ</div><div class="v">' + nf(s.negative) + "</div></div>"]);
+    }
+    if (isBoss) {
+      k.push(['<div class="kpi go"><div class="k">ใบเบิกรออนุมัติ</div><div class="v">' + nf(s.pending) + "</div></div>"]);
+    }
+    $("kpis").innerHTML = k.join("");
+    renderMats();
+  }
+
+  function renderMats() {
+    var box = $("mat-list");
+    if (!items.length) { box.innerHTML = '<p class="empty">ไม่พบวัสดุที่ค้น</p>'; return; }
+    box.innerHTML = items.map(function (it) {
+      var q = cart[it.code] || "";
+      return '<div class="mrow">' +
+        '<div class="main">' +
+          '<div class="nm">' + J.esc(it.name) + " " + chipFor(it.status) + "</div>" +
+          '<div class="sub">' + J.esc(it.code) + " · เหลือ " + nf(it.balance) + " " + J.esc(it.unit) +
+            (Number(it.pending_out) ? " · รออนุมัติอยู่ " + nf(it.pending_out) : "") +
+            (it.note ? " · " + J.esc(it.note) : "") + "</div>" +
+        "</div>" +
+        '<div class="bal">' + nf(it.balance) + "</div>" +
+        '<div class="act">' +
+          '<input class="q" type="number" inputmode="numeric" min="0" step="1" placeholder="0" ' +
+             'data-q="' + J.esc(it.code) + '" value="' + q + '">' +
+          '<button class="btn btn-sm" data-card="' + J.esc(it.code) + '" type="button">ประวัติ</button>' +
+          (isBoss ? '<button class="btn btn-sm btn-ghost" data-count="' + J.esc(it.code) + '" type="button">นับ</button>' : "") +
+        "</div></div>";
+    }).join("");
+  }
+
+  $("mat-list").addEventListener("input", function (ev) {
+    var code = ev.target.getAttribute("data-q");
+    if (!code) return;
+    var v = Number(ev.target.value);
+    if (v > 0) cart[code] = v; else delete cart[code];
+    renderCart();
+  });
+
+  $("mat-list").addEventListener("click", function (ev) {
+    var c = ev.target.getAttribute("data-card");
+    if (c) { openCard(c); return; }
+    var n = ev.target.getAttribute("data-count");
+    if (n) doCount(n);
+  });
+
+  var qT = null;
+  $("s-q").addEventListener("input", function () {
+    clearTimeout(qT); qT = setTimeout(loadList, 300);
+  });
+  $("s-low").addEventListener("click", function () {
+    onlyLow = !onlyLow;
+    $("s-low").setAttribute("aria-pressed", String(onlyLow));
+    $("s-low").className = "btn btn-sm" + (onlyLow ? " btn-primary" : "");
+    loadList();
+  });
+
+  /* ---------- ตะกร้าเบิก ---------- */
+  function nameOf(code) {
+    for (var i = 0; i < items.length; i++) if (items[i].code === code) return items[i];
+    return { name: code, unit: "" };
+  }
+
+  function renderCart() {
+    var keys = Object.keys(cart);
+    $("cart-box").hidden = keys.length === 0;
+    $("cart-lines").innerHTML = keys.map(function (c) {
+      var it = nameOf(c);
+      return '<div class="ln"><span>' + J.esc(it.name) + "</span><b>" +
+        nf(cart[c]) + " " + J.esc(it.unit) + "</b></div>";
+    }).join("");
+  }
+
+  function loadLots() {
+    var m = J.me.get();
+    J.rpc("app_open_lots", { p_name: m.name, p_pin: m.pin }).then(function (ls) {
+      $("t-lot").innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+        (ls || []).map(function (l) {
+          return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) +
+            " · " + J.esc(l.product_name || l.product || "") + "</option>";
+        }).join("");
+    }).catch(function () {});
+  }
+
+  $("t-go").addEventListener("click", function () {
+    var keys = Object.keys(cart);
+    if (!keys.length) return;
+    var m = J.me.get();
+    $("t-go").disabled = true;
+    J.rpc("app_stock_request", {
+      p_name: m.name, p_pin: m.pin,
+      p_items: keys.map(function (c) { return { code: c, qty: cart[c] }; }),
+      p_purpose: $("t-purpose").value || null,
+      p_lot_code: $("t-lot").value || null
+    }).then(function (r) {
+      J.msg($("take-msg"), "ส่งใบเบิก " + r.doc_no + " แล้ว " + r.lines + " รายการ — รอหัวหน้าอนุมัติ", "ok");
+      cart = {}; $("t-purpose").value = ""; $("t-lot").value = "";
+      renderCart(); loadList(); loadDocs();
+    }).catch(function (e) {
+      J.msg($("take-msg"), e.message, "err");
+    }).then(function () { $("t-go").disabled = false; });
+  });
+
+  /* ---------- ใบเบิก ---------- */
+  var ST = { pending: ["รออนุมัติ", "warn"], approved: ["อนุมัติแล้ว", "ok"], rejected: ["ไม่อนุมัติ", "bad"] };
+
+  function loadDocs() {
+    var m = J.me.get();
+    return J.rpc("app_stock_docs", {
+      p_name: m.name, p_pin: m.pin,
+      p_scope: $("d-scope").value, p_status: $("d-status").value
+    }).then(function (list) {
+      var box = $("doc-list");
+      if (!list || !list.length) { box.innerHTML = '<p class="empty">ยังไม่มีใบเบิก</p>'; return; }
+      box.innerHTML = list.map(function (d) {
+        var st = ST[d.status] || [d.status, "idle"];
+        var lines = (d.items || []).map(function (x) {
+          return '<div class="li">· ' + J.esc(x.name) + " — " + nf(x.qty) + " " + J.esc(x.unit) + "</div>";
+        }).join("");
+        return '<div class="doc">' +
+          '<div class="top"><span class="no">' + J.esc(d.doc_no) +
+            (d.kind === "in" ? " (รับเข้า)" : "") + "</span>" +
+            '<span class="chip ' + st[1] + '">' + J.esc(st[0]) + "</span></div>" +
+          '<div class="sub hint">' + J.esc(J.formatThai(d.move_date)) +
+            " · " + J.esc(d.employee || "—") +
+            (d.lot_code ? " · ล็อต " + J.esc(d.lot_code) : "") +
+            (d.purpose ? " · " + J.esc(d.purpose) : "") +
+            (d.approver ? " · ผู้อนุมัติ " + J.esc(d.approver) : "") + "</div>" +
+          lines +
+          (isBoss && d.kind === "out" ? '<div class="btns">' +
+            (d.status === "pending"
+              ? '<button class="btn btn-sm btn-primary" data-ok="' + J.esc(d.doc_no) + '" type="button">อนุมัติ</button>' +
+                '<button class="btn btn-sm btn-danger" data-no="' + J.esc(d.doc_no) + '" type="button">ไม่อนุมัติ</button>'
+              : '<button class="btn btn-sm btn-ghost" data-re="' + J.esc(d.doc_no) + '" type="button">เปิดให้ตัดสินใหม่</button>') +
+            "</div>" : "") +
+          "</div>";
+      }).join("");
+    }).catch(function (e) { J.msg($("docs-msg"), e.message, "err"); });
+  }
+
+  $("doc-list").addEventListener("click", function (ev) {
+    var ok = ev.target.getAttribute("data-ok");
+    var no = ev.target.getAttribute("data-no");
+    var re = ev.target.getAttribute("data-re");
+    var doc = ok || no || re;
+    if (!doc) return;
+    var act = ok ? "approve" : no ? "reject" : "reopen";
+    var word = ok ? "อนุมัติ" : no ? "ไม่อนุมัติ" : "เปิดให้ตัดสินใหม่";
+    if (!window.confirm(word + "ใบ " + doc + " ?")) return;
+    var m = J.me.get();
+    ev.target.disabled = true;
+    J.rpc("sup_stock_review", { p_name: m.name, p_pin: m.pin, p_doc: doc, p_action: act })
+      .then(function () {
+        J.msg($("docs-msg"), word + "ใบ " + doc + " แล้ว", "ok");
+        loadDocs(); loadList();
+      })
+      .catch(function (e) { J.msg($("docs-msg"), e.message, "err"); ev.target.disabled = false; });
+  });
+
+  $("d-go").addEventListener("click", loadDocs);
+  $("d-scope").addEventListener("change", loadDocs);
+  $("d-status").addEventListener("change", loadDocs);
+
+  /* ---------- รับของเข้า ---------- */
+  function renderInList() {
+    var q = ($("is-q").value || "").trim();
+    var box = $("in-list");
+    if (!q) { box.innerHTML = '<p class="empty">พิมพ์ชื่อวัสดุเพื่อค้นหา</p>'; return; }
+    var m = J.me.get();
+    J.rpc("app_stock_list", { p_name: m.name, p_pin: m.pin, p_q: q }).then(function (d) {
+      var list = d.items || [];
+      if (!list.length) { box.innerHTML = '<p class="empty">ไม่พบวัสดุที่ค้น</p>'; return; }
+      box.innerHTML = list.map(function (it) {
+        return '<div class="mrow"><div class="main">' +
+          '<div class="nm">' + J.esc(it.name) + "</div>" +
+          '<div class="sub">' + J.esc(it.code) + " · เหลือ " + nf(it.balance) + " " + J.esc(it.unit) + "</div>" +
+          '</div><div class="act"><input class="q" type="number" inputmode="numeric" min="0" ' +
+          'placeholder="0" data-iq="' + J.esc(it.code) + '" data-nm="' + J.esc(it.name) +
+          '" data-un="' + J.esc(it.unit) + '" value="' + (inCart[it.code] ? inCart[it.code].qty : "") + '"></div></div>';
+      }).join("");
+    }).catch(function (e) { J.msg($("in-msg"), e.message, "err"); });
+  }
+
+  function renderInCart() {
+    var keys = Object.keys(inCart);
+    $("incart-box").hidden = keys.length === 0;
+    $("incart-lines").innerHTML = keys.map(function (c) {
+      return '<div class="ln"><span>' + J.esc(inCart[c].name) + "</span><b>" +
+        nf(inCart[c].qty) + " " + J.esc(inCart[c].unit) + "</b></div>";
+    }).join("");
+  }
+
+  $("in-list").addEventListener("input", function (ev) {
+    var code = ev.target.getAttribute("data-iq");
+    if (!code) return;
+    var v = Number(ev.target.value);
+    if (v > 0) {
+      inCart[code] = { qty: v, name: ev.target.getAttribute("data-nm"), unit: ev.target.getAttribute("data-un") };
+    } else { delete inCart[code]; }
+    renderInCart();
+  });
+
+  var iqT = null;
+  $("is-q").addEventListener("input", function () { clearTimeout(iqT); iqT = setTimeout(renderInList, 300); });
+
+  $("i-go").addEventListener("click", function () {
+    var keys = Object.keys(inCart);
+    if (!keys.length) return;
+    var m = J.me.get();
+    $("i-go").disabled = true;
+    J.rpc("sup_stock_in", {
+      p_name: m.name, p_pin: m.pin,
+      p_items: keys.map(function (c) { return { code: c, qty: inCart[c].qty }; }),
+      p_date: $("i-date").value || null,
+      p_note: $("i-note").value || null
+    }).then(function (r) {
+      J.msg($("in-msg"), "รับเข้าแล้ว " + r.lines + " รายการ (" + r.doc_no + ")", "ok");
+      inCart = {}; $("i-note").value = "";
+      renderInCart(); renderInList(); loadList();
+    }).catch(function (e) {
+      J.msg($("in-msg"), e.message, "err");
+    }).then(function () { $("i-go").disabled = false; });
+  });
+
+  /* ---------- นับสต็อก ---------- */
+  function doCount(code) {
+    var it = nameOf(code);
+    var txt = window.prompt("นับ " + it.name + " ได้กี่" + (it.unit || "ชิ้น") + "?\nระบบจะปรับยอดให้ตรงกับที่นับได้", String(it.balance));
+    if (txt === null) return;
+    var v = Number(txt);
+    if (!(v >= 0)) { J.msg($("take-msg"), "จำนวนที่นับต้องเป็นตัวเลขไม่ติดลบ", "err"); return; }
+    var m = J.me.get();
+    J.rpc("sup_stock_count", { p_name: m.name, p_pin: m.pin, p_code: code, p_qty: v })
+      .then(function (r) {
+        J.msg($("take-msg"), r.changed
+          ? "ปรับ " + it.name + " จาก " + nf(r.from) + " เป็น " + nf(r.to)
+          : "ยอดตรงอยู่แล้ว ไม่มีอะไรเปลี่ยน", "ok");
+        loadList();
+      })
+      .catch(function (e) { J.msg($("take-msg"), e.message, "err"); });
+  }
+
+  /* ---------- เพิ่ม/แก้วัสดุ ---------- */
+  $("m-save").addEventListener("click", function () {
+    var m = J.me.get();
+    if (!$("m-name").value.trim()) { J.msg($("mat-msg"), "ใส่ชื่อวัสดุก่อน", "err"); return; }
+    $("m-save").disabled = true;
+    J.rpc("sup_stock_save_material", {
+      p_name: m.name, p_pin: m.pin,
+      p_code: $("m-code").value || "",
+      p_item_name: $("m-name").value,
+      p_unit: $("m-unit").value || null,
+      p_low_qty: $("m-low").value === "" ? null : Number($("m-low").value),
+      p_note: $("m-note").value || null,
+      p_opening: $("m-open").value === "" ? null : Number($("m-open").value)
+    }).then(function (r) {
+      J.msg($("mat-msg"), (r.created ? "เพิ่มวัสดุ " : "แก้วัสดุ ") + r.code + " แล้ว", "ok");
+      ["m-code", "m-name", "m-unit", "m-low", "m-note", "m-open"].forEach(function (k) { $(k).value = ""; });
+      loadList();
+    }).catch(function (e) {
+      J.msg($("mat-msg"), e.message, "err");
+    }).then(function () { $("m-save").disabled = false; });
+  });
+
+  /* ---------- ประวัติวัสดุ ---------- */
+  function openCard(code) {
+    var m = J.me.get();
+    J.rpc("app_stock_card", { p_name: m.name, p_pin: m.pin, p_code: code }).then(function (d) {
+      $("card-title").innerHTML = J.esc(d.name) + " " + chipFor(d.status);
+      var rows = (d.moves || []).map(function (x) {
+        var st = ST[x.status] || [x.status, "idle"];
+        return "<tr><td>" + J.esc(J.formatThai(x.move_date)) + "</td>" +
+          "<td>" + J.esc(x.doc_no) + "</td>" +
+          "<td>" + (x.kind === "in" ? "รับเข้า" : "เบิกออก") + "</td>" +
+          '<td class="money">' + (x.kind === "in" ? "+" : "−") + nf(x.qty) + "</td>" +
+          "<td>" + J.esc(x.employee || "—") + "</td>" +
+          "<td>" + J.esc(x.purpose || x.lot_code || "") + "</td>" +
+          '<td><span class="chip ' + st[1] + '">' + J.esc(st[0]) + "</span></td></tr>";
+      }).join("");
+      $("card-body").innerHTML =
+        '<p class="hint" style="margin-bottom:10px">' + J.esc(d.code) +
+          " · ยอดยกมา " + nf(d.opening) + " · คงเหลือ <b>" + nf(d.balance) + " " + J.esc(d.unit) +
+          "</b> · เตือนเมื่อเหลือไม่เกิน " + nf(d.low_qty) +
+          (d.note ? " · " + J.esc(d.note) : "") + "</p>" +
+        (rows
+          ? '<div class="scroll"><table><thead><tr><th>วันที่</th><th>เลขที่</th><th>ประเภท</th>' +
+            '<th class="money">จำนวน</th><th>คน</th><th>งาน</th><th>สถานะ</th></tr></thead><tbody>' +
+            rows + "</tbody></table></div>"
+          : '<p class="empty">ยังไม่มีการเคลื่อนไหว</p>');
+      $("pane-card").hidden = false;
+      $("pane-card").scrollIntoView({ behavior: "smooth", block: "start" });
+    }).catch(function (e) { J.msg($("take-msg"), e.message, "err"); });
+  }
+
+  $("card-close").addEventListener("click", function () { $("pane-card").hidden = true; });
+
+  /* ---------- เริ่ม ---------- */
+  loadBoot().then(function () {
+    var m = J.me.get();
+    if (m.name && m.pin) {
+      J.rpc("app_stock_list", { p_name: m.name, p_pin: m.pin }).then(function (d) {
+        J.me.set(m.name, m.pin, d.is_boss ? "supervisor" : "worker");
+        start(d.is_boss ? "supervisor" : "worker");
+        paint(d);
+      }).catch(function () {});
+    }
+  });
+})();
+</script>
+</body>
+</html>
