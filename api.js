@@ -403,8 +403,24 @@ window.JADE = (function () {
   // เมนูที่เพิ่มทีหลัง — เติมให้ทุกหน้าเองจากที่นี่ที่เดียว
   // [ href ของลิงก์ใหม่, ข้อความ, ให้ไปอยู่หลัง href ไหน]
   var EXTRA_NAV = [["kpi.html", "KPI", "cost.html"],
-                   ["rd.html", "งาน RD", "index.html"],
-                   ["stock.html", "คลัง", "rd.html"]];
+                   ["rd.html", "งาน RD", "index.html"]];
+
+  // คลังวัสดุเป็นอีกแอพหนึ่ง — ปุ่มสลับแอพอยู่กลางแถบบนสุด เห็นทุกหน้าตั้งแต่ยังไม่ล็อกอิน
+  var STOCK_APP = "stock.html";
+  function fillAppSwitch() {
+    var bar = document.querySelector(".topbar-in");
+    if (!bar || bar.querySelector(".appsw")) return;
+    var here = (location.pathname.split("/").pop() || "index.html");
+    var inStock = here === STOCK_APP;
+    var a = document.createElement("a");
+    a.className = "appsw";
+    a.setAttribute("href", inStock ? "index.html" : STOCK_APP);
+    a.innerHTML = inStock
+      ? '<span class="ic">←</span><span class="tx">ระบบผลิต</span>'
+      : '<span class="ic">▦</span><span class="tx">คลังวัสดุ</span>';
+    var brand = bar.querySelector(".brand");
+    if (brand) { brand.insertAdjacentElement("afterend", a); } else { bar.appendChild(a); }
+  }
 
   function fillNav() {
     var nav = document.getElementById("nav") || document.querySelector("nav.nav");
@@ -433,7 +449,7 @@ window.JADE = (function () {
     nav.hidden = false;
   }
 
-  function enhanceAll() { fillNav(); enhanceDates(); enhanceTimes(); }
+  function enhanceAll() { fillAppSwitch(); fillNav(); enhanceDates(); enhanceTimes(); }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enhanceAll);
   } else {
