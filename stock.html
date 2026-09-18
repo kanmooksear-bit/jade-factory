@@ -219,12 +219,16 @@
 
     <!-- ---------- จัดการวัสดุ (หัวหน้า) ---------- -->
     <section id="pane-mat" class="card" hidden>
-      <h2>เพิ่ม / แก้วัสดุ</h2>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <h2 id="mat-head" style="margin-bottom:8px">เพิ่ม / แก้วัสดุ</h2>
+        <button class="btn btn-sm btn-ghost" id="m-new" type="button" hidden>+ เพิ่มวัสดุใหม่</button>
+      </div>
       <div class="msg" id="mat-msg" hidden></div>
       <div class="two">
         <div class="field">
           <label for="m-code">รหัส (เว้นว่าง = ออกให้อัตโนมัติ)</label>
-          <input id="m-code" type="text" placeholder="MAT-188">
+          <input id="m-code" type="text" placeholder="MAT-188" list="m-codes">
+          <datalist id="m-codes"></datalist>
         </div>
         <div class="field">
           <label for="m-unit">หน่วยนับ</label>
@@ -240,13 +244,13 @@
           <label for="m-low">เตือนเมื่อเหลือไม่เกิน</label>
           <input id="m-low" type="number" inputmode="numeric" min="0" placeholder="5">
         </div>
-        <div class="field">
+        <div class="field" id="m-open-wrap">
           <label for="m-open">ยอดตั้งต้น (เฉพาะตอนเพิ่มใหม่)</label>
           <input id="m-open" type="number" inputmode="numeric" min="0" placeholder="0">
         </div>
       </div>
       <div class="field">
-        <label for="m-price">ราคาต่อหน่วย (บาท) — ใส่ถ้ารู้</label>
+        <label for="m-price">ราคาต่อหน่วย (บาท) — ใส่ทีหลังได้</label>
         <input id="m-price" type="number" min="0" step="0.01" placeholder="เว้นว่าง = ยังไม่รู้ราคา">
         <span class="hint">ใส่ <b>-1</b> เพื่อลบราคาที่เคยใส่ไว้ · ราคาใช้คิดมูลค่าของในคลัง พนักงานทั่วไปมองไม่เห็น</span>
       </div>
@@ -265,7 +269,7 @@
         <span class="hint" id="m-pic-hint">ถ่ายรูปของจริงไว้ พนักงานจะได้หยิบไม่ผิดตัว</span>
       </div>
       <button class="btn btn-primary" id="m-save" type="button">บันทึกวัสดุ</button>
-      <p class="hint" style="margin-top:10px">ใส่รหัสที่มีอยู่แล้ว = แก้ของเดิม · การปรับยอดทำได้จากปุ่ม “ปรับยอด” ในหน้าเบิกของ</p>
+      <p class="hint" style="margin-top:10px">จะใส่ราคาทีหลังก็ได้ — กดปุ่ม <b>แก้ไข</b> ที่รายการวัสดุในหน้าเบิกของ ช่องต่าง ๆ จะเด้งมาให้เอง · หรือพิมพ์รหัสเดิมลงช่องรหัสข้างบน · การปรับยอดทำได้จากปุ่ม “ปรับยอด” ในหน้าเบิกของ</p>
     </section>
 
     <!-- ---------- ปรับยอดด้วยมือ (หัวหน้า) ---------- -->
@@ -541,6 +545,10 @@
       }
     }
     $("kpis").innerHTML = k.join("");
+    // ช่องรหัสในหน้าจัดการวัสดุ เลือกจากรายการได้เลย
+    $("m-codes").innerHTML = !isBoss ? "" : items.map(function (it) {
+      return '<option value="' + J.esc(it.code) + '">' + J.esc(it.name) + "</option>";
+    }).join("");
     renderMats();
   }
 
@@ -558,7 +566,8 @@
           '<div class="sub">' + J.esc(it.code) + " · เหลือ " + nf(it.balance) + " " + J.esc(it.unit) +
             (Number(it.pending_out) ? " · รออนุมัติอยู่ " + nf(it.pending_out) : "") +
             (it.price != null ? " · " + baht(it.price) + " บาท/" + J.esc(it.unit) +
-                                " · มูลค่า " + baht(it.value) : "") +
+                                " · มูลค่า " + baht(it.value)
+                              : isBoss ? " · ยังไม่ใส่ราคา" : "") +
             (it.note ? " · " + J.esc(it.note) : "") + "</div>" +
         "</div>" +
         '<div class="bal">' + nf(it.balance) + "</div>" +
@@ -567,7 +576,10 @@
              'data-q="' + J.esc(it.code) + '" value="' + q + '">' +
           '<button class="btn btn-sm" data-card="' + J.esc(it.code) + '" type="button">ประวัติ</button>' +
           (isBoss ? '<button class="btn btn-sm btn-ghost" data-count="' + J.esc(it.code) + '" type="button">ปรับยอด</button>' +
-                    '<button class="btn btn-sm btn-ghost" data-shoot="' + J.esc(it.code) + '" type="button">รูป</button>' : "") +
+                    '<button class="btn btn-sm btn-ghost" data-shoot="' + J.esc(it.code) + '" type="button">รูป</button>' +
+                    '<button class="btn btn-sm' + (it.price == null ? " btn-primary" : " btn-ghost") +
+                      '" data-edit="' + J.esc(it.code) + '" type="button">' +
+                      (it.price == null ? "ใส่ราคา" : "แก้ไข") + "</button>" : "") +
         "</div></div>";
     }).join("");
     fillThumbs();
@@ -627,6 +639,8 @@
     if (n) { doCount(n); return; }
     var s = ev.target.getAttribute("data-shoot");
     if (s) { shootCode = s; $("r-cam").click(); return; }
+    var ed = ev.target.getAttribute("data-edit");
+    if (ed) { editMaterial(ed); return; }
     var p = ev.target.getAttribute("data-pic");
     if (p && ev.target.src) showBig(ev.target.src);
   });
@@ -895,9 +909,83 @@
     matPicClear = true; SHOTS.m = []; renderShots("m");
     $("m-pic-hint").textContent = "จะลบรูปของวัสดุนี้เมื่อกดบันทึก";
   });
+  // รหัสที่กำลังแก้อยู่ ("" = กำลังเพิ่มของใหม่)
+  var matEditCode = "";
+
+  function findItem(code) {
+    for (var i = 0; i < items.length; i++) if (items[i].code === code) return items[i];
+    return null;
+  }
+
+  // สลับหน้าตาฟอร์มระหว่าง "เพิ่มใหม่" กับ "แก้ของเดิม"
+  function setMatMode(code, name) {
+    matEditCode = code || "";
+    var edit = !!matEditCode;
+    $("mat-head").textContent = edit ? "แก้วัสดุ " + matEditCode : "เพิ่ม / แก้วัสดุ";
+    $("m-new").hidden = !edit;
+    $("m-open-wrap").hidden = edit;
+    $("m-pic-clear").hidden = !edit;
+    $("m-save").textContent = edit ? "บันทึกการแก้ไข" : "บันทึกวัสดุ";
+    if (edit) {
+      J.msg($("mat-msg"), "กำลังแก้ " + matEditCode + " — " + (name || "") +
+        " · แก้ช่องไหนก็ได้ แล้วกดบันทึก", "ok");
+    }
+  }
+
+  // เอาค่าของวัสดุตัวหนึ่งใส่ลงฟอร์ม
+  function fillMatForm(it) {
+    $("m-code").value = it.code;
+    $("m-name").value = it.name || "";
+    $("m-unit").value = it.unit || "";
+    $("m-low").value = it.low_qty == null ? "" : it.low_qty;
+    $("m-note").value = it.note || "";
+    $("m-price").value = it.price == null ? "" : it.price;
+    $("m-open").value = "";
+    matPicClear = false; SHOTS.m = []; renderShots("m");
+    $("m-pic-hint").textContent = it.has_photo
+      ? "วัสดุตัวนี้มีรูปอยู่แล้ว · ถ่ายใหม่ = เปลี่ยนรูป"
+      : "ถ่ายรูปของจริงไว้ พนักงานจะได้หยิบไม่ผิดตัว";
+    setMatMode(it.code, it.name);
+    $("m-pic-clear").hidden = !it.has_photo;   // ไม่มีรูปอยู่แล้ว ก็ไม่ต้องมีปุ่มลบรูป
+  }
+
+  function clearMatForm() {
+    ["m-code", "m-name", "m-unit", "m-low", "m-note", "m-open", "m-price"]
+      .forEach(function (k) { $(k).value = ""; });
+    matPicClear = false; SHOTS.m = []; renderShots("m");
+    $("m-pic-hint").textContent = "ถ่ายรูปของจริงไว้ พนักงานจะได้หยิบไม่ผิดตัว";
+    J.msg($("mat-msg"), "");
+    setMatMode("");
+  }
+
+  // กดปุ่ม "ใส่ราคา" / "แก้ไข" จากหน้ารายการวัสดุ
+  function editMaterial(code) {
+    var it = findItem(code);
+    if (!it) return;
+    showTab("mat");
+    fillMatForm(it);
+    $("pane-mat").scrollIntoView({ behavior: "smooth", block: "start" });
+    var p = $("m-price");
+    p.focus();
+    try { p.select(); } catch (e) { /* บางเบราว์เซอร์ select ช่องตัวเลขไม่ได้ */ }
+  }
+
+  $("m-new").addEventListener("click", clearMatForm);
+
+  // พิมพ์รหัสเดิมลงไป = ดึงของเดิมขึ้นมาให้อัตโนมัติ
   $("m-code").addEventListener("input", function () {
     matPicClear = false;
-    $("m-pic-clear").hidden = !$("m-code").value.trim();
+    var c = ($("m-code").value || "").trim().toUpperCase();
+    if (c === matEditCode) return;
+    var it = c ? findItem(c) : null;
+    if (it) { fillMatForm(it); return; }
+    if (matEditCode) {
+      // เคยดึงของเดิมมา แต่ตอนนี้รหัสไม่ตรงใครแล้ว → ล้างให้ เหลือแต่รหัสที่พิมพ์
+      ["m-name", "m-unit", "m-low", "m-note", "m-price"].forEach(function (k) { $(k).value = ""; });
+      J.msg($("mat-msg"), "");
+    }
+    setMatMode("");
+    $("m-pic-clear").hidden = true;
   });
 
   $("m-save").addEventListener("click", function () {
@@ -915,11 +1003,12 @@
       p_price: $("m-price").value === "" ? null : Number($("m-price").value),
       p_photo: matPicClear ? "-" : (SHOTS.m[0] || null)
     }).then(function (r) {
-      J.msg($("mat-msg"), (r.created ? "เพิ่มวัสดุ " : "แก้วัสดุ ") + r.code + " แล้ว" +
-        (SHOTS.m.length ? " พร้อมรูป" : matPicClear ? " และลบรูปออกแล้ว" : ""), "ok");
-      ["m-code", "m-name", "m-unit", "m-low", "m-note", "m-open", "m-price"].forEach(function (k) { $(k).value = ""; });
-      SHOTS.m = []; matPicClear = false; renderShots("m");
-      $("m-pic-hint").textContent = "ถ่ายรูปของจริงไว้ พนักงานจะได้หยิบไม่ผิดตัว";
+      var priced = $("m-price").value !== "" && Number($("m-price").value) !== -1;
+      var note = (r.created ? "เพิ่มวัสดุ " : "แก้วัสดุ ") + r.code + " แล้ว" +
+        (priced ? " · ราคา " + baht(Number($("m-price").value)) + " บาท" : "") +
+        (SHOTS.m.length ? " พร้อมรูป" : matPicClear ? " และลบรูปออกแล้ว" : "");
+      clearMatForm();
+      J.msg($("mat-msg"), note, "ok");
       picCache = {};
       loadList();
     }).catch(function (e) {
@@ -951,8 +1040,12 @@
           " · ยอดยกมา " + nf(d.opening) + " · คงเหลือ <b>" + nf(d.balance) + " " + J.esc(d.unit) +
           "</b> · เตือนเมื่อเหลือไม่เกิน " + nf(d.low_qty) +
           (d.price != null ? " · ราคา " + baht(d.price) + " บาท/" + J.esc(d.unit) +
-                             " · มูลค่า <b>" + baht(d.value) + " บาท</b>" : "") +
-          (d.note ? " · " + J.esc(d.note) : "") + "</p>" +
+                             " · มูลค่า <b>" + baht(d.value) + " บาท</b>"
+                           : isBoss ? " · ยังไม่ใส่ราคา" : "") +
+          (d.note ? " · " + J.esc(d.note) : "") +
+          (isBoss ? ' <button class="btn btn-sm' + (d.price == null ? " btn-primary" : " btn-ghost") +
+                    '" data-editm="' + J.esc(d.code) + '" type="button">' +
+                    (d.price == null ? "ใส่ราคา" : "แก้ไขวัสดุ") + "</button>" : "") + "</p>" +
         (rows
           ? '<div class="scroll"><table><thead><tr><th>วันที่</th><th>เลขที่</th><th>ประเภท</th>' +
             '<th class="money">จำนวน</th><th>คน</th><th>งาน / หมายเหตุ</th><th>รูป</th><th>สถานะ</th></tr></thead><tbody>' +
@@ -967,7 +1060,9 @@
 
   $("card-body").addEventListener("click", function (ev) {
     var pics = ev.target.getAttribute("data-pics");
-    if (pics) openPics(pics);
+    if (pics) { openPics(pics); return; }
+    var em = ev.target.getAttribute("data-editm");
+    if (em) { $("pane-card").hidden = true; editMaterial(em); }
   });
 
   /* ---------- รูปที่แนบกับเอกสาร ---------- */
