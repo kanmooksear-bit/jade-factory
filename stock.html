@@ -23,9 +23,18 @@
 
   .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
   .toolbar .grow{flex:1 1 200px}
-  .toolbar input[type=search],.toolbar input[type=text]{
-    width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:7px;
-    background:var(--surface-2);color:var(--ink);font:inherit;font-size:15px}
+  .toolbar input[type=search],.toolbar input[type=text],.toolbar select{
+    padding:11px 13px;border:1px solid var(--line);border-radius:7px;
+    background:var(--paper);color:var(--ink);font:inherit;font-size:15px;
+    -webkit-appearance:none;appearance:none}
+  .toolbar input[type=search],.toolbar input[type=text]{width:100%}
+  .toolbar select{
+    min-width:130px;cursor:pointer;padding-inline-end:34px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--ink-3) 50%),
+                     linear-gradient(135deg,var(--ink-3) 50%,transparent 50%);
+    background-position:right 16px center,right 11px center;
+    background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  .toolbar select option{background:var(--paper);color:var(--ink)}
 
   .mrow{display:flex;gap:10px;align-items:center;justify-content:space-between;
         border-top:1px solid var(--line-2);padding:10px 0;flex-wrap:wrap}
