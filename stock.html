@@ -119,6 +119,16 @@
           <label for="t-lot">ล็อตงาน (ถ้ามี)</label>
           <select id="t-lot"><option value="">— ไม่ระบุ —</option></select>
         </div>
+        <div class="two">
+          <div class="field">
+            <label for="t-date">วันที่เบิก</label>
+            <input id="t-date" type="date">
+          </div>
+          <div class="field">
+            <label for="t-note">หมายเหตุ</label>
+            <input id="t-note" type="text" placeholder="เช่น ลืมลงตอนนั้น">
+          </div>
+        </div>
         <button class="btn btn-primary btn-lg" id="t-go" type="button">ส่งใบเบิกให้หัวหน้าอนุมัติ</button>
         <p class="hint" style="margin-top:8px">ของยังไม่ถูกตัดออกจากคลัง จนกว่าหัวหน้าจะกดอนุมัติ</p>
       </div>
@@ -200,11 +210,46 @@
         </div>
       </div>
       <div class="field">
+        <label for="m-price">ราคาต่อหน่วย (บาท) — ใส่ถ้ารู้</label>
+        <input id="m-price" type="number" min="0" step="0.01" placeholder="เว้นว่าง = ยังไม่รู้ราคา">
+        <span class="hint">ใส่ <b>-1</b> เพื่อลบราคาที่เคยใส่ไว้ · ราคาใช้คิดมูลค่าของในคลัง พนักงานทั่วไปมองไม่เห็น</span>
+      </div>
+      <div class="field">
         <label for="m-note">หมายเหตุ</label>
         <input id="m-note" type="text" placeholder="เช่น แพคละ 50 ดอก">
       </div>
       <button class="btn btn-primary" id="m-save" type="button">บันทึกวัสดุ</button>
-      <p class="hint" style="margin-top:10px">ใส่รหัสที่มีอยู่แล้ว = แก้ของเดิม · การนับสต็อกทำได้จากปุ่ม “นับ” ในหน้าเบิกของ</p>
+      <p class="hint" style="margin-top:10px">ใส่รหัสที่มีอยู่แล้ว = แก้ของเดิม · การปรับยอดทำได้จากปุ่ม “ปรับยอด” ในหน้าเบิกของ</p>
+    </section>
+
+    <!-- ---------- ปรับยอดด้วยมือ (หัวหน้า) ---------- -->
+    <section id="pane-adj" class="card" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <h2 id="adj-title" style="margin-bottom:8px">ปรับยอด</h2>
+        <button class="btn btn-sm btn-ghost" id="adj-close" type="button">ปิด</button>
+      </div>
+      <div class="msg" id="adj-msg" hidden></div>
+      <p class="hint" id="adj-now" style="margin-bottom:12px"></p>
+      <div class="tabs" style="margin-bottom:12px">
+        <button class="tab" id="adj-set" aria-selected="true" type="button">นับได้จริงเท่าไหร่</button>
+        <button class="tab" id="adj-add" aria-selected="false" type="button">เพิ่ม / ลด</button>
+      </div>
+      <div class="two">
+        <div class="field">
+          <label for="a-qty" id="a-qty-lb">นับได้จริง</label>
+          <input id="a-qty" type="number" inputmode="decimal" step="0.01" placeholder="0">
+        </div>
+        <div class="field">
+          <label for="a-date">วันที่</label>
+          <input id="a-date" type="date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="a-note">หมายเหตุ — ปรับเพราะอะไร (ต้องใส่)</label>
+        <input id="a-note" type="text" placeholder="เช่น นับสต็อกสิ้นเดือน · ทำหล่นแตก · ลืมลงตอนรับของ">
+      </div>
+      <button class="btn btn-primary btn-lg" id="a-go" type="button">บันทึกการปรับยอด</button>
+      <p class="hint" style="margin-top:8px">การปรับยอดจะบันทึกเป็นใบ AD- ไว้ในประวัติของวัสดุตัวนั้น ตรวจย้อนหลังได้ว่าใครปรับ เมื่อไหร่ เพราะอะไร</p>
     </section>
 
     <!-- ---------- ประวัติวัสดุ ---------- -->
@@ -230,6 +275,8 @@
   $("factory").textContent = J.factory;
 
   function nf(v) { return J.nf.format(Number(v) || 0); }
+  var bahtFmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function baht(v) { return bahtFmt.format(Number(v) || 0); }
 
   function chipFor(st) {
     var k = st === "ปกติ" ? "ok" : st === "ใกล้หมด" ? "warn" : "bad";
@@ -261,6 +308,8 @@
       $("d-scope").innerHTML = '<option value="all">ทั้งโรงงาน</option><option value="mine">ของฉัน</option>';
     }
     $("i-date").value = J.today();
+    $("t-date").value = J.today();
+    $("a-date").value = J.today();
     loadLots();
     loadList();
     loadDocs();
@@ -290,6 +339,7 @@
       $("pane-" + k).hidden = k !== which;
     });
     $("pane-card").hidden = true;
+    $("pane-adj").hidden = true;
     if (which === "docs") loadDocs();
   }
   TABS.forEach(function (k) {
@@ -319,6 +369,10 @@
     }
     if (isBoss) {
       k.push(['<div class="kpi go"><div class="k">ใบเบิกรออนุมัติ</div><div class="v">' + nf(s.pending) + "</div></div>"]);
+      if (s.value != null) {
+        k.push(['<div class="kpi"><div class="k">มูลค่าของในคลัง</div><div class="v">' + baht(s.value) +
+          '</div><div class="f">รู้ราคาแล้ว ' + nf(s.priced) + " จาก " + nf(s.items) + " รายการ</div></div>"]);
+      }
     }
     $("kpis").innerHTML = k.join("");
     renderMats();
@@ -334,6 +388,8 @@
           '<div class="nm">' + J.esc(it.name) + " " + chipFor(it.status) + "</div>" +
           '<div class="sub">' + J.esc(it.code) + " · เหลือ " + nf(it.balance) + " " + J.esc(it.unit) +
             (Number(it.pending_out) ? " · รออนุมัติอยู่ " + nf(it.pending_out) : "") +
+            (it.price != null ? " · " + baht(it.price) + " บาท/" + J.esc(it.unit) +
+                                " · มูลค่า " + baht(it.value) : "") +
             (it.note ? " · " + J.esc(it.note) : "") + "</div>" +
         "</div>" +
         '<div class="bal">' + nf(it.balance) + "</div>" +
@@ -341,7 +397,7 @@
           '<input class="q" type="number" inputmode="numeric" min="0" step="1" placeholder="0" ' +
              'data-q="' + J.esc(it.code) + '" value="' + q + '">' +
           '<button class="btn btn-sm" data-card="' + J.esc(it.code) + '" type="button">ประวัติ</button>' +
-          (isBoss ? '<button class="btn btn-sm btn-ghost" data-count="' + J.esc(it.code) + '" type="button">นับ</button>' : "") +
+          (isBoss ? '<button class="btn btn-sm btn-ghost" data-count="' + J.esc(it.code) + '" type="button">ปรับยอด</button>' : "") +
         "</div></div>";
     }).join("");
   }
@@ -408,10 +464,14 @@
       p_name: m.name, p_pin: m.pin,
       p_items: keys.map(function (c) { return { code: c, qty: cart[c] }; }),
       p_purpose: $("t-purpose").value || null,
-      p_lot_code: $("t-lot").value || null
+      p_lot_code: $("t-lot").value || null,
+      p_note: $("t-note").value || null,
+      p_date: $("t-date").value || null
     }).then(function (r) {
-      J.msg($("take-msg"), "ส่งใบเบิก " + r.doc_no + " แล้ว " + r.lines + " รายการ — รอหัวหน้าอนุมัติ", "ok");
-      cart = {}; $("t-purpose").value = ""; $("t-lot").value = "";
+      J.msg($("take-msg"), "ส่งใบเบิก " + r.doc_no + " วันที่ " + J.formatThai(r.move_date) +
+        " แล้ว " + r.lines + " รายการ — รอหัวหน้าอนุมัติ", "ok");
+      cart = {}; $("t-purpose").value = ""; $("t-lot").value = ""; $("t-note").value = "";
+      $("t-date").value = J.today();
       renderCart(); loadList(); loadDocs();
     }).catch(function (e) {
       J.msg($("take-msg"), e.message, "err");
@@ -434,17 +494,19 @@
         var lines = (d.items || []).map(function (x) {
           return '<div class="li">· ' + J.esc(x.name) + " — " + nf(x.qty) + " " + J.esc(x.unit) + "</div>";
         }).join("");
+        var isAdj = /^AD-/.test(d.doc_no || "");
         return '<div class="doc">' +
           '<div class="top"><span class="no">' + J.esc(d.doc_no) +
-            (d.kind === "in" ? " (รับเข้า)" : "") + "</span>" +
+            (isAdj ? " (ปรับยอด)" : d.kind === "in" ? " (รับเข้า)" : "") + "</span>" +
             '<span class="chip ' + st[1] + '">' + J.esc(st[0]) + "</span></div>" +
           '<div class="sub hint">' + J.esc(J.formatThai(d.move_date)) +
             " · " + J.esc(d.employee || "—") +
             (d.lot_code ? " · ล็อต " + J.esc(d.lot_code) : "") +
             (d.purpose ? " · " + J.esc(d.purpose) : "") +
+            (d.note ? " · หมายเหตุ: " + J.esc(d.note) : "") +
             (d.approver ? " · ผู้อนุมัติ " + J.esc(d.approver) : "") + "</div>" +
           lines +
-          (isBoss && d.kind === "out" ? '<div class="btns">' +
+          (isBoss && d.kind === "out" && !isAdj ? '<div class="btns">' +
             (d.status === "pending"
               ? '<button class="btn btn-sm btn-primary" data-ok="' + J.esc(d.doc_no) + '" type="button">อนุมัติ</button>' +
                 '<button class="btn btn-sm btn-danger" data-no="' + J.esc(d.doc_no) + '" type="button">ไม่อนุมัติ</button>'
@@ -540,22 +602,61 @@
   });
 
   /* ---------- นับสต็อก ---------- */
-  function doCount(code) {
-    var it = nameOf(code);
-    var txt = window.prompt("นับ " + it.name + " ได้กี่" + (it.unit || "ชิ้น") + "?\nระบบจะปรับยอดให้ตรงกับที่นับได้", String(it.balance));
-    if (txt === null) return;
-    var v = Number(txt);
-    if (!(v >= 0)) { J.msg($("take-msg"), "จำนวนที่นับต้องเป็นตัวเลขไม่ติดลบ", "err"); return; }
-    var m = J.me.get();
-    J.rpc("sup_stock_count", { p_name: m.name, p_pin: m.pin, p_code: code, p_qty: v })
-      .then(function (r) {
-        J.msg($("take-msg"), r.changed
-          ? "ปรับ " + it.name + " จาก " + nf(r.from) + " เป็น " + nf(r.to)
-          : "ยอดตรงอยู่แล้ว ไม่มีอะไรเปลี่ยน", "ok");
-        loadList();
-      })
-      .catch(function (e) { J.msg($("take-msg"), e.message, "err"); });
+  var adjCode = "", adjMode = "set";
+
+  function setAdjMode(mode) {
+    adjMode = mode;
+    $("adj-set").setAttribute("aria-selected", String(mode === "set"));
+    $("adj-add").setAttribute("aria-selected", String(mode === "add"));
+    var it = nameOf(adjCode);
+    $("a-qty-lb").textContent = mode === "set"
+      ? "นับได้จริง (" + (it.unit || "ชิ้น") + ")"
+      : "เพิ่ม (+) หรือ ลด (−) กี่" + (it.unit || "ชิ้น");
+    $("a-qty").setAttribute("min", mode === "set" ? "0" : "-999999");
+    $("a-qty").value = mode === "set" ? String(Number(it.balance) || 0) : "";
+    $("a-qty").placeholder = mode === "set" ? "0" : "เช่น 5 หรือ -2";
   }
+
+  $("adj-set").addEventListener("click", function () { setAdjMode("set"); });
+  $("adj-add").addEventListener("click", function () { setAdjMode("add"); });
+  $("adj-close").addEventListener("click", function () { $("pane-adj").hidden = true; });
+
+  function doCount(code) {
+    adjCode = code;
+    var it = nameOf(code);
+    $("adj-title").innerHTML = "ปรับยอด — " + J.esc(it.name);
+    $("adj-now").innerHTML = J.esc(it.code) + " · ตอนนี้ระบบบอกว่าเหลือ <b>" +
+      nf(it.balance) + " " + J.esc(it.unit) + "</b>";
+    J.msg($("adj-msg"), "");
+    $("a-note").value = "";
+    $("a-date").value = J.today();
+    setAdjMode("set");
+    $("pane-card").hidden = true;
+    $("pane-adj").hidden = false;
+    $("pane-adj").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  $("a-go").addEventListener("click", function () {
+    if (!adjCode) return;
+    var v = $("a-qty").value;
+    if (v === "" || isNaN(Number(v))) { J.msg($("adj-msg"), "ใส่จำนวนเป็นตัวเลขก่อน", "err"); return; }
+    if (!$("a-note").value.trim()) { J.msg($("adj-msg"), "ต้องใส่หมายเหตุว่าปรับเพราะอะไร", "err"); return; }
+    var it = nameOf(adjCode), m = J.me.get();
+    $("a-go").disabled = true;
+    J.rpc("sup_stock_count", {
+      p_name: m.name, p_pin: m.pin, p_code: adjCode,
+      p_qty: Number(v), p_note: $("a-note").value,
+      p_date: $("a-date").value || null, p_mode: adjMode
+    }).then(function (r) {
+      if (!r.changed) { J.msg($("adj-msg"), "ยอดตรงอยู่แล้ว ไม่มีอะไรเปลี่ยน", "warn"); return; }
+      J.msg($("take-msg"), "ปรับ " + it.name + " จาก " + nf(r.from) + " เป็น " + nf(r.to) +
+        " (" + r.doc_no + " วันที่ " + J.formatThai(r.move_date) + ")", "ok");
+      $("pane-adj").hidden = true;
+      loadList();
+    }).catch(function (e) {
+      J.msg($("adj-msg"), e.message, "err");
+    }).then(function () { $("a-go").disabled = false; });
+  });
 
   /* ---------- เพิ่ม/แก้วัสดุ ---------- */
   $("m-save").addEventListener("click", function () {
@@ -569,10 +670,11 @@
       p_unit: $("m-unit").value || null,
       p_low_qty: $("m-low").value === "" ? null : Number($("m-low").value),
       p_note: $("m-note").value || null,
-      p_opening: $("m-open").value === "" ? null : Number($("m-open").value)
+      p_opening: $("m-open").value === "" ? null : Number($("m-open").value),
+      p_price: $("m-price").value === "" ? null : Number($("m-price").value)
     }).then(function (r) {
       J.msg($("mat-msg"), (r.created ? "เพิ่มวัสดุ " : "แก้วัสดุ ") + r.code + " แล้ว", "ok");
-      ["m-code", "m-name", "m-unit", "m-low", "m-note", "m-open"].forEach(function (k) { $(k).value = ""; });
+      ["m-code", "m-name", "m-unit", "m-low", "m-note", "m-open", "m-price"].forEach(function (k) { $(k).value = ""; });
       loadList();
     }).catch(function (e) {
       J.msg($("mat-msg"), e.message, "err");
@@ -586,22 +688,25 @@
       $("card-title").innerHTML = J.esc(d.name) + " " + chipFor(d.status);
       var rows = (d.moves || []).map(function (x) {
         var st = ST[x.status] || [x.status, "idle"];
+        var isAdj = /^AD-/.test(x.doc_no || "");
         return "<tr><td>" + J.esc(J.formatThai(x.move_date)) + "</td>" +
           "<td>" + J.esc(x.doc_no) + "</td>" +
-          "<td>" + (x.kind === "in" ? "รับเข้า" : "เบิกออก") + "</td>" +
+          "<td>" + (isAdj ? "ปรับยอด" : x.kind === "in" ? "รับเข้า" : "เบิกออก") + "</td>" +
           '<td class="money">' + (x.kind === "in" ? "+" : "−") + nf(x.qty) + "</td>" +
           "<td>" + J.esc(x.employee || "—") + "</td>" +
-          "<td>" + J.esc(x.purpose || x.lot_code || "") + "</td>" +
+          "<td>" + J.esc([x.purpose, x.lot_code, x.note].filter(Boolean).join(" · ")) + "</td>" +
           '<td><span class="chip ' + st[1] + '">' + J.esc(st[0]) + "</span></td></tr>";
       }).join("");
       $("card-body").innerHTML =
         '<p class="hint" style="margin-bottom:10px">' + J.esc(d.code) +
           " · ยอดยกมา " + nf(d.opening) + " · คงเหลือ <b>" + nf(d.balance) + " " + J.esc(d.unit) +
           "</b> · เตือนเมื่อเหลือไม่เกิน " + nf(d.low_qty) +
+          (d.price != null ? " · ราคา " + baht(d.price) + " บาท/" + J.esc(d.unit) +
+                             " · มูลค่า <b>" + baht(d.value) + " บาท</b>" : "") +
           (d.note ? " · " + J.esc(d.note) : "") + "</p>" +
         (rows
           ? '<div class="scroll"><table><thead><tr><th>วันที่</th><th>เลขที่</th><th>ประเภท</th>' +
-            '<th class="money">จำนวน</th><th>คน</th><th>งาน</th><th>สถานะ</th></tr></thead><tbody>' +
+            '<th class="money">จำนวน</th><th>คน</th><th>งาน / หมายเหตุ</th><th>สถานะ</th></tr></thead><tbody>' +
             rows + "</tbody></table></div>"
           : '<p class="empty">ยังไม่มีการเคลื่อนไหว</p>');
       $("pane-card").hidden = false;
