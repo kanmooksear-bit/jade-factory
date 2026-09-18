@@ -18,6 +18,7 @@
   .kpi .v{font-family:var(--display);font-size:26px;font-weight:600;line-height:1.2;font-variant-numeric:tabular-nums}
   .kpi.warn .v{color:var(--amber)}
   .kpi.bad .v{color:var(--alert)}
+  .kpi .f{font-size:11.5px;color:var(--ink-3);font-variant-numeric:tabular-nums}
   .kpi.go{border-color:var(--jade)}
   .kpi.go .v{color:var(--jade-ink)}
 
@@ -59,6 +60,23 @@
   .doc .li{font-size:13px;color:var(--ink-2);padding:2px 0;font-variant-numeric:tabular-nums}
   .doc .btns{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
   .empty{padding:26px 10px;text-align:center;color:var(--ink-3);font-size:14px}
+  .pickrow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .mpic{width:44px;height:44px;border-radius:6px;object-fit:cover;flex:none;
+        border:1px solid var(--line);background:var(--surface-2);cursor:zoom-in;display:block}
+  .mpic.ph{display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--ink-3);
+           cursor:default}
+  .picgrid{display:flex;gap:10px;flex-wrap:wrap}
+  .picgrid figure{margin:0;position:relative}
+  .picgrid img{width:150px;height:150px;object-fit:cover;border-radius:8px;
+               border:1px solid var(--line);display:block;cursor:zoom-in}
+  .picgrid figcaption{font-size:11.5px;color:var(--ink-3);margin-top:4px;max-width:150px}
+  .picgrid button{position:absolute;top:5px;inset-inline-end:5px;border:0;border-radius:999px;
+                  width:26px;height:26px;background:rgba(0,0,0,.62);color:#fff;cursor:pointer;
+                  font-size:15px;line-height:1}
+  #big{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.88);display:flex;
+       flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px}
+  #big[hidden]{display:none!important}
+  #big img{max-width:100%;max-height:82vh;border-radius:8px}
   td.money,th.money{text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
 </head>
@@ -129,6 +147,15 @@
             <input id="t-note" type="text" placeholder="เช่น ลืมลงตอนนั้น">
           </div>
         </div>
+        <div class="field">
+          <label>รูป — <b>ต้องถ่ายอย่างน้อย 1 รูป</b> ถึงจะเบิกได้ (สูงสุด 6 รูป)</label>
+          <div class="pickrow">
+            <button class="btn btn-sm" data-pick="t-cam" type="button">ถ่ายรูป</button>
+            <button class="btn btn-sm" data-pick="t-lib" type="button">เลือกจากอัลบั้ม</button>
+          </div>
+          <div class="shots" id="t-shots"></div>
+          <span class="hint" id="t-shot-hint">ถ่ายรูปของที่เบิก หรือจุดที่เอาไปใช้ ไว้เป็นหลักฐาน</span>
+        </div>
         <button class="btn btn-primary btn-lg" id="t-go" type="button">ส่งใบเบิกให้หัวหน้าอนุมัติ</button>
         <p class="hint" style="margin-top:8px">ของยังไม่ถูกตัดออกจากคลัง จนกว่าหัวหน้าจะกดอนุมัติ</p>
       </div>
@@ -172,6 +199,15 @@
             <label for="i-note">หมายเหตุ</label>
             <input id="i-note" type="text" placeholder="เช่น ซื้อจากร้านเจริญ">
           </div>
+        </div>
+        <div class="field">
+          <label>รูป (ไม่บังคับ · สูงสุด 6 รูป)</label>
+          <div class="pickrow">
+            <button class="btn btn-sm" data-pick="i-cam" type="button">ถ่ายรูป</button>
+            <button class="btn btn-sm" data-pick="i-lib" type="button">เลือกจากอัลบั้ม</button>
+          </div>
+          <div class="shots" id="i-shots"></div>
+          <span class="hint">เช่น รูปใบเสร็จ หรือรูปของตอนรับเข้า</span>
         </div>
         <button class="btn btn-primary btn-lg" id="i-go" type="button">บันทึกรับเข้า</button>
       </div>
@@ -218,6 +254,16 @@
         <label for="m-note">หมายเหตุ</label>
         <input id="m-note" type="text" placeholder="เช่น แพคละ 50 ดอก">
       </div>
+      <div class="field">
+        <label>รูปของวัสดุ (ไม่บังคับ)</label>
+        <div class="pickrow">
+          <button class="btn btn-sm" data-pick="m-cam" type="button">ถ่ายรูป</button>
+          <button class="btn btn-sm" data-pick="m-lib" type="button">เลือกจากอัลบั้ม</button>
+          <button class="btn btn-sm btn-danger" id="m-pic-clear" type="button" hidden>ลบรูปของวัสดุนี้</button>
+        </div>
+        <div class="shots" id="m-shots"></div>
+        <span class="hint" id="m-pic-hint">ถ่ายรูปของจริงไว้ พนักงานจะได้หยิบไม่ผิดตัว</span>
+      </div>
       <button class="btn btn-primary" id="m-save" type="button">บันทึกวัสดุ</button>
       <p class="hint" style="margin-top:10px">ใส่รหัสที่มีอยู่แล้ว = แก้ของเดิม · การปรับยอดทำได้จากปุ่ม “ปรับยอด” ในหน้าเบิกของ</p>
     </section>
@@ -248,8 +294,31 @@
         <label for="a-note">หมายเหตุ — ปรับเพราะอะไร (ต้องใส่)</label>
         <input id="a-note" type="text" placeholder="เช่น นับสต็อกสิ้นเดือน · ทำหล่นแตก · ลืมลงตอนรับของ">
       </div>
+      <div class="field">
+        <label>รูป (ไม่บังคับ · สูงสุด 6 รูป)</label>
+        <div class="pickrow">
+          <button class="btn btn-sm" data-pick="a-cam" type="button">ถ่ายรูป</button>
+          <button class="btn btn-sm" data-pick="a-lib" type="button">เลือกจากอัลบั้ม</button>
+        </div>
+        <div class="shots" id="a-shots"></div>
+        <span class="hint">เช่น รูปของที่แตก หรือรูปตอนนับสต็อก</span>
+      </div>
       <button class="btn btn-primary btn-lg" id="a-go" type="button">บันทึกการปรับยอด</button>
       <p class="hint" style="margin-top:8px">การปรับยอดจะบันทึกเป็นใบ AD- ไว้ในประวัติของวัสดุตัวนั้น ตรวจย้อนหลังได้ว่าใครปรับ เมื่อไหร่ เพราะอะไร</p>
+    </section>
+
+    <!-- ---------- ดูรูปที่แนบไว้ ---------- -->
+    <section id="pane-pics" class="card" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <h2 id="pics-title" style="margin-bottom:8px">รูปที่แนบไว้</h2>
+        <button class="btn btn-sm btn-ghost" id="pics-close" type="button">ปิด</button>
+      </div>
+      <div class="msg" id="pics-msg" hidden></div>
+      <div class="pickrow" id="pics-add" hidden style="margin-bottom:10px">
+        <button class="btn btn-sm" data-pick="p-cam" type="button">ถ่ายเพิ่ม</button>
+        <button class="btn btn-sm" data-pick="p-lib" type="button">เลือกจากอัลบั้ม</button>
+      </div>
+      <div id="pics-body"></div>
     </section>
 
     <!-- ---------- ประวัติวัสดุ ---------- -->
@@ -261,7 +330,21 @@
       <div id="card-body"></div>
     </section>
   </div>
+
+  <input id="t-cam" type="file" accept="image/*" capture="environment" multiple hidden>
+  <input id="t-lib" type="file" accept="image/*" multiple hidden>
+  <input id="i-cam" type="file" accept="image/*" capture="environment" multiple hidden>
+  <input id="i-lib" type="file" accept="image/*" multiple hidden>
+  <input id="a-cam" type="file" accept="image/*" capture="environment" multiple hidden>
+  <input id="a-lib" type="file" accept="image/*" multiple hidden>
+  <input id="m-cam" type="file" accept="image/*" capture="environment" hidden>
+  <input id="m-lib" type="file" accept="image/*" hidden>
+  <input id="p-cam" type="file" accept="image/*" capture="environment" multiple hidden>
+  <input id="p-lib" type="file" accept="image/*" multiple hidden>
+  <input id="r-cam" type="file" accept="image/*" capture="environment" hidden>
 </main>
+
+<div id="big" hidden><img id="big-img" alt="รูปขยาย"><button class="btn btn-sm" id="big-close" type="button">ปิด</button></div>
 
 <script src="config.js?v=26"></script>
 <script src="api.js?v=26"></script>
@@ -275,6 +358,85 @@
   $("factory").textContent = J.factory;
 
   function nf(v) { return J.nf.format(Number(v) || 0); }
+
+  /* ---------- รูป: ตัวช่วยกลาง ---------- */
+  var SHOTS = { t: [], i: [], a: [], m: [] };   // รูปที่เลือกไว้รอส่ง
+  var MAX_SHOTS = 6;
+
+  function renderShots(key) {
+    var box = $(key + "-shots");
+    if (!box) return;
+    box.innerHTML = SHOTS[key].map(function (s, i) {
+      return '<span class="shot"><img src="' + s + '" alt="รูป">' +
+        '<button type="button" data-rm="' + key + ":" + i + '" aria-label="ลบรูป">×</button></span>';
+    }).join("");
+    if (key === "t") {
+      $("t-shot-hint").textContent = SHOTS.t.length
+        ? SHOTS.t.length + " รูปพร้อมส่งไปกับใบเบิก"
+        : "ยังไม่มีรูป — ต้องถ่ายอย่างน้อย 1 รูปถึงจะส่งใบเบิกได้";
+    }
+    if (key === "m") {
+      $("m-pic-clear").hidden = SHOTS.m.length > 0 || !$("m-code").value.trim();
+    }
+  }
+
+  document.addEventListener("click", function (ev) {
+    var rm = ev.target.getAttribute && ev.target.getAttribute("data-rm");
+    if (!rm) return;
+    var p = rm.split(":");
+    SHOTS[p[0]].splice(Number(p[1]), 1);
+    renderShots(p[0]);
+  });
+
+  function pickInto(key, max) {
+    return function (e) {
+      var files = Array.prototype.slice.call(e.target.files || []);
+      e.target.value = "";
+      if (!files.length) return;
+      var room = max - SHOTS[key].length;
+      if (room <= 0) return;
+      files = files.slice(0, room);
+      var left = files.length;
+      files.forEach(function (f) {
+        J.shrinkImage(f, 1000, 0.62, function (data) {
+          if (data) SHOTS[key].push(data);
+          if (--left === 0) renderShots(key);
+        });
+      });
+    };
+  }
+
+  ["t", "i", "a"].forEach(function (k) {
+    $(k + "-cam").addEventListener("change", pickInto(k, MAX_SHOTS));
+    $(k + "-lib").addEventListener("change", pickInto(k, MAX_SHOTS));
+  });
+  $("m-cam").addEventListener("change", pickInto("m", 1));
+  $("m-lib").addEventListener("change", pickInto("m", 1));
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-pick]"), function (b) {
+    b.addEventListener("click", function () { $(b.getAttribute("data-pick")).click(); });
+  });
+
+  // ส่งรูปที่เลือกไว้ไปแนบกับเอกสารที่เพิ่งสร้าง
+  function uploadShots(key, doc) {
+    var list = SHOTS[key].slice();
+    SHOTS[key] = []; renderShots(key);
+    if (!list.length) return Promise.resolve(0);
+    var m = J.me.get(), n = 0;
+    return list.reduce(function (chain, data) {
+      return chain.then(function () {
+        return J.rpc("app_stock_add_photo", { p_name: m.name, p_pin: m.pin, p_doc: doc, p_data: data })
+          .then(function () { n++; }).catch(function () {});
+      });
+    }, Promise.resolve()).then(function () { return n; });
+  }
+
+  /* ---------- ดูรูปใหญ่ ---------- */
+  function showBig(src) { $("big-img").src = src; $("big").hidden = false; }
+  $("big-close").addEventListener("click", function () { $("big").hidden = true; $("big-img").src = ""; });
+  $("big").addEventListener("click", function (ev) {
+    if (ev.target.id === "big") { $("big").hidden = true; $("big-img").src = ""; }
+  });
   var bahtFmt = new Intl.NumberFormat("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function baht(v) { return bahtFmt.format(Number(v) || 0); }
 
@@ -340,6 +502,7 @@
     });
     $("pane-card").hidden = true;
     $("pane-adj").hidden = true;
+    $("pane-pics").hidden = true;
     if (which === "docs") loadDocs();
   }
   TABS.forEach(function (k) {
@@ -360,7 +523,8 @@
     items = d.items || [];
     var s = d.summary || {};
     var k = [
-      ['<div class="kpi"><div class="k">รายการวัสดุ</div><div class="v">' + nf(s.items) + "</div></div>"],
+      ['<div class="kpi"><div class="k">รายการวัสดุ</div><div class="v">' + nf(s.items) +
+        '</div><div class="f">มีรูปแล้ว ' + nf(s.photos) + "</div></div>"],
       ['<div class="kpi warn"><div class="k">ใกล้หมด</div><div class="v">' + nf(s.low) + "</div></div>"],
       ['<div class="kpi bad"><div class="k">หมดแล้ว</div><div class="v">' + nf(s.out) + "</div></div>"]
     ];
@@ -384,6 +548,9 @@
     box.innerHTML = items.map(function (it) {
       var q = cart[it.code] || "";
       return '<div class="mrow">' +
+        (it.has_photo
+          ? '<img class="mpic" data-pic="' + J.esc(it.code) + '" alt="รูป ' + J.esc(it.name) + '">'
+          : '<span class="mpic ph">ไม่มีรูป</span>') +
         '<div class="main">' +
           '<div class="nm">' + J.esc(it.name) + " " + chipFor(it.status) + "</div>" +
           '<div class="sub">' + J.esc(it.code) + " · เหลือ " + nf(it.balance) + " " + J.esc(it.unit) +
@@ -397,10 +564,51 @@
           '<input class="q" type="number" inputmode="numeric" min="0" step="1" placeholder="0" ' +
              'data-q="' + J.esc(it.code) + '" value="' + q + '">' +
           '<button class="btn btn-sm" data-card="' + J.esc(it.code) + '" type="button">ประวัติ</button>' +
-          (isBoss ? '<button class="btn btn-sm btn-ghost" data-count="' + J.esc(it.code) + '" type="button">ปรับยอด</button>' : "") +
+          (isBoss ? '<button class="btn btn-sm btn-ghost" data-count="' + J.esc(it.code) + '" type="button">ปรับยอด</button>' +
+                    '<button class="btn btn-sm btn-ghost" data-shoot="' + J.esc(it.code) + '" type="button">รูป</button>' : "") +
         "</div></div>";
     }).join("");
+    fillThumbs();
   }
+
+  /* ---------- รูปวัสดุ: โหลดทีละตัว แล้วจำไว้ ---------- */
+  var picCache = {};
+  function materialPhoto(code, cb) {
+    if (Object.prototype.hasOwnProperty.call(picCache, code)) { cb(picCache[code]); return; }
+    var m = J.me.get();
+    J.rpc("app_stock_material_photo", { p_name: m.name, p_pin: m.pin, p_code: code })
+      .then(function (d) { picCache[code] = d.photo || null; cb(picCache[code]); })
+      .catch(function () { cb(null); });
+  }
+
+  function fillThumbs() {
+    Array.prototype.forEach.call($("mat-list").querySelectorAll("img[data-pic]"), function (img) {
+      materialPhoto(img.getAttribute("data-pic"), function (src) {
+        if (src) img.src = src; else img.replaceWith(Object.assign(
+          document.createElement("span"), { className: "mpic ph", textContent: "ไม่มีรูป" }));
+      });
+    });
+  }
+
+  // ถ่ายรูปวัสดุเร็ว ๆ จากหน้ารายการ
+  var shootCode = "";
+  $("r-cam").addEventListener("change", function (e) {
+    var f = (e.target.files || [])[0];
+    e.target.value = "";
+    if (!f || !shootCode) return;
+    var it = nameOf(shootCode), m = J.me.get();
+    J.msg($("take-msg"), "กำลังย่อรูป…", "warn");
+    J.shrinkImage(f, 1000, 0.62, function (data) {
+      if (!data) { J.msg($("take-msg"), "อ่านรูปไม่ได้ ลองใหม่", "err"); return; }
+      J.rpc("sup_stock_save_material", {
+        p_name: m.name, p_pin: m.pin, p_code: shootCode, p_item_name: it.name, p_photo: data
+      }).then(function () {
+        delete picCache[shootCode];
+        J.msg($("take-msg"), "ใส่รูปให้ " + it.name + " แล้ว", "ok");
+        loadList();
+      }).catch(function (err) { J.msg($("take-msg"), err.message, "err"); });
+    });
+  });
 
   $("mat-list").addEventListener("input", function (ev) {
     var code = ev.target.getAttribute("data-q");
@@ -414,7 +622,11 @@
     var c = ev.target.getAttribute("data-card");
     if (c) { openCard(c); return; }
     var n = ev.target.getAttribute("data-count");
-    if (n) doCount(n);
+    if (n) { doCount(n); return; }
+    var s = ev.target.getAttribute("data-shoot");
+    if (s) { shootCode = s; $("r-cam").click(); return; }
+    var p = ev.target.getAttribute("data-pic");
+    if (p && ev.target.src) showBig(ev.target.src);
   });
 
   var qT = null;
@@ -458,6 +670,11 @@
   $("t-go").addEventListener("click", function () {
     var keys = Object.keys(cart);
     if (!keys.length) return;
+    if (!SHOTS.t.length) {
+      J.msg($("take-msg"), "ต้องถ่ายรูปแนบมาด้วยอย่างน้อย 1 รูป ถึงจะเบิกได้", "err");
+      $("t-shot-hint").scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     var m = J.me.get();
     $("t-go").disabled = true;
     J.rpc("app_stock_request", {
@@ -466,8 +683,10 @@
       p_purpose: $("t-purpose").value || null,
       p_lot_code: $("t-lot").value || null,
       p_note: $("t-note").value || null,
-      p_date: $("t-date").value || null
+      p_date: $("t-date").value || null,
+      p_photos: SHOTS.t.slice()
     }).then(function (r) {
+      SHOTS.t = []; renderShots("t");
       J.msg($("take-msg"), "ส่งใบเบิก " + r.doc_no + " วันที่ " + J.formatThai(r.move_date) +
         " แล้ว " + r.lines + " รายการ — รอหัวหน้าอนุมัติ", "ok");
       cart = {}; $("t-purpose").value = ""; $("t-lot").value = ""; $("t-note").value = "";
@@ -506,6 +725,8 @@
             (d.note ? " · หมายเหตุ: " + J.esc(d.note) : "") +
             (d.approver ? " · ผู้อนุมัติ " + J.esc(d.approver) : "") + "</div>" +
           lines +
+          '<div class="btns"><button class="btn btn-sm btn-ghost" data-pics="' + J.esc(d.doc_no) +
+            '" type="button">รูป' + (Number(d.photos) ? " (" + nf(d.photos) + ")" : " — ยังไม่มี") + "</button></div>" +
           (isBoss && d.kind === "out" && !isAdj ? '<div class="btns">' +
             (d.status === "pending"
               ? '<button class="btn btn-sm btn-primary" data-ok="' + J.esc(d.doc_no) + '" type="button">อนุมัติ</button>' +
@@ -518,6 +739,8 @@
   }
 
   $("doc-list").addEventListener("click", function (ev) {
+    var pics = ev.target.getAttribute("data-pics");
+    if (pics) { openPics(pics); return; }
     var ok = ev.target.getAttribute("data-ok");
     var no = ev.target.getAttribute("data-no");
     var re = ev.target.getAttribute("data-re");
@@ -593,9 +816,12 @@
       p_date: $("i-date").value || null,
       p_note: $("i-note").value || null
     }).then(function (r) {
-      J.msg($("in-msg"), "รับเข้าแล้ว " + r.lines + " รายการ (" + r.doc_no + ")", "ok");
       inCart = {}; $("i-note").value = "";
       renderInCart(); renderInList(); loadList();
+      return uploadShots("i", r.doc_no).then(function (n) {
+        J.msg($("in-msg"), "รับเข้าแล้ว " + r.lines + " รายการ (" + r.doc_no + ")" +
+          (n ? " · แนบรูป " + n + " รูป" : ""), "ok");
+      });
     }).catch(function (e) {
       J.msg($("in-msg"), e.message, "err");
     }).then(function () { $("i-go").disabled = false; });
@@ -649,16 +875,29 @@
       p_date: $("a-date").value || null, p_mode: adjMode
     }).then(function (r) {
       if (!r.changed) { J.msg($("adj-msg"), "ยอดตรงอยู่แล้ว ไม่มีอะไรเปลี่ยน", "warn"); return; }
-      J.msg($("take-msg"), "ปรับ " + it.name + " จาก " + nf(r.from) + " เป็น " + nf(r.to) +
-        " (" + r.doc_no + " วันที่ " + J.formatThai(r.move_date) + ")", "ok");
       $("pane-adj").hidden = true;
       loadList();
+      return uploadShots("a", r.doc_no).then(function (n) {
+        J.msg($("take-msg"), "ปรับ " + it.name + " จาก " + nf(r.from) + " เป็น " + nf(r.to) +
+          " (" + r.doc_no + " วันที่ " + J.formatThai(r.move_date) +
+          (n ? " · แนบรูป " + n + " รูป" : "") + ")", "ok");
+      });
     }).catch(function (e) {
       J.msg($("adj-msg"), e.message, "err");
     }).then(function () { $("a-go").disabled = false; });
   });
 
   /* ---------- เพิ่ม/แก้วัสดุ ---------- */
+  var matPicClear = false;
+  $("m-pic-clear").addEventListener("click", function () {
+    matPicClear = true; SHOTS.m = []; renderShots("m");
+    $("m-pic-hint").textContent = "จะลบรูปของวัสดุนี้เมื่อกดบันทึก";
+  });
+  $("m-code").addEventListener("input", function () {
+    matPicClear = false;
+    $("m-pic-clear").hidden = !$("m-code").value.trim();
+  });
+
   $("m-save").addEventListener("click", function () {
     var m = J.me.get();
     if (!$("m-name").value.trim()) { J.msg($("mat-msg"), "ใส่ชื่อวัสดุก่อน", "err"); return; }
@@ -671,10 +910,15 @@
       p_low_qty: $("m-low").value === "" ? null : Number($("m-low").value),
       p_note: $("m-note").value || null,
       p_opening: $("m-open").value === "" ? null : Number($("m-open").value),
-      p_price: $("m-price").value === "" ? null : Number($("m-price").value)
+      p_price: $("m-price").value === "" ? null : Number($("m-price").value),
+      p_photo: matPicClear ? "-" : (SHOTS.m[0] || null)
     }).then(function (r) {
-      J.msg($("mat-msg"), (r.created ? "เพิ่มวัสดุ " : "แก้วัสดุ ") + r.code + " แล้ว", "ok");
+      J.msg($("mat-msg"), (r.created ? "เพิ่มวัสดุ " : "แก้วัสดุ ") + r.code + " แล้ว" +
+        (SHOTS.m.length ? " พร้อมรูป" : matPicClear ? " และลบรูปออกแล้ว" : ""), "ok");
       ["m-code", "m-name", "m-unit", "m-low", "m-note", "m-open", "m-price"].forEach(function (k) { $(k).value = ""; });
+      SHOTS.m = []; matPicClear = false; renderShots("m");
+      $("m-pic-hint").textContent = "ถ่ายรูปของจริงไว้ พนักงานจะได้หยิบไม่ผิดตัว";
+      picCache = {};
       loadList();
     }).catch(function (e) {
       J.msg($("mat-msg"), e.message, "err");
@@ -695,6 +939,9 @@
           '<td class="money">' + (x.kind === "in" ? "+" : "−") + nf(x.qty) + "</td>" +
           "<td>" + J.esc(x.employee || "—") + "</td>" +
           "<td>" + J.esc([x.purpose, x.lot_code, x.note].filter(Boolean).join(" · ")) + "</td>" +
+          "<td>" + (Number(x.photos)
+            ? '<button class="btn btn-sm btn-ghost" data-pics="' + J.esc(x.doc_no) +
+              '" type="button">' + nf(x.photos) + " รูป</button>" : "—") + "</td>" +
           '<td><span class="chip ' + st[1] + '">' + J.esc(st[0]) + "</span></td></tr>";
       }).join("");
       $("card-body").innerHTML =
@@ -706,7 +953,7 @@
           (d.note ? " · " + J.esc(d.note) : "") + "</p>" +
         (rows
           ? '<div class="scroll"><table><thead><tr><th>วันที่</th><th>เลขที่</th><th>ประเภท</th>' +
-            '<th class="money">จำนวน</th><th>คน</th><th>งาน / หมายเหตุ</th><th>สถานะ</th></tr></thead><tbody>' +
+            '<th class="money">จำนวน</th><th>คน</th><th>งาน / หมายเหตุ</th><th>รูป</th><th>สถานะ</th></tr></thead><tbody>' +
             rows + "</tbody></table></div>"
           : '<p class="empty">ยังไม่มีการเคลื่อนไหว</p>');
       $("pane-card").hidden = false;
@@ -715,6 +962,77 @@
   }
 
   $("card-close").addEventListener("click", function () { $("pane-card").hidden = true; });
+
+  $("card-body").addEventListener("click", function (ev) {
+    var pics = ev.target.getAttribute("data-pics");
+    if (pics) openPics(pics);
+  });
+
+  /* ---------- รูปที่แนบกับเอกสาร ---------- */
+  var picDoc = "";
+
+  function openPics(doc) {
+    picDoc = doc;
+    var m = J.me.get();
+    $("pics-title").textContent = "รูปที่แนบไว้ — " + doc;
+    J.msg($("pics-msg"), "");
+    $("pane-card").hidden = true;
+    $("pane-adj").hidden = true;
+    $("pane-pics").hidden = false;
+    $("pics-add").hidden = false;
+    $("pics-body").innerHTML = '<p class="empty">กำลังโหลด…</p>';
+    $("pane-pics").scrollIntoView({ behavior: "smooth", block: "start" });
+    J.rpc("app_stock_doc_photos", { p_name: m.name, p_pin: m.pin, p_doc: doc }).then(function (list) {
+      if (!list || !list.length) { $("pics-body").innerHTML = '<p class="empty">ยังไม่มีรูปในใบนี้</p>'; return; }
+      $("pics-body").innerHTML = '<div class="picgrid">' + list.map(function (p) {
+        return "<figure><img src=\"" + p.data + '" alt="รูปแนบ">' +
+          '<button type="button" data-delpic="' + J.esc(p.id) + '" aria-label="ลบรูป">×</button>' +
+          "<figcaption>" + J.esc(p.by || "—") + " · " +
+          J.esc(J.formatThai(String(p.at).slice(0, 10))) +
+          (p.note ? " · " + J.esc(p.note) : "") + "</figcaption></figure>";
+      }).join("") + "</div>";
+    }).catch(function (e) { J.msg($("pics-msg"), e.message, "err"); });
+  }
+
+  $("pics-close").addEventListener("click", function () { $("pane-pics").hidden = true; });
+
+  $("pics-body").addEventListener("click", function (ev) {
+    var id = ev.target.getAttribute("data-delpic");
+    if (id) {
+      if (!window.confirm("ลบรูปนี้?")) return;
+      var m = J.me.get();
+      J.rpc("app_stock_delete_photo", { p_name: m.name, p_pin: m.pin, p_id: id })
+        .then(function () { openPics(picDoc); loadDocs(); })
+        .catch(function (e) { J.msg($("pics-msg"), e.message, "err"); });
+      return;
+    }
+    if (ev.target.tagName === "IMG") showBig(ev.target.src);
+  });
+
+  function onPicsAdd(e) {
+    var files = Array.prototype.slice.call(e.target.files || []);
+    e.target.value = "";
+    if (!files.length || !picDoc) return;
+    var m = J.me.get();
+    J.msg($("pics-msg"), "กำลังย่อรูปและอัปโหลด…", "warn");
+    var left = files.length, done = 0, err = "";
+    files.forEach(function (f) {
+      J.shrinkImage(f, 1000, 0.62, function (data) {
+        if (!data) { if (--left === 0) finish(); return; }
+        J.rpc("app_stock_add_photo", { p_name: m.name, p_pin: m.pin, p_doc: picDoc, p_data: data })
+          .then(function () { done++; })
+          .catch(function (ex) { err = ex.message; })
+          .then(function () { if (--left === 0) finish(); });
+      });
+    });
+    function finish() {
+      if (err) J.msg($("pics-msg"), err, "err");
+      else J.msg($("pics-msg"), "แนบรูปแล้ว " + done + " รูป", "ok");
+      openPics(picDoc); loadDocs();
+    }
+  }
+  $("p-cam").addEventListener("change", onPicsAdd);
+  $("p-lib").addEventListener("change", onPicsAdd);
 
   /* ---------- เริ่ม ---------- */
   loadBoot().then(function () {
