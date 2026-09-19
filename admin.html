@@ -134,12 +134,27 @@
 
     <div class="card">
       <h2>ดาวน์โหลดข้อมูล</h2>
-      <p class="hint" style="margin-bottom:12px">ได้ไฟล์ CSV เปิดด้วย Excel ได้ทันที</p>
+      <div class="msg" id="e-msg" hidden></div>
+      <p class="hint" style="margin-bottom:12px">
+        ได้ไฟล์ Excel สรุปการผลิต 9 ชีต — สรุป · รายวัน · รายคน · รายขั้นตอน ·
+        รายสินค้า · รายล็อต · เครื่องจักร · ต้นทุนรายเดือน · ข้อมูลดิบ
+        มีสูตรในไฟล์ เอาไปทำ Pivot ต่อได้เลย
+      </p>
       <div class="two">
         <div class="field"><label for="e-from">ตั้งแต่</label><input id="e-from" type="date"></div>
         <div class="field"><label for="e-to">ถึง</label><input id="e-to" type="date"></div>
       </div>
-      <button class="btn" id="e-go" type="button">ดาวน์โหลด CSV</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="btn btn-sm btn-ghost" data-erange="month" type="button">เดือนนี้</button>
+        <button class="btn btn-sm btn-ghost" data-erange="3" type="button">3 เดือนล่าสุด</button>
+        <button class="btn btn-sm btn-ghost" data-erange="year" type="button">ปีนี้</button>
+        <button class="btn btn-sm btn-ghost" data-erange="all" type="button">ทั้งหมด</button>
+      </div>
+      <button class="btn btn-primary" id="e-go" type="button">ดาวน์โหลด Excel สรุปการผลิต</button>
+      <p class="hint" style="margin-top:10px">
+        ไฟล์นี้มีค่าแรงและต้นทุนอยู่ด้วย — หัวหน้าเท่านั้นที่โหลดได้ ·
+        ตัวเลขไม่นับงานที่ถูกตีกลับ
+      </p>
     </div>
   </section>
 </main>
@@ -412,29 +427,254 @@
       .catch(function (err) { J.msg($("pin-msg"), err.message, "err"); });
   });
 
-  /* ---------- ดาวน์โหลด CSV ---------- */
+  /* ---------- ดาวน์โหลดไฟล์ Excel สรุปการผลิต ---------- */
+  var XLS_SRC = "xlsx.js?v=33";
+  function needXlsx() {
+    if (window.XLSXMini) return Promise.resolve();
+    return new Promise(function (ok, no) {
+      var s = document.createElement("script");
+      s.src = XLS_SRC;
+      s.onload = function () { window.XLSXMini ? ok() : no(new Error("โหลดตัวสร้างไฟล์ไม่สำเร็จ")); };
+      s.onerror = function () { no(new Error("โหลดตัวสร้างไฟล์ไม่ได้ ลองเช็กอินเทอร์เน็ตแล้วกดใหม่")); };
+      document.head.appendChild(s);
+    });
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-erange]"), function (b) {
+    b.addEventListener("click", function () {
+      var kind = b.getAttribute("data-erange"), t = J.today();
+      $("e-to").value = t;
+      if (kind === "all") { $("e-from").value = ""; return; }
+      if (kind === "month") { $("e-from").value = t.slice(0, 8) + "01"; return; }
+      if (kind === "year") { $("e-from").value = t.slice(0, 4) + "-01-01"; return; }
+      var d = new Date(t + "T00:00:00");
+      d.setMonth(d.getMonth() - 3);
+      $("e-from").value = d.toISOString().slice(0, 10);
+    });
+  });
+
+  function thDay(iso) { return iso ? J.formatThai(iso) : "เริ่มใช้ระบบ"; }
+  function thMonth(iso) {
+    var M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
+             "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+    var p = String(iso).slice(0, 10).split("-");
+    return M[+p[1] - 1] + " " + (+p[0] + 543);
+  }
+
+  function buildProdBook(d) {
+    var X = window.XLSXMini;
+    var H = function (v) { return { v: v, s: 2 }; };               // หัวตาราง
+    var N = function (v) { return { v: Number(v) || 0, s: 4 }; };   // ทศนิยม
+    var I = function (v) { return { v: Number(v) || 0, s: 7 }; };   // จำนวนเต็ม
+    var L = function (v) { return { v: v, s: 5 }; };                // ป้ายตัวหนา
+    var pct = function (g, b) {                                     // % ของเสีย
+      return { f: "IFERROR(" + b + "/(" + g + "+" + b + "),0)", s: 6 };
+    };
+    var last = function (n) { return Math.max(n + 1, 2); };
+    var sum = function (sheet, col, n) { return "SUM('" + sheet + "'!" + col + "2:" + col + n + ")"; };
+
+    var daily = d.daily || [], people = d.people || [], steps = d.steps || [];
+    var prods = d.products || [], lots = d.lots || [], machines = d.machines || [];
+    var months = d.months || [], raw = d.raw || [];
+    var dLast = last(daily.length), pLast = last(people.length);
+    var lLast = last(lots.length), mLast = last(months.length);
+
+    /* ---------- 1. สรุป ---------- */
+    var dash = {
+      name: "สรุป", cols: [{ w: 30 }, { w: 18 }, { w: 46 }],
+      rows: [
+        [{ v: "IRJ FACTORY — สรุปการผลิต", s: 1 }],
+        [L("ช่วงข้อมูล"), thDay(d.all_time ? null : d.from) + " ถึง " + thDay(d.to)],
+        [L("ออกไฟล์เมื่อ"), (d.made_at || "") + " โดย " + (d.made_by || "")],
+        [],
+        [{ v: "งานที่ทำได้", s: 5 }],
+        [L("ชิ้นงานดี"), { f: sum("รายวัน", "C", dLast), s: 7 },
+          "รวมทุกขั้นตอน — ชิ้นเดียวผ่านหลายขั้นจะถูกนับหลายครั้ง"],
+        [L("ชิ้นงานเสีย"), { f: sum("รายวัน", "D", dLast), s: 7 }],
+        [L("% ของเสีย"), pct("B6", "B7")],
+        [L("ชั่วโมงงานผลิต"), { f: sum("รายวัน", "F", dLast), s: 4 }],
+        [L("ชั่วโมงงาน RD"), { f: sum("รายวัน", "G", dLast), s: 4 }],
+        [L("ชั่วโมงงานอื่น ๆ"), { f: sum("รายวัน", "H", dLast), s: 4 }],
+        [L("ชิ้นดีต่อชั่วโมง"), { f: "IFERROR(B6/B9,0)", s: 4 }],
+        [],
+        [{ v: "คนและวัน", s: 5 }],
+        [L("วันที่มีงานเข้า"), { f: "COUNT('รายวัน'!A2:A" + dLast + ")", s: 7 }],
+        [L("คนที่ลงงาน"), { f: "COUNTA('รายคน'!A2:A" + pLast + ")", s: 7 }],
+        [L("งานที่ยังรอตรวจ"), { f: sum("รายวัน", "J", dLast), s: 7 }],
+        [],
+        [{ v: "ล็อตและต้นทุน", s: 5 }],
+        [L("ล็อตที่มีงานเดิน"), { f: "COUNTA('รายล็อต'!A2:A" + lLast + ")", s: 7 }],
+        [L("ค่าหยกรวม"), { f: sum("รายล็อต", "O", lLast), s: 4 }],
+        [L("ค่าแรงเข้าล็อต"), { f: sum("รายล็อต", "P", lLast), s: 4 }],
+        [L("ค่าโสหุ้ยเข้าล็อต"), { f: sum("รายล็อต", "Q", lLast), s: 4 }],
+        [L("ต้นทุนรวมของล็อต"), { f: "B21+B22+B23", s: 8 }],
+        [L("ค่าแรงที่จ่ายจริง"), { f: sum("ต้นทุนรายเดือน", "B", mLast), s: 4 },
+          "ค่าแรงรายวันทั้งโรงงาน ในเดือนที่อยู่ในช่วงนี้"],
+        [],
+        [{ v: "อ่านตัวเลขยังไง", s: 5 }],
+        [null, null, "ทุกชีตไม่นับงานที่หัวหน้าตีกลับ"],
+        [null, null, "ค่าแรงเข้าล็อต = ค่าแรงตรงตามเวลาที่ลง + ค่าแรงส่วนที่เหลือเฉลี่ยตามชั่วโมง"],
+        [null, null, "โสหุ้ยคิดจากค่าโสหุ้ยต่อเดือน หารด้วยชั่วโมงงานทั้งเดือน (ตั้งที่หน้าต้นทุน)"],
+        [null, null, "ชีตข้อมูลดิบคือบันทึกทีละรายการ เอาไปทำ Pivot เองได้"]
+      ]
+    };
+
+    /* ---------- 2. รายวัน ---------- */
+    var sDaily = {
+      name: "รายวัน", freeze: 1,
+      cols: [{ w: 12 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 12 },
+             { w: 12 }, { w: 12 }, { w: 12 }, { w: 12 }],
+      rows: [[H("วันที่"), H("จำนวนบันทึก"), H("ชิ้นดี"), H("ชิ้นเสีย"), H("% เสีย"),
+              H("ชม. ผลิต"), H("ชม. RD"), H("ชม. อื่น"), H("คนที่ลงงาน"), H("รอตรวจ")]]
+    };
+    daily.forEach(function (x, i) {
+      var r = i + 2;
+      sDaily.rows.push([{ d: x.d }, I(x.entries), I(x.good), I(x.bad), pct("C" + r, "D" + r),
+        N(x.prod_hours), N(x.rd_hours), N(x.other_hours), I(x.people), I(x.pending)]);
+    });
+
+    /* ---------- 3. รายคน ---------- */
+    var sPeople = {
+      name: "รายคน", freeze: 1,
+      cols: [{ w: 18 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 12 },
+             { w: 10 }, { w: 10 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 16 }],
+      rows: [[H("ชื่อ"), H("ตำแหน่ง"), H("วันที่ลงงาน"), H("ชม. ผลิต"), H("ชม. RD"),
+              H("ชม. อื่น"), H("ชม. รวม"), H("ชิ้นดี"), H("ชิ้นเสีย"), H("% เสีย"),
+              H("ชิ้นดี/ชม."), H("ค่าแรงต่อวัน"), H("ค่าแรงช่วงนี้")]]
+    };
+    people.forEach(function (x, i) {
+      var r = i + 2;
+      sPeople.rows.push([x.name, x.role, I(x.days), N(x.prod_hours), N(x.rd_hours), N(x.other_hours),
+        { f: "D" + r + "+E" + r + "+F" + r, s: 4 }, I(x.good), I(x.bad),
+        pct("H" + r, "I" + r), { f: "IFERROR(H" + r + "/D" + r + ",0)", s: 4 },
+        x.daily_wage == null ? "" : N(x.daily_wage),
+        { f: "IFERROR(C" + r + "*L" + r + ",0)", s: 4 }]);
+    });
+
+    /* ---------- 4. รายขั้นตอน ---------- */
+    var sSteps = {
+      name: "รายขั้นตอน", freeze: 1,
+      cols: [{ w: 18 }, { w: 22 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 },
+             { w: 10 }, { w: 12 }, { w: 12 }],
+      rows: [[H("แผนก"), H("ขั้นตอน"), H("จำนวนบันทึก"), H("ชั่วโมง"), H("ชิ้นดี"),
+              H("ชิ้นเสีย"), H("% เสีย"), H("ชิ้นดี/ชม."), H("คนที่ทำ")]]
+    };
+    steps.forEach(function (x, i) {
+      var r = i + 2;
+      sSteps.rows.push([x.dept, x.step, I(x.entries), N(x.hours), I(x.good), I(x.bad),
+        pct("E" + r, "F" + r), { f: "IFERROR(E" + r + "/D" + r + ",0)", s: 4 }, I(x.people)]);
+    });
+
+    /* ---------- 5. รายสินค้า ---------- */
+    var sProd = {
+      name: "รายสินค้า", freeze: 1,
+      cols: [{ w: 12 }, { w: 30 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 8 }, { w: 12 },
+             { w: 10 }, { w: 10 }, { w: 10 }, { w: 12 }, { w: 14 }, { w: 14 }],
+      rows: [[H("รหัสสินค้า"), H("สินค้า"), H("ชนิดหยก"), H("สี"), H("แหล่ง"), H("ล็อต"),
+              H("ยอดเปิดรวม"), H("ชิ้นดี"), H("ชิ้นเสีย"), H("% เสีย"), H("ชั่วโมง"),
+              H("ต้นทุนมาตรฐาน"), H("ราคาขาย")]]
+    };
+    prods.forEach(function (x, i) {
+      var r = i + 2;
+      sProd.rows.push([x.code, x.name, x.jade, x.color || "", x.origin || "", I(x.lots),
+        I(x.qty_opened), I(x.good), I(x.bad), pct("H" + r, "I" + r), N(x.hours),
+        x.cost == null ? "" : N(x.cost), x.price == null ? "" : N(x.price)]);
+    });
+
+    /* ---------- 6. รายล็อต ---------- */
+    var sLots = {
+      name: "รายล็อต", freeze: 1,
+      cols: [{ w: 14 }, { w: 10 }, { w: 12 }, { w: 28 }, { w: 14 }, { w: 12 }, { w: 12 },
+             { w: 12 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 18 }, { w: 12 }, { w: 10 },
+             { w: 12 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 14 }, { w: 10 }],
+      rows: [[H("ล็อต"), H("สถานะ"), H("รหัสสินค้า"), H("สินค้า"), H("ชนิดหยก"),
+              H("เปิดเมื่อ"), H("กำหนดส่ง"), H("ยอดเปิด"), H("ผ่าน QC"), H("ของเสีย"),
+              H("คงค้าง"), H("ขั้นล่าสุด"), H("ล่าสุดเมื่อ"), H("ชั่วโมง"),
+              H("ค่าหยก"), H("ค่าแรง"), H("โสหุ้ย"), H("ต้นทุนรวม"),
+              H("ต้นทุนต่อชิ้น"), H("% เสีย")]]
+    };
+    lots.forEach(function (x, i) {
+      var r = i + 2;
+      sLots.rows.push([x.code, x.status === "open" ? "เปิดอยู่" : "ปิดแล้ว",
+        x.product_code, x.product_name, x.jade,
+        { d: x.opened_at }, x.due_date ? { d: x.due_date } : "",
+        I(x.qty_opened), I(x.pieces), I(x.defects), I(x.wip),
+        x.last_step || "", x.last_date ? { d: x.last_date } : "", N(x.hours),
+        N(x.material), N(x.labour), N(x.overhead),
+        { f: "O" + r + "+P" + r + "+Q" + r, s: 4 },
+        { f: "IFERROR(R" + r + "/I" + r + ",0)", s: 4 },
+        pct("I" + r, "J" + r)]);
+    });
+
+    /* ---------- 7. เครื่องจักร ---------- */
+    var sMach = {
+      name: "เครื่องจักร", freeze: 1,
+      cols: [{ w: 20 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 },
+             { w: 12 }, { w: 16 }],
+      rows: [[H("เครื่อง"), H("ชนิด"), H("จำนวนบันทึก"), H("ชั่วโมงคน"), H("ชิ้นดี"),
+              H("ชิ้นเสีย"), H("งาน CNC"), H("วันอยู่ในเครื่อง")]]
+    };
+    machines.forEach(function (x) {
+      sMach.rows.push([x.name, x.kind || "", I(x.entries), N(x.hours), I(x.good),
+        I(x.bad), I(x.cnc_jobs), I(x.cnc_days)]);
+    });
+
+    /* ---------- 8. ต้นทุนรายเดือน ---------- */
+    var sMon = {
+      name: "ต้นทุนรายเดือน", freeze: 1,
+      cols: [{ w: 14 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 14 }, { w: 16 }, { w: 12 },
+             { w: 16 }, { w: 14 }, { w: 16 }, { w: 14 }, { w: 14 }],
+      rows: [[H("เดือน"), H("ค่าแรงจ่ายจริง"), H("คน-วัน"), H("จำนวนคน"), H("วันโรงงานเปิด"),
+              H("ค่าแรงเข้างานตรง"), H("ชม. ผลิต"), H("ค่าแรงส่วนที่เหลือ"),
+              H("เฉลี่ยต่อ ชม."), H("% ลงงานครอบคลุม"), H("ชม. ฐานโสหุ้ย"), H("โสหุ้ย/ชม.")]]
+    };
+    months.forEach(function (x) {
+      sMon.rows.push([thMonth(x.ym), N(x.wage_paid), I(x.man_days), I(x.head_count),
+        I(x.work_days), N(x.wage_direct), N(x.prod_hours), N(x.wage_rest),
+        N(x.spread_rate), x.covered_pct == null ? "" : N(x.covered_pct),
+        N(x.base_hours), N(x.overhead_rate)]);
+    });
+
+    /* ---------- 9. ข้อมูลดิบ ---------- */
+    var sRaw = {
+      name: "ข้อมูลดิบ", freeze: 1,
+      cols: [{ w: 12 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 12 }, { w: 28 }, { w: 14 },
+             { w: 20 }, { w: 16 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 8 },
+             { w: 10 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 30 }, { w: 18 }],
+      rows: [[H("วันที่"), H("ประเภท"), H("ล็อต"), H("โครงการ RD"), H("รหัสสินค้า"),
+              H("สินค้า"), H("ชนิดหยก"), H("ขั้นตอน"), H("พนักงาน"), H("เครื่อง"),
+              H("ชิ้นดี"), H("ชิ้นเสีย"), H("เริ่ม"), H("เสร็จ"), H("นาที"), H("ชั่วโมง"),
+              H("เริ่ม CNC"), H("เสร็จ CNC"), H("สถานะตรวจ"), H("หมายเหตุ"), H("บันทึกเมื่อ")]]
+    };
+    raw.forEach(function (x) {
+      sRaw.rows.push([{ d: x.work_date }, x.category, x.lot, x.rd, x.product_code, x.product,
+        x.jade, x.step, x.employee, x.machine, I(x.qty_good), I(x.qty_bad),
+        x.t_start || "", x.t_end || "", x.minutes == null ? "" : I(x.minutes), N(x.hours),
+        x.cnc_start ? { d: x.cnc_start } : "", x.cnc_end ? { d: x.cnc_end } : "",
+        x.review, x.note, x.created_at]);
+    });
+
+    return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sMach, sMon, sRaw]);
+  }
+
   $("e-go").addEventListener("click", function () {
-    var m = J.me.get();
+    var m = J.me.get(), from = $("e-from").value || null, to = $("e-to").value || J.today();
+    if (from && from > to) { J.msg($("e-msg"), "วันเริ่มต้องไม่เกินวันสิ้นสุด", "err"); return; }
     $("e-go").disabled = true;
-    J.rpc("sup_export", { p_name: m.name, p_pin: m.pin, p_from: $("e-from").value || null, p_to: $("e-to").value || null })
-      .then(function (rows) {
-        if (!rows || !rows.length) { alert("ไม่มีข้อมูลในช่วงที่เลือก"); return; }
-        var cols = Object.keys(rows[0]);
-        var esc = function (v) {
-          if (v == null) return "";
-          var s = String(v);
-          return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-        };
-        var csv = "\ufeff" + cols.join(",") + "\n" +
-          rows.map(function (r) { return cols.map(function (c) { return esc(r[c]); }).join(","); }).join("\n");
-        var url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = "บันทึกการผลิต_" + ($("e-from").value || "all") + "_ถึง_" + ($("e-to").value || "now") + ".csv";
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    J.msg($("e-msg"), "กำลังดึงข้อมูล…", "ok");
+    needXlsx()
+      .then(function () {
+        return J.rpc("sup_prod_export", { p_name: m.name, p_pin: m.pin, p_from: from, p_to: to });
       })
-      .catch(function (err) { alert(err.message); })
+      .then(function (d) {
+        if (!(d.raw || []).length) { J.msg($("e-msg"), "ไม่มีข้อมูลในช่วงที่เลือก", "err"); return; }
+        var nm = "IRJ-สรุปการผลิต-" + (d.to || J.today()) + ".xlsx";
+        window.XLSXMini.save(buildProdBook(d), nm);
+        J.msg($("e-msg"), "ได้ไฟล์ " + nm + " แล้ว (บันทึก " + J.nf.format(d.raw.length) +
+          " รายการ · " + J.nf.format((d.lots || []).length) + " ล็อต · " +
+          J.nf.format((d.people || []).length) + " คน)", "ok");
+      })
+      .catch(function (err) { J.msg($("e-msg"), err.message, "err"); })
       .then(function () { $("e-go").disabled = false; });
   });
 

@@ -10,7 +10,8 @@
      { f: "SUM(A1:A9)" }  สูตร (ไม่ต้องมี = ข้างหน้า)
      { d: "2026-09-18" }  วันที่
      { v: ..., s: 2 }     กำหนดสไตล์เอง
-   สไตล์: 0 ปกติ · 1 หัวเรื่องใหญ่ · 2 หัวตาราง · 3 วันที่ · 4 ตัวเลขทศนิยม · 5 ตัวหนา
+   สไตล์: 0 ปกติ · 1 หัวเรื่องใหญ่ · 2 หัวตาราง · 3 วันที่ · 4 ตัวเลขทศนิยม
+          5 ตัวหนา · 6 เปอร์เซ็นต์ · 7 จำนวนเต็มมีลูกน้ำ · 8 ตัวเลขทศนิยมตัวหนา
 */
 (function () {
   "use strict";
@@ -162,9 +163,11 @@
 
   var STYLES = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-    '<numFmts count="2">' +
+    '<numFmts count="4">' +
       '<numFmt numFmtId="164" formatCode="dd/mm/yyyy"/>' +
-      '<numFmt numFmtId="165" formatCode="#,##0.00"/></numFmts>' +
+      '<numFmt numFmtId="165" formatCode="#,##0.00"/>' +
+      '<numFmt numFmtId="166" formatCode="0.0%"/>' +
+      '<numFmt numFmtId="167" formatCode="#,##0"/></numFmts>' +
     '<fonts count="3">' +
       '<font><sz val="11"/><name val="Tahoma"/></font>' +
       '<font><b/><sz val="11"/><name val="Tahoma"/></font>' +
@@ -178,7 +181,7 @@
       '<border><left/><right/><top/><bottom style="thin">' +
         '<color rgb="FF999999"/></bottom><diagonal/></border></borders>' +
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="6">' +
+    '<cellXfs count="9">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
       '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" ' +
@@ -186,6 +189,10 @@
       '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
       '<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
       '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>' +
+      '<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '<xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>' +
+      '<xf numFmtId="165" fontId="1" fillId="0" borderId="0" xfId="0" ' +
+        'applyNumberFormat="1" applyFont="1"/>' +
     '</cellXfs>' +
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     "</styleSheet>";
