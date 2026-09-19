@@ -163,8 +163,42 @@
       <div class="toolbar">
         <div class="grow"><input id="s-q" type="search" placeholder="ค้นชื่อหรือรหัสวัสดุ เช่น ดอกเอนมิล หรือ MAT-009"></div>
         <button class="btn btn-sm" id="s-low" type="button" aria-pressed="false">เฉพาะที่ใกล้หมด</button>
+        <button class="btn btn-sm" id="s-xls" type="button" hidden>โหลด Excel</button>
       </div>
       <div id="mat-list"><p class="empty">กำลังโหลด…</p></div>
+    </section>
+
+    <!-- ---------- โหลดเป็นไฟล์ Excel (หัวหน้า / คนดูแลคลัง) ---------- -->
+    <section id="pane-xls" class="card" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <h2 style="margin-bottom:8px">โหลดเป็นไฟล์ Excel</h2>
+        <button class="btn btn-sm btn-ghost" id="xls-close" type="button">ปิด</button>
+      </div>
+      <div class="msg" id="xls-msg" hidden></div>
+      <p class="hint" style="margin-bottom:10px">
+        ได้ไฟล์หน้าตาเหมือนไฟล์เดิมของโรงงาน — ชีต รายการวัสดุ · รับเข้า · ตัดจ่าย ·
+        สต็อกคงเหลือ · Dashboard · รายชื่อพนักงาน พร้อมสูตรในไฟล์ แก้ตัวเลขแล้วคงเหลือขยับตาม
+      </p>
+      <div class="two">
+        <div class="field">
+          <label for="x-from">ตั้งแต่วันที่</label>
+          <input id="x-from" type="date">
+        </div>
+        <div class="field">
+          <label for="x-to">ถึงวันที่</label>
+          <input id="x-to" type="date">
+        </div>
+      </div>
+      <div class="pickrow" style="margin-bottom:10px">
+        <button class="btn btn-sm btn-ghost" data-range="month" type="button">เดือนนี้</button>
+        <button class="btn btn-sm btn-ghost" data-range="90" type="button">90 วันล่าสุด</button>
+        <button class="btn btn-sm btn-ghost" data-range="all" type="button">ทั้งหมด</button>
+      </div>
+      <button class="btn btn-primary btn-lg" id="x-go" type="button">สร้างไฟล์ Excel</button>
+      <p class="hint" style="margin-top:10px">
+        เว้นช่อง “ตั้งแต่วันที่” ว่าง = เอาตั้งแต่เริ่มใช้ระบบ ·
+        ถ้าเลือกช่วง ยอดยกมาในไฟล์จะเป็นยอดคงเหลือ ณ วันก่อนวันเริ่ม ยอดคงเหลือปลายทางจึงยังตรง
+      </p>
     </section>
 
     <!-- ---------- ใบเบิก ---------- -->
@@ -473,6 +507,7 @@
     if (isBoss) {
       $("tab-in").hidden = false;
       $("tab-mat").hidden = false;
+      $("s-xls").hidden = false;
       $("d-scope").innerHTML = '<option value="all">ทั้งโรงงาน</option><option value="mine">ของฉัน</option>';
     }
     $("i-date").value = J.today();
@@ -509,6 +544,7 @@
     $("pane-card").hidden = true;
     $("pane-adj").hidden = true;
     $("pane-pics").hidden = true;
+    $("pane-xls").hidden = true;
     if (which === "docs") loadDocs();
   }
   TABS.forEach(function (k) {
@@ -1130,6 +1166,180 @@
   }
   $("p-cam").addEventListener("change", onPicsAdd);
   $("p-lib").addEventListener("change", onPicsAdd);
+
+  /* ---------- โหลดเป็นไฟล์ Excel ---------- */
+  var XLS_SRC = "xlsx.js?v=32";
+  function needXlsx() {
+    if (window.XLSXMini) return Promise.resolve();
+    return new Promise(function (ok, no) {
+      var s = document.createElement("script");
+      s.src = XLS_SRC;
+      s.onload = function () { window.XLSXMini ? ok() : no(new Error("โหลดตัวสร้างไฟล์ไม่สำเร็จ")); };
+      s.onerror = function () { no(new Error("โหลดตัวสร้างไฟล์ไม่ได้ ลองเช็กอินเทอร์เน็ตแล้วกดใหม่")); };
+      document.head.appendChild(s);
+    });
+  }
+
+  $("s-xls").addEventListener("click", function () {
+    J.msg($("xls-msg"), "");
+    if (!$("x-to").value) $("x-to").value = J.today();
+    $("pane-xls").hidden = false;
+    $("pane-xls").scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  $("xls-close").addEventListener("click", function () { $("pane-xls").hidden = true; });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-range]"), function (b) {
+    b.addEventListener("click", function () {
+      var kind = b.getAttribute("data-range"), t = J.today();
+      $("x-to").value = t;
+      if (kind === "all") { $("x-from").value = ""; return; }
+      if (kind === "month") { $("x-from").value = t.slice(0, 8) + "01"; return; }
+      var d = new Date(t + "T00:00:00");
+      d.setDate(d.getDate() - 89);
+      $("x-from").value = d.toISOString().slice(0, 10);
+    });
+  });
+
+  // วันที่แบบไทยไว้โชว์ในไฟล์ (ไม่ใช่ค่าที่เอาไปคำนวณ)
+  function thaiDay(iso) { return iso ? J.formatThai(iso) : "เริ่มใช้ระบบ"; }
+
+  function buildBook(d) {
+    var X = window.XLSXMini;
+    var mats = d.materials || [], mIn = d.moves_in || [], mOut = d.moves_out || [];
+    var H = function (v) { return { v: v, s: 2 }; };          // หัวตาราง
+    var N = function (v) { return { v: Number(v) || 0, s: 4 }; }; // ตัวเลขทศนิยม
+    var lastOut = Math.max(mOut.length + 1, 2);
+    var lastMat = mats.length + 1;
+
+    /* --- Dashboard --- */
+    var dash = {
+      name: "Dashboard", cols: [{ w: 34 }, { w: 40 }],
+      rows: [
+        [{ v: "I REAL JADE — ระบบควบคุมสต็อกและตัดจ่ายวัสดุสิ้นเปลือง", s: 1 }],
+        [],
+        [{ v: "จำนวนรายการวัสดุ", s: 5 }, { f: "COUNTA('รายการวัสดุ'!A2:A100000)" }],
+        [{ v: "มูลค่าสต็อกคงเหลือ", s: 5 }, { f: "SUM('สต็อกคงเหลือ'!I2:I100000)", s: 4 }],
+        [{ v: "จำนวนรายการใกล้หมด/หมด", s: 5 },
+         { f: "COUNTIF('สต็อกคงเหลือ'!J2:J100000,\"ใกล้หมด\")+COUNTIF('สต็อกคงเหลือ'!J2:J100000,\"หมด\")" }],
+        [{ v: "จำนวนรายการตัดจ่ายรอตรวจ", s: 5 },
+         { f: "COUNTIF('ตัดจ่าย'!J2:J100000,\"รอตรวจสอบ\")" }],
+        [],
+        [{ v: "ช่วงข้อมูลในไฟล์นี้", s: 5 }, thaiDay(d.from) + " ถึง " + thaiDay(d.to)],
+        [{ v: "ออกไฟล์เมื่อ", s: 5 }, (d.made_at || "") + " โดย " + (d.made_by || "")],
+        [],
+        [{ v: "หมายเหตุ", s: 5 },
+         "ยอดยกมาในชีตรายการวัสดุ = ยอดคงเหลือ ณ วันก่อนวันเริ่มช่วง ไม่ใช่ยอดตอนเริ่มใช้ระบบ"],
+        [null, "ชีตสต็อกคงเหลือนับเฉพาะใบตัดจ่ายที่สถานะ \"อนุมัติ\" เหมือนไฟล์เดิม"],
+        [null, "รายการที่ขึ้นต้นด้วย AD- คือการปรับยอดด้วยมือ"]
+      ]
+    };
+
+    /* --- รายการวัสดุ --- */
+    var sMat = {
+      name: "รายการวัสดุ", freeze: 1,
+      cols: [{ w: 12 }, { w: 40 }, { w: 10 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 26 }],
+      rows: [[H("รหัสวัสดุ"), H("รายการวัสดุ"), H("หน่วยนับ"), H("ราคาต่อหน่วย"),
+              H("ยอดยกมา"), H("จุดเตือนใกล้หมด"), H("หมายเหตุ")]]
+    };
+    mats.forEach(function (m) {
+      sMat.rows.push([m.code, m.name, m.unit,
+        m.price == null ? 0 : N(m.price), N(m.carry), N(m.low_qty), m.note || ""]);
+    });
+
+    /* --- รับเข้า --- */
+    var sIn = {
+      name: "รับเข้า", freeze: 1,
+      cols: [{ w: 14 }, { w: 12 }, { w: 12 }, { w: 40 }, { w: 10 }, { w: 12 }, { w: 16 }, { w: 30 }],
+      rows: [[H("เลขที่รับ"), H("วันที่"), H("รหัสวัสดุ"), H("รายการวัสดุ"), H("หน่วย"),
+              H("จำนวนรับ"), H("ผู้รับ/ผู้บันทึก"), H("หมายเหตุ")]]
+    };
+    mIn.forEach(function (x, i) {
+      var r = i + 2;
+      sIn.rows.push([x.doc_no, { d: x.move_date }, x.code,
+        { f: "IFERROR(VLOOKUP(C" + r + ",'รายการวัสดุ'!$A:$G,2,FALSE),\"\")" },
+        { f: "IFERROR(VLOOKUP(C" + r + ",'รายการวัสดุ'!$A:$G,3,FALSE),\"\")" },
+        N(x.qty), x.employee || "", x.note || ""]);
+    });
+
+    /* --- ตัดจ่าย --- */
+    var sOut = {
+      name: "ตัดจ่าย", freeze: 1,
+      cols: [{ w: 14 }, { w: 12 }, { w: 12 }, { w: 40 }, { w: 10 }, { w: 12 },
+             { w: 18 }, { w: 16 }, { w: 30 }, { w: 12 }, { w: 30 }],
+      rows: [[H("เลขที่เบิก"), H("วันที่"), H("รหัสวัสดุ"), H("รายการวัสดุ"), H("หน่วย"),
+              H("จำนวนจ่าย"), H("ผู้เบิก/ผู้รับผิดชอบ"), H("ผู้อนุมัติ"),
+              H("วัตถุประสงค์/งาน"), H("สถานะ"), H("หมายเหตุ")]]
+    };
+    mOut.forEach(function (x, i) {
+      var r = i + 2;
+      sOut.rows.push([x.doc_no, { d: x.move_date }, x.code,
+        { f: "IFERROR(VLOOKUP(C" + r + ",'รายการวัสดุ'!$A:$G,2,FALSE),\"\")" },
+        { f: "IFERROR(VLOOKUP(C" + r + ",'รายการวัสดุ'!$A:$G,3,FALSE),\"\")" },
+        N(x.qty), x.employee || "", x.approver || "", x.purpose || "", x.status, x.note || ""]);
+    });
+
+    /* --- สต็อกคงเหลือ (สูตรล้วน เหมือนไฟล์เดิม) --- */
+    var sBal = {
+      name: "สต็อกคงเหลือ", freeze: 1,
+      cols: [{ w: 12 }, { w: 40 }, { w: 10 }, { w: 14 }, { w: 12 }, { w: 12 },
+             { w: 12 }, { w: 12 }, { w: 16 }, { w: 12 }],
+      rows: [[H("รหัสวัสดุ"), H("รายการวัสดุ"), H("หน่วย"), H("ราคาต่อหน่วย"), H("ยอดยกมา"),
+              H("รับเข้า"), H("ตัดจ่าย"), H("คงเหลือ"), H("มูลค่าคงเหลือ"), H("สถานะ")]]
+    };
+    for (var i = 0; i < mats.length; i++) {
+      var r = i + 2;
+      sBal.rows.push([
+        { f: "'รายการวัสดุ'!A" + r },
+        { f: "'รายการวัสดุ'!B" + r },
+        { f: "'รายการวัสดุ'!C" + r },
+        { f: "'รายการวัสดุ'!D" + r, s: 4 },
+        { f: "'รายการวัสดุ'!E" + r, s: 4 },
+        { f: "SUMIF('รับเข้า'!$C:$C,A" + r + ",'รับเข้า'!$F:$F)", s: 4 },
+        { f: "SUMIFS('ตัดจ่าย'!$F:$F,'ตัดจ่าย'!$C:$C,A" + r + ",'ตัดจ่าย'!$J:$J,\"อนุมัติ\")", s: 4 },
+        { f: "E" + r + "+F" + r + "-G" + r, s: 4 },
+        { f: "H" + r + "*D" + r, s: 4 },
+        { f: "IF(H" + r + "<0,\"ติดลบ\",IF(H" + r + "=0,\"หมด\",IF(H" + r +
+             "<='รายการวัสดุ'!F" + r + ",\"ใกล้หมด\",\"ปกติ\")))" }
+      ]);
+    }
+
+    /* --- รายชื่อพนักงาน --- */
+    var emps = d.employees || [];
+    var sEmp = {
+      name: "รายชื่อพนักงาน", freeze: 1,
+      cols: [{ w: 22 }, { w: 4 }, { w: 22 }],
+      rows: [[H("รายชื่อพนักงาน"), null, H("รายชื่อผู้อนุมัติ")]]
+    };
+    var appr = emps.filter(function (e) { return e.can_approve; });
+    for (var j = 0; j < Math.max(emps.length, appr.length); j++) {
+      sEmp.rows.push([emps[j] ? emps[j].name : null, null, appr[j] ? appr[j].name : null]);
+    }
+
+    // อ้างถึงไว้กันตัวแปรลอย (ช่วงแถวจริงเผื่อใช้ต่อภายหลัง)
+    void lastOut; void lastMat;
+    return X.build([dash, sMat, sIn, sOut, sBal, sEmp]);
+  }
+
+  $("x-go").addEventListener("click", function () {
+    var m = J.me.get(), from = $("x-from").value || null, to = $("x-to").value || J.today();
+    if (from && from > to) { J.msg($("xls-msg"), "วันเริ่มต้องไม่เกินวันสิ้นสุด", "err"); return; }
+    $("x-go").disabled = true;
+    J.msg($("xls-msg"), "กำลังดึงข้อมูล…", "ok");
+    needXlsx()
+      .then(function () {
+        return J.rpc("app_stock_export", { p_name: m.name, p_pin: m.pin, p_from: from, p_to: to });
+      })
+      .then(function (d) {
+        var blob = buildBook(d);
+        var nm = "IRJ-คลังวัสดุ-" + (d.to || J.today()) + ".xlsx";
+        window.XLSXMini.save(blob, nm);
+        J.msg($("xls-msg"), "ได้ไฟล์ " + nm + " แล้ว (วัสดุ " + nf((d.materials || []).length) +
+          " รายการ · รับเข้า " + nf((d.moves_in || []).length) +
+          " แถว · ตัดจ่าย " + nf((d.moves_out || []).length) + " แถว)", "ok");
+      })
+      .catch(function (e) { J.msg($("xls-msg"), e.message, "err"); })
+      .then(function () { $("x-go").disabled = false; });
+  });
 
   /* ---------- เริ่ม ---------- */
   loadBoot().then(function () {
