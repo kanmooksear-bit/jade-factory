@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=34">
+<link rel="stylesheet" href="app.css?v=35">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -164,8 +164,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=34"></script>
-<script src="api.js?v=34"></script>
+<script src="config.js?v=35"></script>
+<script src="api.js?v=35"></script>
 <script>
 (function () {
   "use strict";
@@ -255,6 +255,31 @@
       "</b> · ค้างในสาย <b>" + J.nf.format(l.wip) + "</b>";
   }
 
+  /* ---------- งานแก้: หัวหน้าเลือกว่าจะย้ายยอดให้คนแก้ไหม ---------- */
+  function reworkBox(r) {
+    var n = J.nf.format((r.qty_good || 0) + (r.qty_bad || 0));
+    var who = J.esc(r.rework_of || "คนเดิม"), fixer = J.esc(r.employee);
+    var move = r.rework_move !== false;
+    return '<div class="rwk">' +
+      '<div class="s">' + (move
+        ? "ยอด " + n + " ชิ้นนับเป็นของ " + fixer + " · หักออกจาก " + who
+        : "ยอด " + n + " ชิ้นยังเป็นของ " + who + " · " + fixer + " ได้แต่ชั่วโมง") +
+      " · ยอดรวมของขั้นตอนไม่เปลี่ยนทั้งสองแบบ</div>" +
+      '<div class="tabs sm">' +
+        '<button class="tab" data-move="' + J.esc(r.id) + '" data-val="1" type="button" aria-selected="' +
+          String(move) + '">ย้ายยอดให้ ' + fixer + "</button>" +
+        '<button class="tab" data-move="' + J.esc(r.id) + '" data-val="0" type="button" aria-selected="' +
+          String(!move) + '">ไม่ย้าย — ' + who + " เก็บยอดไว้</button>" +
+      "</div></div>";
+  }
+
+  function setMove(id, move) {
+    var m = J.me.get();
+    J.rpc("sup_rework_move", { p_name: m.name, p_pin: m.pin, p_id: id, p_move: move })
+      .then(function () { load(); })
+      .catch(function (e) { alert(e.message); });
+  }
+
   function load() {
     var m = J.me.get();
     $("list").innerHTML = '<p class="hint">กำลังโหลด…</p>';
@@ -300,6 +325,9 @@
             J.esc(r.lot || "งานอื่น") + " · " + J.esc(r.step || "—") + " · " + J.esc(r.employee) +
             " " + (CHIP[r.review_status] || "") +
             (over ? ' <span class="chip warn">เกินล็อต +' + J.nf.format(over) + "</span>" : "") +
+            (r.is_rework
+              ? ' <span class="chip warn">งานแก้ของ ' + J.esc(r.rework_of || "ไม่ระบุ") + "</span>"
+              : "") +
           '</span><span class="n">' + J.nf.format(r.qty_good) +
             (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") + "</span></div>" +
           '<div class="s">' + J.esc(when) + (r.note ? " · " + J.esc(r.note) : "") +
@@ -309,6 +337,7 @@
               J.nf.format(r.lot_qty) + " ชิ้น" +
               (over ? " — ตัดเผื่อ " + J.nf.format(over) + " ชิ้น" : "") + "</div>"
             : "") +
+          (r.is_rework ? reworkBox(r) : "") +
           (r.review_status === "rejected" && r.review_note
             ? '<div class="why">ตีกลับ: ' + J.esc(r.review_note) + "</div>" : "") +
           (r.review_status === "approved" && r.reviewed_by
@@ -329,6 +358,9 @@
     });
     Array.prototype.forEach.call($("list").querySelectorAll("[data-shots]"), function (b) {
       b.addEventListener("click", function () { showShots(b.dataset.shots, b); });
+    });
+    Array.prototype.forEach.call($("list").querySelectorAll("[data-move]"), function (b) {
+      b.addEventListener("click", function () { setMove(b.dataset.move, b.dataset.val === "1"); });
     });
     Array.prototype.forEach.call($("list").querySelectorAll("[data-edit]"), function (b) {
       b.addEventListener("click", function () { openEdit(b.dataset.edit); });

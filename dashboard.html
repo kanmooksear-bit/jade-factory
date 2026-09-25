@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=34">
+<link rel="stylesheet" href="app.css?v=35">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -231,8 +231,8 @@
   </div>
 </main>
 
-<script src="config.js?v=34"></script>
-<script src="api.js?v=34"></script>
+<script src="config.js?v=35"></script>
+<script src="api.js?v=35"></script>
 <script>
 (function () {
   "use strict";
@@ -581,17 +581,20 @@
 
   function renderByEmp(rows, one) {
     if (!rows.length) { $("byemp").innerHTML = '<p class="empty">ยังไม่มีข้อมูล</p>'; return; }
-    var max = Math.max.apply(null, rows.map(function (r) { return Number(r.qty) || 0; })) || 1;
+    var max = Math.max.apply(null, rows.map(function (r) { return Math.max(Number(r.qty) || 0, 0); })) || 1;
     $("byemp").innerHTML = rows.map(function (r) {
       var q = Number(r.qty) || 0, b = Number(r.bad) || 0, mi = Number(r.minutes) || 0;
+      var bar = Math.max(q, 0);
       var tq = r.timed_qty == null ? null : Number(r.timed_qty) || 0;   // ชิ้นเฉพาะรายการที่ลงเวลา
       return '<div class="hrow"><span class="hname">' + J.esc(r.name) + lotTag(r.lots, one) + "</span>" +
-        '<span class="htrack"><span class="hfill" style="width:' + (q / max * 100).toFixed(1) + '%"></span></span>' +
+        '<span class="htrack"><span class="hfill" style="width:' + (bar / max * 100).toFixed(1) + '%"></span></span>' +
         '<span class="hval">' + J.nf.format(q) +
         (r.steps ? '<b class="rate">' + J.nf.format(r.steps) + " ขั้นตอน</b>" : "") +
         (Number(r.qc) ? '<b class="rate">ดัน QC ผ่าน ' + J.nf.format(r.qc) + "</b>" : "") +
         (mi ? '<b class="rate">' + hoursTxt(mi) + " ชม." +
               (tq ? " · " + rateTxt(tq, mi) : "") + "</b>" : "") +
+        (Number(r.rework_done) ? '<b class="rate">แก้ให้คนอื่น ' + J.nf.format(r.rework_done) + "</b>" : "") +
+        (Number(r.rework_taken) ? '<i>ถูกเอาไปแก้ ' + J.nf.format(r.rework_taken) + "</i>" : "") +
         (b ? "<i>เสีย " + J.nf.format(b) + "</i>" : "") + "</span></div>";
     }).join("");
   }

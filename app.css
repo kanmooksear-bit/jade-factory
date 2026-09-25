@@ -230,3 +230,11 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
   font-size:14px;z-index:9999;opacity:0;transition:bottom .25s ease,opacity .25s ease;
   pointer-events:none}
 #jade-toast.show{bottom:22px;opacity:1}
+
+/* งานแก้: กล่องให้หัวหน้าเลือกว่าจะย้ายยอดไหม */
+.rwk{margin:8px 0 4px;padding:8px 10px;border-radius:8px;
+  background:color-mix(in srgb,var(--amber,#c98a00) 10%,transparent);
+  border:1px solid color-mix(in srgb,var(--amber,#c98a00) 35%,transparent)}
+.rwk .s{margin-bottom:6px}
+.tabs.sm{gap:6px}
+.tabs.sm .tab{padding:5px 10px;font-size:12.5px;border-radius:7px}

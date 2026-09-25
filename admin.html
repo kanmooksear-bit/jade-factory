@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=34">
+<link rel="stylesheet" href="app.css?v=35">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -159,8 +159,8 @@
   </section>
 </main>
 
-<script src="config.js?v=34"></script>
-<script src="api.js?v=34"></script>
+<script src="config.js?v=35"></script>
+<script src="api.js?v=35"></script>
 <script>
 (function () {
   "use strict";
@@ -545,18 +545,21 @@
     var sPeople = {
       name: "รายคน", freeze: 1,
       cols: [{ w: 18 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 12 },
-             { w: 10 }, { w: 10 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 16 }],
+             { w: 10 }, { w: 10 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 14 },
+             { w: 14 }, { w: 16 }],
       rows: [[H("ชื่อ"), H("ตำแหน่ง"), H("วันที่ลงงาน"), H("ชม. ผลิต"), H("ชม. RD"),
-              H("ชม. อื่น"), H("ชม. รวม"), H("ชิ้นดี"), H("ชิ้นเสีย"), H("% เสีย"),
-              H("ชิ้นดี/ชม."), H("ค่าแรงต่อวัน"), H("ค่าแรงช่วงนี้")]]
+              H("ชม. อื่น"), H("ชม. รวม"), H("ชิ้นดีสุทธิ"), H("ชิ้นเสีย"), H("% เสีย"),
+              H("ชิ้นดี/ชม."), H("แก้ให้คนอื่น"), H("ถูกเอาไปแก้"),
+              H("ค่าแรงต่อวัน"), H("ค่าแรงช่วงนี้")]]
     };
     people.forEach(function (x, i) {
       var r = i + 2;
       sPeople.rows.push([x.name, x.role, I(x.days), N(x.prod_hours), N(x.rd_hours), N(x.other_hours),
         { f: "D" + r + "+E" + r + "+F" + r, s: 4 }, I(x.good), I(x.bad),
         pct("H" + r, "I" + r), { f: "IFERROR(H" + r + "/D" + r + ",0)", s: 4 },
+        I(x.rework_done), I(x.rework_taken),
         x.daily_wage == null ? "" : N(x.daily_wage),
-        { f: "IFERROR(C" + r + "*L" + r + ",0)", s: 4 }]);
+        { f: "IFERROR(C" + r + "*N" + r + ",0)", s: 4 }]);
     });
 
     /* ---------- 4. รายขั้นตอน ---------- */
