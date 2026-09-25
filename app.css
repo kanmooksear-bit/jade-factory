@@ -211,3 +211,22 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
            background:var(--paper);color:var(--ink);font-size:15px}
 .edt .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .edt[hidden]{display:none!important}
+
+/* จุดแดงบนปุ่มสลับแอป: มีใบเบิกรออนุมัติกี่ใบ */
+.appsw{position:relative}
+.appsw .dot{
+  position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:9px;background:var(--alert,#c0392b);color:#fff;
+  font-size:11px;line-height:18px;font-weight:600;text-align:center;
+  box-shadow:0 0 0 2px var(--bg,#111);animation:jdot 1.4s ease-in-out infinite}
+@keyframes jdot{0%,100%{transform:scale(1)}50%{transform:scale(1.14)}}
+
+/* ข้อความเด้งสั้น ๆ ตอนมีใบเบิกใหม่ */
+#jade-toast{
+  position:fixed;left:50%;bottom:-80px;transform:translateX(-50%);
+  max-width:92vw;padding:11px 16px;border-radius:10px;
+  background:var(--surface,#1b1b1b);color:var(--ink,#eee);
+  border:1px solid var(--line,#333);box-shadow:0 8px 24px rgba(0,0,0,.35);
+  font-size:14px;z-index:9999;opacity:0;transition:bottom .25s ease,opacity .25s ease;
+  pointer-events:none}
+#jade-toast.show{bottom:22px;opacity:1}

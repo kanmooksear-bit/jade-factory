@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=34">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -136,8 +136,8 @@
       <h2>ดาวน์โหลดข้อมูล</h2>
       <div class="msg" id="e-msg" hidden></div>
       <p class="hint" style="margin-bottom:12px">
-        ได้ไฟล์ Excel สรุปการผลิต 9 ชีต — สรุป · รายวัน · รายคน · รายขั้นตอน ·
-        รายสินค้า · รายล็อต · เครื่องจักร · ต้นทุนรายเดือน · ข้อมูลดิบ
+        ได้ไฟล์ Excel สรุปการผลิต 10 ชีต — สรุป · รายวัน · รายคน · รายขั้นตอน ·
+        รายสินค้า · รายล็อต · CNC · เครื่องจักร · ต้นทุนรายเดือน · ข้อมูลดิบ
         มีสูตรในไฟล์ เอาไปทำ Pivot ต่อได้เลย
       </p>
       <div class="two">
@@ -159,8 +159,8 @@
   </section>
 </main>
 
-<script src="config.js?v=26"></script>
-<script src="api.js?v=26"></script>
+<script src="config.js?v=34"></script>
+<script src="api.js?v=34"></script>
 <script>
 (function () {
   "use strict";
@@ -475,9 +475,9 @@
 
     var daily = d.daily || [], people = d.people || [], steps = d.steps || [];
     var prods = d.products || [], lots = d.lots || [], machines = d.machines || [];
-    var months = d.months || [], raw = d.raw || [];
+    var months = d.months || [], raw = d.raw || [], cnc = d.cnc || [];
     var dLast = last(daily.length), pLast = last(people.length);
-    var lLast = last(lots.length), mLast = last(months.length);
+    var lLast = last(lots.length), mLast = last(months.length), cLast = last(cnc.length);
 
     /* ---------- 1. สรุป ---------- */
     var dash = {
@@ -510,6 +510,14 @@
         [L("ต้นทุนรวมของล็อต"), { f: "B21+B22+B23", s: 8 }],
         [L("ค่าแรงที่จ่ายจริง"), { f: sum("ต้นทุนรายเดือน", "B", mLast), s: 4 },
           "ค่าแรงรายวันทั้งโรงงาน ในเดือนที่อยู่ในช่วงนี้"],
+        [],
+        [{ v: "เครื่อง CNC", s: 5 }],
+        [L("งานที่เข้าเครื่อง CNC"), { f: "COUNTA('CNC'!A2:A" + cLast + ")", s: 7 }],
+        [L("ยังอยู่ในเครื่อง"), { f: "COUNTIF('CNC'!K2:K" + cLast + ",\"อยู่ในเครื่อง\")", s: 7 }],
+        [L("เฉลี่ยวันต่องาน (ที่ออกแล้ว)"),
+          { f: "IFERROR(AVERAGEIF('CNC'!K2:K" + cLast + ",\"ออกแล้ว\",'CNC'!J2:J" + cLast + "),0)", s: 4 }],
+        [L("นานสุด (วัน)"), { f: "MAX('CNC'!J2:J" + cLast + ")", s: 7 },
+          "งานที่ยังไม่ออก นับถึงวันที่เปิดไฟล์"],
         [],
         [{ v: "อ่านตัวเลขยังไง", s: 5 }],
         [null, null, "ทุกชีตไม่นับงานที่หัวหน้าตีกลับ"],
@@ -586,12 +594,15 @@
       name: "รายล็อต", freeze: 1,
       cols: [{ w: 14 }, { w: 10 }, { w: 12 }, { w: 28 }, { w: 14 }, { w: 12 }, { w: 12 },
              { w: 12 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 18 }, { w: 12 }, { w: 10 },
-             { w: 12 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 14 }, { w: 10 }],
+             { w: 12 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 14 }, { w: 10 },
+             { w: 10 }, { w: 22 }, { w: 16 }, { w: 14 }],
       rows: [[H("ล็อต"), H("สถานะ"), H("รหัสสินค้า"), H("สินค้า"), H("ชนิดหยก"),
               H("เปิดเมื่อ"), H("กำหนดส่ง"), H("ยอดเปิด"), H("ผ่าน QC"), H("ของเสีย"),
               H("คงค้าง"), H("ขั้นล่าสุด"), H("ล่าสุดเมื่อ"), H("ชั่วโมง"),
               H("ค่าหยก"), H("ค่าแรง"), H("โสหุ้ย"), H("ต้นทุนรวม"),
-              H("ต้นทุนต่อชิ้น"), H("% เสีย")]]
+              H("ต้นทุนต่อชิ้น"), H("% เสีย"), H("งาน CNC"),
+              H("วัน CNC (เข้าครั้งแรก→ออกครั้งสุดท้าย)"), H("วัน-เครื่อง CNC รวม"),
+              H("ยังอยู่ในเครื่อง")]]
     };
     lots.forEach(function (x, i) {
       var r = i + 2;
@@ -603,7 +614,9 @@
         N(x.material), N(x.labour), N(x.overhead),
         { f: "O" + r + "+P" + r + "+Q" + r, s: 4 },
         { f: "IFERROR(R" + r + "/I" + r + ",0)", s: 4 },
-        pct("I" + r, "J" + r)]);
+        pct("I" + r, "J" + r),
+        I(x.cnc_jobs), x.cnc_jobs ? I(x.cnc_span) : "", x.cnc_jobs ? I(x.cnc_days) : "",
+        x.cnc_open ? I(x.cnc_open) : ""]);
     });
 
     /* ---------- 7. เครื่องจักร ---------- */
@@ -612,11 +625,29 @@
       cols: [{ w: 20 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 },
              { w: 12 }, { w: 16 }],
       rows: [[H("เครื่อง"), H("ชนิด"), H("จำนวนบันทึก"), H("ชั่วโมงคน"), H("ชิ้นดี"),
-              H("ชิ้นเสีย"), H("งาน CNC"), H("วันอยู่ในเครื่อง")]]
+              H("ชิ้นเสีย"), H("งาน CNC"), H("วันอยู่ในเครื่องรวม")]]
     };
     machines.forEach(function (x) {
       sMach.rows.push([x.name, x.kind || "", I(x.entries), N(x.hours), I(x.good),
         I(x.bad), I(x.cnc_jobs), I(x.cnc_days)]);
+    });
+
+    /* ---------- CNC งานละแถว ---------- */
+    var sCnc = {
+      name: "CNC", freeze: 1,
+      cols: [{ w: 14 }, { w: 12 }, { w: 26 }, { w: 18 }, { w: 14 }, { w: 14 }, { w: 14 },
+             { w: 14 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 10 }, { w: 10 }],
+      rows: [[H("ล็อต"), H("รหัสสินค้า"), H("สินค้า"), H("ขั้นตอน"), H("เครื่อง"),
+              H("คนเอาเข้า"), H("คนเอาออก"), H("วันเข้าเครื่อง"), H("วันออกจากเครื่อง"),
+              H("จำนวนวัน"), H("สถานะ"), H("ชิ้นดี"), H("ชิ้นเสีย")]]
+    };
+    cnc.forEach(function (x, i) {
+      var r = i + 2;
+      sCnc.rows.push([x.lot, x.product_code, x.product, x.step, x.machine,
+        x.put_in || "", x.took_out || "", { d: x.cnc_start }, x.cnc_end ? { d: x.cnc_end } : "",
+        { f: "IF(I" + r + "=\"\",TODAY()-H" + r + ",I" + r + "-H" + r + ")", s: 7 },
+        x.in_machine ? "อยู่ในเครื่อง" : "ออกแล้ว",
+        x.in_machine ? "" : I(x.qty_good), x.in_machine ? "" : I(x.qty_bad)]);
     });
 
     /* ---------- 8. ต้นทุนรายเดือน ---------- */
@@ -640,21 +671,24 @@
       name: "ข้อมูลดิบ", freeze: 1,
       cols: [{ w: 12 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 12 }, { w: 28 }, { w: 14 },
              { w: 20 }, { w: 16 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 8 },
-             { w: 10 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 30 }, { w: 18 }],
+             { w: 10 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 30 }, { w: 18 }, { w: 10 }],
       rows: [[H("วันที่"), H("ประเภท"), H("ล็อต"), H("โครงการ RD"), H("รหัสสินค้า"),
               H("สินค้า"), H("ชนิดหยก"), H("ขั้นตอน"), H("พนักงาน"), H("เครื่อง"),
               H("ชิ้นดี"), H("ชิ้นเสีย"), H("เริ่ม"), H("เสร็จ"), H("นาที"), H("ชั่วโมง"),
-              H("เริ่ม CNC"), H("เสร็จ CNC"), H("สถานะตรวจ"), H("หมายเหตุ"), H("บันทึกเมื่อ")]]
+              H("เริ่ม CNC"), H("เสร็จ CNC"), H("สถานะตรวจ"), H("หมายเหตุ"), H("บันทึกเมื่อ"),
+              H("วัน CNC")]]
     };
-    raw.forEach(function (x) {
+    raw.forEach(function (x, i) {
+      var r = i + 2;
       sRaw.rows.push([{ d: x.work_date }, x.category, x.lot, x.rd, x.product_code, x.product,
         x.jade, x.step, x.employee, x.machine, I(x.qty_good), I(x.qty_bad),
         x.t_start || "", x.t_end || "", x.minutes == null ? "" : I(x.minutes), N(x.hours),
         x.cnc_start ? { d: x.cnc_start } : "", x.cnc_end ? { d: x.cnc_end } : "",
-        x.review, x.note, x.created_at]);
+        x.review, x.note, x.created_at,
+        x.cnc_start ? { f: "IF(R" + r + "=\"\",TODAY()-Q" + r + ",R" + r + "-Q" + r + ")", s: 7 } : ""]);
     });
 
-    return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sMach, sMon, sRaw]);
+    return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sCnc, sMach, sMon, sRaw]);
   }
 
   $("e-go").addEventListener("click", function () {

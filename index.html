@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=34">
 </head>
 <body>
 
@@ -83,9 +83,10 @@
 
         <!-- ขั้นตอนที่ใช้เครื่อง ทำ 2 จังหวะ: เอาเข้า แล้วค่อยเอาออก + นับจำนวน -->
         <div class="tabs" id="cnc-mode" hidden>
-          <button class="tab" id="m-in" aria-selected="true" type="button">เอาเข้าเครื่อง</button>
-          <button class="tab" id="m-out" aria-selected="false" type="button">เอาออกจากเครื่อง</button>
+          <button class="tab" id="m-in" aria-selected="true" type="button">เอาเข้า</button>
+          <button class="tab" id="m-out" aria-selected="false" type="button">เอาออก + นับจำนวน</button>
         </div>
+        <p class="hint" id="cnc-why" hidden style="margin:-4px 0 10px"></p>
 
         <div class="field" id="wrap-machine" hidden>
           <label for="f-machine">เครื่อง</label>
@@ -93,19 +94,19 @@
         </div>
 
         <div class="field" id="wrap-cin" hidden>
-          <label for="f-cstart">วันที่เอาเข้าเครื่อง</label>
+          <label for="f-cstart">วันที่เอาเข้า</label>
           <input id="f-cstart" type="date">
-          <span class="hint">ยังไม่ต้องนับจำนวน — ค่อยนับตอนเอาออกจากเครื่อง</span>
+          <span class="hint">ยังไม่ต้องนับจำนวน — ค่อยนับตอนเอาออก</span>
         </div>
 
         <div class="field" id="wrap-job" hidden>
-          <label for="f-job">งานที่อยู่ในเครื่องตอนนี้</label>
+          <label for="f-job">งานที่ค้างอยู่ตอนนี้</label>
           <select id="f-job"><option value="">— กำลังโหลด —</option></select>
           <span class="hint" id="job-hint"></span>
         </div>
 
         <div class="field" id="wrap-cout" hidden>
-          <label for="f-cend">วันที่เอาออกจากเครื่อง</label>
+          <label for="f-cend">วันที่เอาออก</label>
           <input id="f-cend" type="date">
         </div>
 
@@ -137,6 +138,13 @@
         <div class="field" id="wrap-date">
           <label for="f-date">วันที่ทำงาน</label>
           <input id="f-date" type="date">
+        </div>
+
+        <div class="field" id="wrap-rework">
+          <label for="f-rework">งานแก้ของใคร (ถ้าเป็นการแก้งานคนอื่น)</label>
+          <select id="f-rework"><option value="">— ไม่ใช่งานแก้ —</option></select>
+          <span class="hint">ติ๊กช่องนี้เมื่อเอางานที่คนอื่นทำมาแล้วมาทำใหม่ ยอดของขั้นตอนจะไม่บวกซ้ำ
+            แต่เวลาและค่าแรงของคุณยังนับปกติ</span>
         </div>
 
         <div class="field">
@@ -230,8 +238,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=26"></script>
-<script src="api.js?v=26"></script>
+<script src="config.js?v=34"></script>
+<script src="api.js?v=34"></script>
 <script>
 (function () {
   "use strict";
@@ -271,6 +279,7 @@
           return '<option value="' + J.esc(m.name) + '">' + J.esc(m.name) +
             (m.kind ? " (" + J.esc(m.kind) + ")" : "") + "</option>";
         }).join("");
+      fillRework();
       var saved = J.me.get();
       if (saved.name) $("l-name").value = saved.name;
     });
@@ -323,6 +332,17 @@
       (l.due_date ? " · กำหนดส่ง " + J.thDate(l.due_date) : "");
   }
 
+  // รายชื่อคนอื่นไว้เลือกตอนลง "งานแก้ของ..." (ไม่มีชื่อตัวเอง)
+  function fillRework() {
+    if (!boot) return;
+    var me = (J.me.get().name || "");
+    $("f-rework").innerHTML = '<option value="">— ไม่ใช่งานแก้ —</option>' +
+      (boot.employees || []).filter(function (e) { return e.name !== me; })
+        .map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+  }
+
   function stepInfo(name) {
     if (!boot) return null;
     for (var i = 0; i < boot.steps.length; i++) if (boot.steps[i].name === name) return boot.steps[i];
@@ -331,11 +351,17 @@
 
   function onStepChange() {
     var s = stepInfo($("f-step").value);
-    var needs = !!(s && s.needs_machine);
-    $("cnc-mode").hidden = !needs;
-    // ขั้นตอนที่ใช้เครื่อง ใช้วันเข้า–ออกเครื่องแทน จึงไม่ต้องลงเวลารายชั่วโมง
-    $("wrap-time").hidden = !s || needs;
-    if (needs) { if (!$("f-cstart").value) $("f-cstart").value = J.today(); }
+    var two = isTwoStep();
+    $("cnc-mode").hidden = !two;
+    $("cnc-why").hidden = !two;
+    if (two) {
+      $("cnc-why").textContent = s.needs_machine
+        ? "ขั้นตอนนี้ใช้เครื่อง — กดเอาเข้าก่อน พอเอาออกค่อยนับจำนวน ระบบจะนับให้ว่ากี่วัน"
+        : "ขั้นตอนนี้ใช้เวลาหลายวัน — กดเอาเข้าวันที่เริ่ม พอเสร็จค่อยกดเอาออกแล้วนับจำนวน";
+    }
+    // ขั้นตอน 2 จังหวะ ใช้วันเข้า–ออกแทน จึงไม่ต้องลงเวลารายชั่วโมง
+    $("wrap-time").hidden = !s || two;
+    if (two) { if (!$("f-cstart").value) $("f-cstart").value = J.today(); }
     applyCncMode();
     updateDuration();
   }
@@ -343,13 +369,18 @@
   /* ---------- งานเข้า–ออกเครื่อง (2 จังหวะ) ---------- */
   var cncMode = "in", jobs = [];
 
-  function isMachineStep() {
+  // ขั้นตอน 2 จังหวะ = ใช้เครื่อง (CNC) หรือใช้เวลาหลายวัน (เขย่า)
+  function isTwoStep() {
+    var s = stepInfo($("f-step").value);
+    return !!(s && (s.needs_machine || s.multiday));
+  }
+  function stepNeedsMachine() {
     var s = stepInfo($("f-step").value);
     return !!(s && s.needs_machine);
   }
 
   function applyCncMode() {
-    var machine = isMachineStep();
+    var machine = isTwoStep();
     var out = machine && cncMode === "out";
     var into = machine && cncMode === "in";
 
@@ -359,7 +390,7 @@
     // เอาออกจากเครื่อง: เลือกจากรายการงานที่อยู่ในเครื่อง ไม่ต้องเลือกล็อตเอง
     $("f-lot").parentNode.hidden = out;
     $("lotinfo").hidden = out || !$("f-lot").value;
-    $("wrap-machine").hidden = !into;
+    $("wrap-machine").hidden = !(into && stepNeedsMachine());
     $("wrap-cin").hidden = !into;
     $("wrap-job").hidden = !out;
     $("wrap-cout").hidden = !out;
@@ -368,9 +399,12 @@
     $("wrap-counts").hidden = into;
     $("wrap-date").hidden = machine;
     $("wrap-shot").hidden = into;
+    $("wrap-rework").hidden = machine;   // งานแก้ใช้กับงานลงปกติเท่านั้น
+    if (machine) $("f-rework").value = "";
 
-    $("submit-prod").textContent = into ? "บันทึกเข้าเครื่อง"
-                                 : out  ? "บันทึกออกจากเครื่อง + จำนวน"
+    var word = stepNeedsMachine() ? "เครื่อง" : "";
+    $("submit-prod").textContent = into ? ("บันทึกเอาเข้า" + word)
+                                 : out  ? ("บันทึกเอาออก" + word + " + จำนวน")
                                         : "ส่งบันทึก";
     if (out) {
       if (!$("f-cend").value) $("f-cend").value = J.today();
@@ -386,8 +420,8 @@
       var step = $("f-step").value;
       var mine = jobs.filter(function (j) { return j.step === step; });
       if (!mine.length) {
-        $("f-job").innerHTML = '<option value="">— ไม่มีงานค้างในเครื่อง —</option>';
-        $("job-hint").textContent = "ยังไม่มีงานที่เอาเข้าเครื่องไว้ — ต้องกด “เอาเข้าเครื่อง” ก่อน";
+        $("f-job").innerHTML = '<option value="">— ไม่มีงานค้างอยู่ —</option>';
+        $("job-hint").textContent = "ยังไม่มีงานที่เอาเข้าไว้ — ต้องกด “เอาเข้า” ก่อน";
         return;
       }
       $("f-job").innerHTML = mine.map(function (j) {
@@ -441,6 +475,7 @@
     $("who-name").textContent = m.name;
     $("f-date").value = J.today();
     $("o-date").value = J.today();
+    fillRework();
     loadLots();
     loadRecent();
     J.flush();
@@ -589,13 +624,15 @@
     if (!step) { J.msg($("form-msg"), "เลือกขั้นตอนก่อน", "err"); return; }
 
     /* ---- ขั้นตอนที่ใช้เครื่อง: 2 จังหวะ ---- */
-    if (isMachineStep()) {
+    if (isTwoStep()) {
       if (cncMode === "in") {
         if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
-        if (!$("f-machine").value) { J.msg($("form-msg"), "เลือกเครื่องก่อน", "err"); return; }
+        if (stepNeedsMachine() && !$("f-machine").value) {
+          J.msg($("form-msg"), "เลือกเครื่องก่อน", "err"); return;
+        }
         send({
           p_name: m.name, p_pin: m.pin, p_lot: lot, p_step: step,
-          p_machine: $("f-machine").value,
+          p_machine: (stepNeedsMachine() && $("f-machine").value) || null,
           p_date: $("f-cstart").value || J.today(),
           p_note: $("f-note").value || null
         }, $("submit-prod"), function (r) {
@@ -604,13 +641,13 @@
             J.msg($("form-msg"), "บันทึกแล้ว — แต่เครื่องนี้มีงานค้างอยู่ก่อนแล้ว: " + r.busy +
               " ถ้าลงผิดเครื่อง ให้ลบรายการนี้ทิ้งแล้วลงใหม่", "warn");
           } else {
-            J.msg($("form-msg"), "บันทึกเข้าเครื่องแล้ว — พอเอาออกให้กดแท็บ “เอาออกจากเครื่อง” แล้วใส่จำนวน", "ok");
+            J.msg($("form-msg"), "บันทึกเอาเข้าแล้ว — พอเสร็จให้กดแท็บ “เอาออก + นับจำนวน”", "ok");
           }
         }, "app_cnc_in");
         return;
       }
       var jid = $("f-job").value;
-      if (!jid) { J.msg($("form-msg"), "เลือกงานที่จะเอาออกจากเครื่องก่อน", "err"); return; }
+      if (!jid) { J.msg($("form-msg"), "เลือกงานที่จะเอาออกก่อน", "err"); return; }
       if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
       send({
         p_name: m.name, p_pin: m.pin, p_id: jid,
@@ -645,9 +682,14 @@
       p_cnc_start: (isCnc && $("f-cstart").value) || null,
       p_cnc_end: (isCnc && $("f-cend").value) || null,
       p_note: $("f-note").value || null,
-      p_time_start: t1, p_time_end: t2
+      p_time_start: t1, p_time_end: t2,
+      p_rework_of: $("f-rework").value || null
     }, $("submit-prod"), function (r) {
+      if (r && r.rework) {
+        J.msg($("form-msg"), "บันทึกเป็นงานแก้แล้ว — ยอดของขั้นตอนไม่บวกซ้ำ แต่เวลาของคุณนับปกติ", "ok");
+      }
       $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
+      $("f-rework").value = "";
       $("f-cstart").value = ""; $("f-cend").value = "";
       $("f-tstart").value = ""; $("f-tend").value = "";
       skipTime = false;

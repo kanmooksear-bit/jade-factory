@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=34">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -231,8 +231,8 @@
   </div>
 </main>
 
-<script src="config.js?v=26"></script>
-<script src="api.js?v=26"></script>
+<script src="config.js?v=34"></script>
+<script src="api.js?v=34"></script>
 <script>
 (function () {
   "use strict";
@@ -475,11 +475,29 @@
         f: base ? "คิดเป็น " + pctTxt(bad, base) + " ของ " + J.nf.format(base) + " ชิ้นที่เปิดล็อต"
                 : (recorded ? "ยังไม่รู้ฐานล็อต" : "ยังไม่มีข้อมูล"),
         bad: bad > 0 },
-      { k: "ออกจาก CNC", v: J.nf.format(cnc.pieces || 0), u: "ชิ้น",
-        f: (cnc.runs || 0) + " รอบ · กำลังการผลิตต้นทาง" },
+      { k: "ออกจาก CNC / ถังเขย่า", v: J.nf.format(cnc.pieces || 0), u: "ชิ้น",
+        f: (cnc.runs || 0) + " รอบ" +
+           (cnc.days ? " · ใช้เวลารวม " + J.nf.format(cnc.days) + " วัน" : "") +
+           (cnc.avg_days ? " · เฉลี่ย " + cnc.avg_days + " วัน/รอบ" : "") },
+      { k: "ยังค้างในเครื่อง / ถัง", v: J.nf.format(cnc.in_machine || 0), u: "งาน",
+        f: (cnc.in_machine || 0)
+             ? "ค้างมาแล้วรวม " + J.nf.format(cnc.in_days || 0) + " วัน" +
+               (cnc.max_days ? " · รอบที่นานสุดที่ผ่านมา " + cnc.max_days + " วัน" : "")
+             : "ไม่มีงานค้างอยู่ในเครื่องหรือถัง",
+        warn: (cnc.in_machine || 0) > 0 },
       { k: "ค้างในสายผลิต", v: J.nf.format(wip), u: "ชิ้น", f: openLots + " ล็อตที่ยังเปิดอยู่" },
       { k: "ชั่วโมงงานที่บันทึก", v: hoursTxt(d.minutes), u: "ชม.", f: rateFoot(d, mins, recorded) }
     ];
+    var rw = d.rework || {};
+    if (Number(rw.pieces) > 0) {
+      var who = (rw.by_person || []).map(function (x) {
+        return x.owner + " " + J.nf.format(x.pieces);
+      }).join(" · ");
+      tiles.push({ k: "งานที่เอามาแก้ใหม่", v: J.nf.format(rw.pieces), u: "ชิ้น",
+        f: (who ? "งานของ " + who : "") +
+           (rw.minutes ? " · เสียเวลาไป " + hoursTxt(rw.minutes) + " ชม." : ""),
+        bad: true });
+    }
     $("kpis").innerHTML = tiles.map(function (t) {
       return '<div class="kpi' + (t.bad ? " bad" : t.warn ? " warn" : "") + '"><span class="k">' + J.esc(t.k) +
         '</span><span class="v">' + t.v + "<small>" + J.esc(t.u) + '</small></span>' +

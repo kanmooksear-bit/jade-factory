@@ -449,7 +449,81 @@ window.JADE = (function () {
     nav.hidden = false;
   }
 
-  function enhanceAll() { fillAppSwitch(); fillNav(); enhanceDates(); enhanceTimes(); }
+  /* ---------- แจ้งเตือนในแอป: มีใบเบิกใหม่รออนุมัติ ----------
+     หัวหน้ากับคนดูแลคลังจะเห็นจุดแดงบนปุ่ม "คลังวัสดุ" และมีเสียงเตือนสั้น ๆ
+     ตอนมีใบใหม่เข้ามา (ไม่ดังตอนเปิดหน้าครั้งแรก)                      */
+  var alertSeen = null, alertTimer = null;
+
+  function beep() {
+    try {
+      var A = window.AudioContext || window.webkitAudioContext;
+      if (!A) return;
+      var c = new A();
+      [0, 0.18].forEach(function (t) {
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = "sine";
+        o.frequency.value = t ? 1046 : 784;
+        g.gain.setValueAtTime(0.0001, c.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.25, c.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + t + 0.15);
+        o.connect(g); g.connect(c.destination);
+        o.start(c.currentTime + t); o.stop(c.currentTime + t + 0.16);
+      });
+      setTimeout(function () { try { c.close(); } catch (e) {} }, 800);
+    } catch (e) { /* เบราว์เซอร์ไม่ให้เล่นเสียงก่อนมีคนกดหน้าจอ ก็ข้ามไป */ }
+  }
+
+  function paintDot(n) {
+    var a = document.querySelector(".appsw");
+    if (!a) return;
+    var d = a.querySelector(".dot");
+    if (!n) { if (d) d.remove(); a.removeAttribute("title"); return; }
+    if (!d) { d = document.createElement("span"); d.className = "dot"; a.appendChild(d); }
+    d.textContent = n > 99 ? "99+" : String(n);
+    a.setAttribute("title", "มีใบเบิกรออนุมัติ " + n + " ใบ");
+  }
+
+  function pollAlerts() {
+    var m = me.get();
+    if (!m.name || !m.pin) return;
+    rpc("app_alerts", { p_name: m.name, p_pin: m.pin }).then(function (d) {
+      var n = Number(d && d.stock_pending);
+      if (!(n >= 0)) { paintDot(0); return; }   // ไม่ใช่คนดูแลคลัง/หัวหน้า
+      paintDot(n);
+      if (alertSeen !== null && n > alertSeen) {
+        beep();
+        var who = d.stock_latest && d.stock_latest.employee;
+        toast(who ? who + " ขอเบิกของ — ใบ " + d.stock_latest.doc_no : "มีใบเบิกใหม่รออนุมัติ");
+      }
+      alertSeen = n;
+    }).catch(function () { /* เน็ตหลุดก็เงียบไว้ */ });
+  }
+
+  function toast(text) {
+    var t = document.getElementById("jade-toast");
+    if (!t) {
+      t = document.createElement("div");
+      t.id = "jade-toast";
+      document.body.appendChild(t);
+    }
+    t.textContent = text;
+    t.className = "show";
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.className = ""; }, 6000);
+  }
+
+  function startAlerts() {
+    if (alertTimer) return;
+    pollAlerts();
+    alertTimer = setInterval(pollAlerts, 30000);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) pollAlerts();
+    });
+  }
+
+  function enhanceAll() {
+    fillAppSwitch(); fillNav(); enhanceDates(); enhanceTimes(); startAlerts();
+  }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", enhanceAll);
   } else {
@@ -462,7 +536,7 @@ window.JADE = (function () {
     onQueueChange: function (fn) { onQueue = fn; },
     configured: configured,
     thDate: thDate, today: today, daysAgo: daysAgo, monthsAgo: monthsAgo,
-    nf: nf, esc: esc, msg: msg,
+    nf: nf, esc: esc, msg: msg, toast: toast, pollAlerts: pollAlerts,
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
     shrinkImage: shrinkImage,
