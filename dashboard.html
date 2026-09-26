@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=36">
+<link rel="stylesheet" href="app.css?v=37">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -205,6 +205,14 @@
       <div class="panel scroll"><table id="bytime"></table></div>
     </section>
 
+    <section id="sec-mach" hidden>
+      <div class="sec-head">
+        <h2>Run time ต่อเครื่อง</h2>
+        <span class="hint">เครื่องเดินขนานกัน จึงดูทีละเครื่อง ไม่เอามาบวกรวม</span>
+      </div>
+      <div class="panel scroll"><table id="bymach"></table></div>
+    </section>
+
     <section id="sec-cnc" hidden>
       <div class="sec-head">
         <h2>เวลาในเครื่อง / ถังเขย่า</h2>
@@ -239,8 +247,8 @@
   </div>
 </main>
 
-<script src="config.js?v=36"></script>
-<script src="api.js?v=36"></script>
+<script src="config.js?v=37"></script>
+<script src="api.js?v=37"></script>
 <script>
 (function () {
   "use strict";
@@ -438,6 +446,7 @@
     renderByEmp(d.by_employee || [], one);
     renderHeat(d.by_emp_step || []);
     renderByTime(d.by_step || [], one);
+    renderMach(d.cnc_machines || []);
     renderCnc(d.cnc_steps || []);
     renderByProd(d.by_product || [], one);
     renderByStep(d.by_step || [], one);
@@ -464,11 +473,12 @@
   function cncTiles(g, label, place) {
     var t = [], runs = Number(g.runs) || 0, open = Number(g.open) || 0;
     if (runs) {
+      // ไม่บวกวันของทุกเครื่องรวมกัน — เครื่องเดินขนานกัน ผลรวมไม่มีความหมาย
       t.push({ k: "ออกจาก" + label, v: J.nf.format(g.pieces || 0), u: "ชิ้น",
         f: runs + " รอบ" +
-           (g.days ? " · รวม " + J.nf.format(g.days) + " วัน" : "") +
            (g.avg_days ? " · เฉลี่ย " + g.avg_days + " วัน/รอบ" : "") +
-           (g.max_days ? " · นานสุด " + g.max_days + " วัน" : "") });
+           (g.max_days ? " · นานสุด " + g.max_days + " วัน" : "") +
+           (Number(g.machines) ? " · " + g.machines + " " + place : "") });
     }
     if (open) {
       t.push({ k: "ยังค้างใน" + place, v: J.nf.format(open), u: "งาน",
@@ -688,6 +698,36 @@
       }).join("") + "</tbody>";
   }
 
+  /* run time ราย "เครื่อง" — ตัวเลขหลักคือจำนวนวันที่เครื่องนั้นมีงานอยู่จริง
+     ไม่ใช่ผลบวกของทุกเครื่อง เพราะเครื่องเดินพร้อมกัน */
+  function renderMach(rows) {
+    var list = rows || [], sec = $("sec-mach");
+    if (!list.length) { sec.hidden = true; return; }
+    sec.hidden = false;
+    var maxB = Math.max.apply(null, list.map(function (x) { return Number(x.busy_days) || 0; })) || 1;
+    $("bymach").innerHTML =
+      "<thead><tr><th>เครื่อง</th><th>ใช้กับขั้นตอน</th><th class='num'>รอบ</th>" +
+      "<th class='num'>ชิ้น</th><th class='num'>วันที่มีงาน</th><th>ใช้งาน</th>" +
+      "<th class='num'>เฉลี่ย/รอบ</th><th class='num'>นานสุด</th><th class='num'>ค้าง</th>" +
+      "<th></th></tr></thead><tbody>" +
+      list.map(function (x) {
+        var busy = Number(x.busy_days) || 0, span = Number(x.span_days) || 0;
+        var pct = span ? busy / span * 100 : 0;
+        var cls = pct >= 70 ? "ok" : pct >= 30 ? "warn" : "idle";
+        var open = Number(x.open) || 0;
+        return "<tr><td>" + J.esc(x.machine) + "</td><td>" + J.esc(x.steps || "—") + "</td>" +
+          "<td class='num'>" + J.nf.format(Number(x.runs) || 0) + "</td>" +
+          "<td class='num'>" + J.nf.format(Number(x.pieces) || 0) + "</td>" +
+          "<td class='num'>" + (busy ? J.nf.format(busy) : "—") + "</td>" +
+          '<td><span class="chip ' + cls + '">' + pctTxt(busy, span) + "</span></td>" +
+          "<td class='num'>" + (x.avg_days != null ? x.avg_days + " วัน" : "—") + "</td>" +
+          "<td class='num'>" + (x.max_days != null ? J.nf.format(x.max_days) : "—") + "</td>" +
+          "<td class='num'>" + (open ? J.nf.format(open) : "—") + "</td>" +
+          '<td style="width:24%"><span class="htrack" style="height:12px">' +
+          '<span class="hfill" style="width:' + (busy / maxB * 100).toFixed(1) + '%"></span></span></td></tr>';
+      }).join("") + "</tbody>";
+  }
+
   /* แจกแจงรายขั้นตอน — เขย่าแต่ละเบอร์ใช้เวลาไม่เท่ากัน ต้องดูแยกเบอร์ */
   function renderCnc(rows) {
     var list = (rows || []).filter(function (r) {
@@ -699,7 +739,7 @@
     var maxD = Math.max.apply(null, list.map(function (x) { return Number(x.days) || 0; })) || 1;
     $("bycnc").innerHTML =
       "<thead><tr><th>ขั้นตอน</th><th></th><th class='num'>รอบ</th><th class='num'>ชิ้น</th>" +
-      "<th class='num'>วันรวม</th><th class='num'>เฉลี่ย</th><th class='num'>นานสุด</th>" +
+      "<th class='num'>วันรวมทุกรอบ</th><th class='num'>เฉลี่ย</th><th class='num'>นานสุด</th>" +
       "<th class='num'>ค้าง</th><th></th></tr></thead><tbody>" +
       list.map(function (x) {
         var days = Number(x.days) || 0, open = Number(x.open) || 0;
