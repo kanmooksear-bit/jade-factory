@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=35">
+<link rel="stylesheet" href="app.css?v=36">
 <style>
   .wrap{max-width:1080px}
   .topbar-in{max-width:1080px}
@@ -105,8 +105,8 @@
   </div>
 </main>
 
-<script src="config.js?v=35"></script>
-<script src="api.js?v=35"></script>
+<script src="config.js?v=36"></script>
+<script src="api.js?v=36"></script>
 <script>
 (function () {
   "use strict";
@@ -225,19 +225,31 @@
 
     // ---- ทำขั้นตอนไหนบ้าง ----
     var st = d.by_step || [];
+    // ขั้นที่กดเข้า/ออก (CNC, เขย่า) ไม่มีชั่วโมงคน — เครื่องกับถังเดินเอง
+    // จึงบอกเป็นจำนวนวันที่ของอยู่ในเครื่อง/ถังแทน
+    function stepTime(x) {
+      if (Number(x.minutes)) return hoursTxt(x.minutes);
+      if (Number(x.cnc_days)) {
+        return '<span title="ขั้นตอนนี้ของอยู่ในเครื่อง/ถัง ไม่ได้ใช้ชั่วโมงคน">' +
+          J.nf.format(x.cnc_days) + " วัน" +
+          (Number(x.cnc_open) ? " (ยังค้าง " + J.nf.format(x.cnc_open) + ")" : "") + "</span>";
+      }
+      return "—";
+    }
+
     html += '<section><div class="sec-head"><h2>ทำขั้นตอนไหนบ้าง</h2>' +
-      '<span class="hint">เรียงตามลำดับในสายผลิต</span></div><div class="panel scroll">';
+      '<span class="hint">เรียงตามลำดับในสายผลิต · ขั้นที่กดเข้า–ออก (CNC / เขย่า) บอกเป็นวันในเครื่อง ไม่ใช่ชั่วโมงคน</span></div><div class="panel scroll">';
     if (!st.length) html += '<p class="empty">ยังไม่มีข้อมูลในช่วงนี้</p>';
     else {
       var maxP = Math.max.apply(null, st.map(function (x) { return Number(x.pieces) || 0; })) || 1;
       html += "<table><thead><tr><th>ขั้นตอน</th><th class='num'>ครั้ง</th><th class='num'>ชิ้น</th>" +
-        "<th class='num'>เสีย</th><th class='num'>ชั่วโมง</th><th></th></tr></thead><tbody>" +
+        "<th class='num'>เสีย</th><th class='num'>ชั่วโมง / วัน</th><th></th></tr></thead><tbody>" +
         st.map(function (x) {
           var p = Number(x.pieces) || 0;
           return "<tr><td>" + J.esc(x.step) + "</td><td class='num'>" + J.nf.format(x.n) +
             "</td><td class='num'>" + J.nf.format(p) + "</td><td class='num'>" +
             (Number(x.bad) ? '<span class="chip bad">' + J.nf.format(x.bad) + "</span>" : "—") +
-            "</td><td class='num'>" + hoursTxt(x.minutes) + "</td>" +
+            "</td><td class='num'>" + stepTime(x) + "</td>" +
             '<td style="width:30%"><span class="bar"><i style="width:' +
             (p / maxP * 100).toFixed(1) + '%"></i></span></td></tr>';
         }).join("") + "</tbody></table>";
