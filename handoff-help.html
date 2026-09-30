@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=42">
+<link rel="stylesheet" href="app.css?v=43">
 <style>
   /* ---------- หน้าคู่มือ ---------- */
   .lead{font-size:16px;line-height:1.75;margin:0 0 18px}
@@ -56,12 +56,14 @@
   .fakecam .note{grid-column:3;justify-self:end;color:#9aa;font-size:10.5px}
 
   .rules{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:6px 0 4px}
-  .rules div{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:12px 13px;
-             border-top:1px solid var(--line);line-height:1.65;font-size:14.5px}
-  .rules div:first-child{border-top:0}
-  .rules i{font-style:normal;font-weight:700;color:var(--jade);font-size:16px}
-  .rules b{display:block}
-  .rules span{font-size:13px;color:var(--dim,#8fa39a);display:block;margin-top:2px;line-height:1.6}
+  /* ต้องเป็นลูกโดยตรงเท่านั้น ไม่งั้นกริดจะไปโดน div ข้างในแล้วหัวข้อถูกบีบเป็นคอลัมน์แคบ */
+  .rules > div{display:grid;grid-template-columns:30px 1fr;column-gap:10px;row-gap:3px;
+               padding:13px;border-top:1px solid var(--line)}
+  .rules > div:first-child{border-top:0}
+  .rules i{grid-column:1;grid-row:1 / span 2;font-style:normal;font-weight:700;
+           color:var(--jade);font-size:17px;line-height:1.5}
+  .rules b{grid-column:2;font-size:15.5px;line-height:1.5}
+  .rules span{grid-column:2;font-size:13.5px;color:var(--dim,#8fa39a);line-height:1.65}
 
   .qa{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:6px 0 4px}
   .qa > div{padding:12px 13px;border-top:1px solid var(--line);line-height:1.7;font-size:14.5px}
@@ -288,12 +290,12 @@
   <section class="card">
     <h2>กฎ 3 ข้อ</h2>
     <div class="rules">
-      <div><i>1</i><div><b>เปลี่ยนมือ — ต้องกด</b>
-        <span>ของออกจากมือคุณเมื่อไหร่ กดเมื่อนั้น ไม่มีใบส่งมอบ ก็ไล่ของหายไม่ได้</span></div></div>
-      <div><i>2</i><div><b>รับของ — ต้องนับ</b>
-        <span>นับด้วยตาตัวเอง อย่าเชื่อตัวเลขที่เขาส่งมา ของหายจับได้ที่ตรงนี้ที่เดียว</span></div></div>
-      <div><i>3</i><div><b>ทุกครั้ง — ต้องมีรูป</b>
-        <span>ถ่ายให้เห็นของทั้งหมด รูปคือหลักฐานว่าของครบตอนไหน</span></div></div>
+      <div><i>1</i><b>เปลี่ยนมือ — ต้องกด</b>
+        <span>ของออกจากมือคุณเมื่อไหร่ กดเมื่อนั้น ไม่มีใบส่งมอบ ก็ไล่ของหายไม่ได้</span></div>
+      <div><i>2</i><b>รับของ — ต้องนับ</b>
+        <span>นับด้วยตาตัวเอง อย่าเชื่อตัวเลขที่เขาส่งมา ของหายจับได้ที่ตรงนี้ที่เดียว</span></div>
+      <div><i>3</i><b>ทุกครั้ง — ต้องมีรูป</b>
+        <span>ถ่ายให้เห็นของทั้งหมด รูปคือหลักฐานว่าของครบตอนไหน</span></div>
     </div>
   </section>
 
@@ -319,8 +321,8 @@
   </div>
 </main>
 
-<script src="config.js?v=42"></script>
-<script src="api.js?v=42"></script>
+<script src="config.js?v=43"></script>
+<script src="api.js?v=43"></script>
 <script>
 (function () {
   "use strict";
