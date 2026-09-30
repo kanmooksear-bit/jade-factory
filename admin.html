@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=39">
+<link rel="stylesheet" href="app.css?v=40">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -155,12 +155,30 @@
         ไฟล์นี้มีค่าแรงและต้นทุนอยู่ด้วย — หัวหน้าเท่านั้นที่โหลดได้ ·
         ตัวเลขไม่นับงานที่ถูกตีกลับ
       </p>
+
+      <h2 style="margin-top:26px">รายงานส่ง–รับของ (Word)</h2>
+      <div class="msg" id="w-msg" hidden></div>
+      <p class="hint" style="margin-bottom:12px">
+        ไฟล์ Word A4 จัดหน้าพร้อมพิมพ์ — สรุปจำนวนของหาย · คู่ส่ง–รับที่หายบ่อย ·
+        ตารางใบส่งมอบทุกใบเรียงตามเวลา · และใบที่มีปัญหาแยกไว้พร้อมรูปหลักฐานตอนส่งกับตอนรับ
+        ใช้ช่วงวันที่เดียวกับด้านบน
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" id="w-go" type="button">ดาวน์โหลด Word ส่ง–รับของ</button>
+        <label class="hint" style="display:flex;gap:6px;align-items:center">
+          <input type="checkbox" id="w-pics" checked> แนบรูปหลักฐาน
+        </label>
+      </div>
+      <p class="hint" style="margin-top:10px">
+        แนบรูปทุกใบไฟล์จะใหญ่ (ราว 60–120 KB ต่อรูป) ถ้าช่วงยาวมากแล้วช้า
+        ให้เอาเครื่องหมายถูกออก จะได้เฉพาะตาราง
+      </p>
     </div>
   </section>
 </main>
 
-<script src="config.js?v=39"></script>
-<script src="api.js?v=39"></script>
+<script src="config.js?v=40"></script>
+<script src="api.js?v=40"></script>
 <script>
 (function () {
   "use strict";
@@ -693,6 +711,230 @@
 
     return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sCnc, sMach, sMon, sRaw]);
   }
+
+  /* ---------- รายงาน Word: ส่ง–รับของ / ไล่ของหาย ---------- */
+  var DOCX_SRC = "docx.js?v=40";
+  function needDocx() {
+    if (window.DOCXMini) return Promise.resolve();
+    return new Promise(function (ok, no) {
+      var s = document.createElement("script");
+      s.src = DOCX_SRC;
+      s.onload = function () { window.DOCXMini ? ok() : no(new Error("โหลดตัวสร้างไฟล์ Word ไม่สำเร็จ")); };
+      s.onerror = function () { no(new Error("โหลดตัวสร้างไฟล์ Word ไม่ได้ ลองเช็กอินเทอร์เน็ตแล้วกดใหม่")); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function thDay(iso) {
+    if (!iso) return "—";
+    var p = String(iso).slice(0, 10).split("-");
+    return p.length === 3 ? p[2] + "/" + p[1] + "/" + (Number(p[0]) + 543) : iso;
+  }
+  // ใบที่หัวหน้าต้องตามต่อ = นับไม่ตรง หรือส่งไปแล้วเกิน 24 ชม. ยังไม่มีใครรับ
+  // ใบที่เพิ่งส่งไปเมื่อกี้ยังไม่ถือว่ามีปัญหา ไม่งั้นรายงานจะเต็มไปด้วยของที่กำลังเดินอยู่
+  function needsChase(r) {
+    return r.status === "mismatch" ||
+           (r.status === "sent" && Number(r.hours) >= 24);
+  }
+  function statusTxt(r) {
+    if (r.status === "sent") return "ยังไม่มีใครรับ";
+    if (r.status === "cancelled") return "ยกเลิก";
+    if (r.status === "mismatch") return Number(r.gap) > 0
+      ? "ขาด " + J.nf.format(r.gap) : "เกิน " + J.nf.format(-r.gap);
+    return "ครบ";
+  }
+
+  // ดึงรูปทีละไม่เกิน 40 ใบ ตามที่ฝั่งฐานข้อมูลจำกัดไว้
+  function fetchPics(m, ids) {
+    var byId = {};
+    var chunks = [];
+    for (var i = 0; i < ids.length; i += 40) chunks.push(ids.slice(i, i + 40));
+    return chunks.reduce(function (chain, part, i) {
+      return chain.then(function () {
+        J.msg($("w-msg"), "กำลังโหลดรูป " + (i + 1) + "/" + chunks.length + "…", "ok");
+        return J.rpc("sup_handoff_photos", { p_name: m.name, p_pin: m.pin, p_ids: part })
+          .then(function (ps) {
+            (ps || []).forEach(function (x) {
+              (byId[x.id] = byId[x.id] || []).push(x);
+            });
+          });
+      });
+    }, Promise.resolve()).then(function () { return byId; });
+  }
+
+  function buildHandoffDoc(d, pics, range) {
+    var D = window.DOCXMini;
+    var sm = d.summary || {}, moves = d.moves || [], pairs = d.by_pair || [];
+    var doc = D.doc({
+      header: J.factory + " · รายงานการส่งมอบงานระหว่างขั้นตอน",
+      footer: "ออกเมื่อ " + thDay(J.today())
+    });
+
+    doc.title("รายงานส่ง–รับของ / ไล่ของหาย",
+      J.factory + "  ·  ช่วง " + thDay(range.from) + " – " + thDay(range.to) +
+      "  ·  ออกรายงาน " + thDay(J.today()));
+
+    var lost = Number(sm.lost) || 0, open = Number(sm.unresolved) || 0, stuck = Number(sm.stuck) || 0;
+    doc.cards([
+      { label: "ใบส่งมอบทั้งหมด", value: J.nf.format(sm.sent || 0), note: "ใบ" },
+      { label: "ของหายสะสม", value: J.nf.format(lost), note: "ชิ้น", bad: lost > 0 },
+      { label: "ใบที่นับไม่ตรง", value: J.nf.format(sm.mismatch || 0),
+        note: open ? "ยังไม่เคลียร์ " + open + " ใบ" : "เคลียร์หมดแล้ว", bad: open > 0 },
+      { label: "ค้างทางเกิน 24 ชม.", value: J.nf.format(stuck), note: "ใบ", warn: stuck > 0 }
+    ]);
+
+    var head = lost > 0
+      ? "ช่วงนี้ของหายระหว่างส่งมอบรวม " + J.nf.format(lost) + " ชิ้น จากใบที่นับไม่ตรง " +
+        J.nf.format(sm.mismatch || 0) + " ใบ" +
+        (open ? " ยังไม่ได้เคลียร์ " + open + " ใบ" : "")
+      : "ช่วงนี้ไม่มีของหายระหว่างส่งมอบ ทุกใบที่มีคนรับนับได้ตรงกับที่ส่ง";
+    if (stuck > 0) {
+      head += " และมีของที่ส่งออกไปแล้วเกิน 24 ชั่วโมงยังไม่มีใครกดรับ " +
+        J.nf.format(stuck) + " ใบ ควรตามหาว่าของอยู่ที่ไหน";
+    }
+    doc.p(head, { size: 11 });
+
+    /* ---- คู่ส่ง–รับ ---- */
+    if (pairs.length) {
+      doc.h2("สรุปรายคู่ส่ง–รับ");
+      doc.p("เรียงจากคู่ที่ของหายมากที่สุด ช่องที่เป็นสีแดงคือคู่ที่มีของหาย",
+        { size: 9.5, color: "6B7A72", after: 120 });
+      doc.table({
+        head: ["คนส่ง", "ผู้รับ / จุดพัก", "ครั้ง", "ส่งไป", "รับได้", "หาย"],
+        widths: [22, 30, 10, 13, 13, 12],
+        align: ["l", "l", "r", "r", "r", "r"],
+        badRow: function (r) { return Number(String(r[5]).replace(/,/g, "")) > 0; },
+        rows: pairs.map(function (r) {
+          return [r.from_name, r.to_name, J.nf.format(r.moves),
+                  J.nf.format(r.sent), J.nf.format(r.recv),
+                  Number(r.lost) ? J.nf.format(r.lost) : "—"];
+        })
+      });
+    }
+
+    /* ---- ใบส่งมอบทุกใบ ---- */
+    doc.h2("ใบส่งมอบทั้งหมด เรียงตามเวลา");
+    if (!moves.length) {
+      doc.p("ไม่มีใบส่งมอบในช่วงนี้", { size: 11, color: "6B7A72" });
+    } else {
+      doc.table({
+        head: ["เวลาส่ง", "ล็อต", "หลังขั้น", "จาก", "ถึง", "ส่ง", "รับ", "ผล", "ชม."],
+        widths: [11, 11, 14, 12, 16, 7, 7, 12, 10],
+        align: ["l", "l", "l", "l", "l", "r", "r", "l", "r"],
+        badRow: function (r, i) { return needsChase(moves[i]); },
+        rows: moves.map(function (r) {
+          return [r.sent_txt || "—", r.lot, r.step || "—", r.from_name, r.to_name,
+                  J.nf.format(r.qty_sent),
+                  r.qty_recv == null ? "—" : J.nf.format(r.qty_recv),
+                  statusTxt(r), r.hours == null ? "—" : r.hours];
+        })
+      });
+    }
+
+    /* ---- ใบที่มีปัญหา + รูป ---- */
+    var bad = moves.filter(needsChase);
+    if (bad.length) {
+      doc.pageBreak();
+      doc.title("ใบที่ต้องตามต่อ",
+        J.nf.format(bad.length) + " ใบ — นับได้ไม่ตรงกับที่ส่ง หรือส่งไปแล้วเกิน 24 ชม. ยังไม่มีใครรับ");
+
+      bad.forEach(function (r, i) {
+        if (i) doc.spacer(180);
+        doc.h3((i + 1) + ". " + r.from_name + "  →  " + r.to_name +
+               "   ·   ล็อต " + r.lot + (r.step ? "   ·   หลังขั้น " + r.step : ""));
+
+        var rows = [
+          ["ส่งเมื่อ", r.sent_txt || "—", "จำนวนที่ส่ง", J.nf.format(r.qty_sent) + " ชิ้น"],
+          ["รับเมื่อ", r.recv_txt || "ยังไม่มีใครรับ",
+           "นับได้", r.qty_recv == null ? "—" : J.nf.format(r.qty_recv) + " ชิ้น"],
+          ["คนที่กดรับ", r.recv_name || "—",
+           r.status === "sent" ? "ค้างมาแล้ว" : "ส่วนต่าง",
+           r.status === "sent" ? (r.hours == null ? "—" : r.hours + " ชม.")
+                               : (Number(r.gap) ? J.nf.format(r.gap) + " ชิ้น" : "ตรง")]
+        ];
+        doc.table({
+          widths: [16, 34, 16, 34],
+          align: ["l", "l", "l", "l"],
+          rows: rows
+        });
+
+        if (r.note) doc.p([["คนส่งบันทึกไว้: ", { b: 1, size: 10 }], [r.note, { size: 10 }]], { size: 10 });
+        if (r.gap_note) doc.p([["คนรับบันทึกไว้: ", { b: 1, size: 10 }], [r.gap_note, { size: 10 }]], { size: 10 });
+        if (r.resolved) {
+          doc.p([["หัวหน้าเคลียร์แล้ว: ", { b: 1, size: 10, color: "1E6B4F" }],
+                 [(r.resolve_note || "") + (r.resolved_by ? "  (" + r.resolved_by + ")" : ""),
+                  { size: 10, color: "1E6B4F" }]], { size: 10 });
+        } else {
+          doc.p("ยังไม่ได้เคลียร์", { size: 10, b: 1, color: "A03028" });
+        }
+
+        var ps = (pics && pics[r.id]) || [];
+        if (ps.length) {
+          doc.imageRow(ps.map(function (x) {
+            return { data: x.data, ratio: x.ratio,
+                     caption: (x.kind === "send" ? "ตอนส่ง" : "ตอนรับ") +
+                              " · " + (x.by || "-") + " · " + x.at };
+          }));
+        } else {
+          doc.p("— ไม่มีรูปหลักฐานในใบนี้ —", { size: 9.5, color: "6B7A72" });
+        }
+
+        doc.p("ข้อสรุป / สิ่งที่สั่งการ ...........................................................................",
+          { size: 10, color: "8A968F", before: 60 });
+      });
+    }
+
+    return doc.blob();
+  }
+
+  $("w-go").addEventListener("click", function () {
+    var m = J.me.get(), from = $("e-from").value || null, to = $("e-to").value || J.today();
+    if (from && from > to) { J.msg($("w-msg"), "วันเริ่มต้องไม่เกินวันสิ้นสุด", "err"); return; }
+    var wantPics = $("w-pics").checked;
+    $("w-go").disabled = true;
+    J.msg($("w-msg"), "กำลังดึงข้อมูล…", "ok");
+    var data = null;
+    needDocx()
+      .then(function () {
+        return J.rpc("sup_handoffs", {
+          p_name: m.name, p_pin: m.pin, p_from: from, p_to: to,
+          p_lot: null, p_gap_only: false
+        });
+      })
+      .then(function (d) {
+        data = d;
+        if (!(d.moves || []).length) throw new Error("ไม่มีใบส่งมอบในช่วงที่เลือก");
+        if (!wantPics) return {};
+        var ids = d.moves.filter(function (r) {
+          return needsChase(r) && Number(r.photos);
+        }).map(function (r) { return r.id; });
+        return ids.length ? fetchPics(m, ids) : {};
+      })
+      .then(function (byId) {
+        // อ่านสัดส่วนรูปก่อน จะได้วางลง Word แล้วไม่ยืด
+        var all = [];
+        Object.keys(byId).forEach(function (k) {
+          byId[k].forEach(function (x) { all.push(x); });
+        });
+        if (!all.length) return byId;
+        J.msg($("w-msg"), "กำลังจัดหน้า…", "ok");
+        return Promise.all(all.map(function (x) {
+          return window.DOCXMini.ratio(x.data).then(function (r) { x.ratio = r; });
+        })).then(function () { return byId; });
+      })
+      .then(function (byId) {
+        var range = (data.range || {});
+        var nm = "IRJ-รายงานส่งรับของ-" + (range.to || J.today()) + ".docx";
+        window.DOCXMini.save(buildHandoffDoc(data, byId, range), nm);
+        var sm = data.summary || {};
+        J.msg($("w-msg"), "ได้ไฟล์ " + nm + " แล้ว — ใบส่งมอบ " +
+          J.nf.format(sm.sent || 0) + " ใบ · ของหาย " + J.nf.format(sm.lost || 0) +
+          " ชิ้น · ใบที่ต้องตามต่อ " +
+          J.nf.format((data.moves || []).filter(needsChase).length) + " ใบ", "ok");
+      })
+      .catch(function (err) { J.msg($("w-msg"), err.message, "err"); })
+      .then(function () { $("w-go").disabled = false; });
+  });
 
   $("e-go").addEventListener("click", function () {
     var m = J.me.get(), from = $("e-from").value || null, to = $("e-to").value || J.today();
