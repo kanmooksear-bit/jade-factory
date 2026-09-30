@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=39">
 </head>
 <body>
 
@@ -56,18 +56,18 @@
 
     <div class="card">
       <div class="tabs" role="tablist">
-        <button class="tab" id="tab-in" role="tab" aria-selected="true" type="button">รอฉันรับ</button>
+        <button class="tab" id="tab-in" role="tab" aria-selected="true" type="button">รอรับ</button>
         <button class="tab" id="tab-send" role="tab" aria-selected="false" type="button">ส่งของ</button>
-        <button class="tab" id="tab-out" role="tab" aria-selected="false" type="button">ที่ฉันส่งไป</button>
+        <button class="tab" id="tab-out" role="tab" aria-selected="false" type="button">ที่ส่งไป</button>
       </div>
 
-      <!-- ---------- รอฉันรับ ---------- -->
+      <!-- ---------- รอรับ ---------- -->
       <div id="pane-in">
         <p class="hint">ของที่มีคนส่งมาให้ หรือวางไว้ที่จุดพัก · กดรับแล้วต้องนับจำนวนจริงกับถ่ายรูป</p>
         <div class="msg" id="in-msg" hidden></div>
         <div id="in-list"><p class="hint">กำลังโหลด…</p></div>
 
-        <h2 style="margin-top:22px">ที่ฉันรับไว้ 7 วันล่าสุด</h2>
+        <h2 style="margin-top:22px">รับไว้แล้ว 7 วันล่าสุด</h2>
         <div id="recv-list"><p class="hint">—</p></div>
       </div>
 
@@ -124,7 +124,7 @@
         <button class="btn btn-primary btn-lg" id="send-go" type="button">บันทึกการส่งมอบ</button>
       </div>
 
-      <!-- ---------- ที่ฉันส่งไป ---------- -->
+      <!-- ---------- ที่ส่งไป ---------- -->
       <div id="pane-out" hidden>
         <p class="hint">ของที่ส่งออกไปแล้ว ยังไม่มีใครกดรับ</p>
         <div class="msg" id="out-msg" hidden></div>
@@ -134,8 +134,8 @@
   </section>
 </main>
 
-<script src="config.js?v=38"></script>
-<script src="api.js?v=38"></script>
+<script src="config.js?v=39"></script>
+<script src="api.js?v=39"></script>
 <script>
 (function () {
   "use strict";
@@ -291,7 +291,7 @@
       renderOutbox(d.outbox || []);
       renderRecent(d.recent || []);
       var n = (d.inbox || []).length;
-      $("tab-in").textContent = n ? "รอฉันรับ (" + n + ")" : "รอฉันรับ";
+      $("tab-in").textContent = n ? "รอรับ (" + n + ")" : "รอรับ";
     }).catch(function (err) { J.msg($("in-msg"), err.message, "err"); });
   }
 
