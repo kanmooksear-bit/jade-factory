@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>วิธีใช้ ส่ง–รับของ — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=41">
+<style>
+  /* ---------- หน้าคู่มือ ---------- */
+  .lead{font-size:16px;line-height:1.75;margin:0 0 18px}
+  .why{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0 6px}
+  .why div{border:1px solid var(--line);border-radius:10px;padding:11px 13px;background:var(--surface)}
+  .why b{display:block;font-size:19px;color:var(--jade);margin:2px 0 3px}
+  .why span{font-size:12.5px;color:var(--dim,#8fa39a);line-height:1.5}
+
+  .step{display:grid;grid-template-columns:44px 1fr;gap:12px;
+        padding:16px 0;border-top:1px solid var(--line)}
+  .step:first-of-type{border-top:0}
+  .num{width:36px;height:36px;border-radius:50%;background:var(--jade);color:var(--on-jade);
+       display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px}
+  .step h3{margin:4px 0 6px;font-size:17px;line-height:1.45}
+  .step p{margin:0 0 8px;line-height:1.7;font-size:14.5px}
+  .step p:last-child{margin-bottom:0}
+  .step .tip{font-size:13px;color:var(--dim,#8fa39a);line-height:1.65}
+  .step ul{margin:6px 0 8px;padding-inline-start:20px;line-height:1.8;font-size:14.5px}
+
+  /* จอมือถือจำลอง — ใช้คลาสเดียวกับแอปจริง หน้าตาจึงตรงกันเสมอ */
+  .phone{max-width:290px;margin:10px 0 2px;border:8px solid #2c332f;border-radius:22px;
+         background:var(--bg);padding:10px 9px;box-shadow:0 6px 18px rgba(0,0,0,.22)}
+  .phone .cap{display:block;text-align:center;font-size:11.5px;color:var(--dim,#8fa39a);
+              margin-top:7px;line-height:1.5}
+  .phone .tabs{margin-bottom:9px}
+  .phone .tab{padding:6px 8px;font-size:12px}
+  .phone .hoff{margin-bottom:0}
+  .phone .field{margin-bottom:8px}
+  .phone .field label{font-size:12px}
+  .phone .btn{font-size:12.5px;padding:6px 10px}
+  .phone .hint{font-size:11.5px}
+  .fakecam{border-radius:12px;overflow:hidden;background:#111}
+  .fakecam .top{display:flex;justify-content:space-between;align-items:center;
+                padding:7px 9px;color:#fff;font-size:12px;font-weight:600;background:#000}
+  .fakecam .view{height:150px;background:
+      radial-gradient(circle at 30% 35%,#5f9c78 16px,transparent 17px),
+      radial-gradient(circle at 62% 35%,#4e8a68 16px,transparent 17px),
+      radial-gradient(circle at 30% 68%,#4e8a68 16px,transparent 17px),
+      radial-gradient(circle at 62% 68%,#5f9c78 16px,transparent 17px),
+      #8a7f70}
+  .fakecam .bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+                padding:10px;background:#000}
+  .fakecam .shut{grid-column:2;width:42px;height:42px;border-radius:50%;background:#fff;
+                 border:3px solid #ddd;justify-self:center}
+  .fakecam .note{grid-column:3;justify-self:end;color:#9aa;font-size:10.5px}
+
+  .rules{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:6px 0 4px}
+  .rules div{display:grid;grid-template-columns:34px 1fr;gap:10px;padding:12px 13px;
+             border-top:1px solid var(--line);line-height:1.65;font-size:14.5px}
+  .rules div:first-child{border-top:0}
+  .rules i{font-style:normal;font-weight:700;color:var(--jade);font-size:16px}
+  .rules b{display:block}
+  .rules span{font-size:13px;color:var(--dim,#8fa39a);display:block;margin-top:2px;line-height:1.6}
+
+  .qa{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:6px 0 4px}
+  .qa > div{padding:12px 13px;border-top:1px solid var(--line);line-height:1.7;font-size:14.5px}
+  .qa > div:first-child{border-top:0}
+  .qa b{display:block;color:var(--jade);margin-bottom:2px}
+
+  .warnbox{border:1px solid color-mix(in srgb,var(--alert,#c0392b) 40%,transparent);
+    background:color-mix(in srgb,var(--alert,#c0392b) 8%,transparent);
+    border-radius:10px;padding:12px 14px;line-height:1.7;font-size:14.5px;margin:14px 0}
+  .backbar{display:flex;gap:8px;flex-wrap:wrap;margin:22px 0 6px}
+  @media print{
+    .topbar,.backbar,.nav{display:none!important}
+    .phone{box-shadow:none;border-color:#999}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">วิธีใช้</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who">
+      <a class="btn btn-sm btn-ghost" href="handoff.html">กลับหน้าส่ง–รับของ</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="card">
+    <h2 style="font-size:24px;margin-bottom:6px">ส่ง–รับของ ใช้ยังไง</h2>
+    <p class="lead">
+      ทุกครั้งที่ของเปลี่ยนมือ — ส่งต่อให้คนอื่น หรือรับมาจากคนอื่น — ต้องกดในแอป
+      ใช้เวลาไม่ถึงนาที ทำที่มือถือได้เลย
+    </p>
+
+    <div class="why">
+      <div><span>ทำไมต้องกด</span><b>ของหาย</b><span>จะได้รู้ว่าหายช่วงไหน ใครถือล่าสุด</span></div>
+      <div><span>ใช้เวลา</span><b>ไม่ถึง 1 นาที</b><span>ต่อหนึ่งครั้ง</span></div>
+      <div><span>ต้องมี</span><b>รูปถ่ายสด</b><span>เลือกจากคลังรูปไม่ได้</span></div>
+    </div>
+
+    <p class="lead" style="margin-top:16px">
+      <b>เปิดยังไง</b> — เข้าแอปเหมือนเดิม แล้วกดเมนู <b>ส่ง–รับของ</b>
+      ถ้ามีเลขสีแดงอยู่ข้างเมนู แปลว่ามีของรอคุณรับอยู่ ให้รีบไปกดรับ
+    </p>
+  </section>
+
+  <!-- ==================== รับของ ==================== -->
+  <section class="card">
+    <div class="sec-head" style="display:block;margin-bottom:4px">
+      <h2>รับของ</h2>
+      <span class="hint">ทำทุกครั้งที่มีคนส่งของมาให้</span>
+    </div>
+
+    <div class="step">
+      <span class="num">1</span>
+      <div>
+        <h3>เปิดแท็บ "รอรับ"</h3>
+        <p>จะเห็นกล่องของที่รอคุณอยู่ แต่ละกล่องบอกว่า ใครส่งมา · กี่ชิ้น · ล็อตอะไร · ส่งมาตอนกี่โมง</p>
+        <div class="phone">
+          <div class="tabs" role="presentation">
+            <button class="tab" aria-selected="true" type="button">รอรับ (2)</button>
+            <button class="tab" aria-selected="false" type="button">ส่งของ</button>
+            <button class="tab" aria-selected="false" type="button">ที่ส่งไป</button>
+          </div>
+          <div class="hoff wait">
+            <div class="top"><span class="who">แบงค์ ส่งมา</span>
+              <span class="qty">50 <small>ชิ้น</small></span></div>
+            <div class="meta">ล็อต L-2609-004 · หลังขั้น ตัด · ส่งเมื่อ 30/09 09:12 · เพิ่งส่งมา</div>
+          </div>
+          <span class="cap">กล่องสีส้ม = ของที่รอคุณรับอยู่</span>
+        </div>
+        <p class="tip">กล่องที่เขียนว่า "วางไว้ที่ ..." คือของที่วางทิ้งไว้ที่จุดพัก
+          ใครไปหยิบก็กดรับได้ แต่ระบบจะจดว่าคุณเป็นคนหยิบ</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">2</span>
+      <div>
+        <h3>กด "ถ่ายรูปของที่รับ"</h3>
+        <p>กล้องจะเปิดขึ้นเต็มจอ ถ่ายให้เห็นของที่รับมาทั้งหมด แล้วกดปุ่มกลมสีขาวตรงกลาง</p>
+        <div class="phone">
+          <div class="fakecam">
+            <div class="top"><span>ถ่ายรูปของที่รับมา</span><span style="font-weight:400">ปิด</span></div>
+            <div class="view"></div>
+            <div class="bar"><span class="shut"></span><span class="note">ถ่ายสดเท่านั้น</span></div>
+          </div>
+          <span class="cap">กดปุ่มกลมสีขาวเพื่อถ่าย</span>
+        </div>
+        <p class="tip">ครั้งแรกมือถือจะถามขออนุญาตใช้กล้อง ให้กด "อนุญาต" ถามครั้งเดียว ·
+          ระบบไม่ให้เลือกรูปจากคลังรูป ต้องถ่ายสดเท่านั้น</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">3</span>
+      <div>
+        <h3>เช็กว่ารูปขึ้นแล้ว</h3>
+        <p>ถ้าถ่ายสำเร็จจะมีรูปเล็ก ๆ โผล่มาพร้อมคำว่า <b>ถ่ายแล้ว</b>
+          ถ้าถ่ายไม่ชัด กดปุ่มเดิมซ้ำเพื่อถ่ายใหม่ได้</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">4</span>
+      <div>
+        <h3>นับของจริง แล้วใส่ตัวเลข</h3>
+        <p>ช่องตัวเลขจะขึ้นจำนวนที่เขาส่งมาให้ก่อน</p>
+        <ul>
+          <li><b>นับได้ครบ</b> — ไม่ต้องแก้ กด "รับแล้ว" ได้เลย</li>
+          <li><b>นับได้ไม่ครบ</b> — แก้เลขเป็นจำนวนที่นับได้จริง จะมีช่องให้เขียนว่าเกิดอะไรขึ้น
+            เขียนสั้น ๆ ก็พอ แล้วกด "รับแล้ว"</li>
+        </ul>
+        <div class="phone">
+          <div class="hoff wait">
+            <div class="top"><span class="who">แบงค์ ส่งมา</span>
+              <span class="qty">50 <small>ชิ้น</small></span></div>
+            <div class="act" style="margin-top:8px">
+              <input type="text" value="47" readonly style="max-width:90px" aria-label="จำนวนที่นับได้">
+              <button class="btn btn-sm" type="button">ถ่ายรูปของที่รับ</button>
+              <button class="btn btn-sm btn-primary" type="button">รับแล้ว</button>
+            </div>
+            <div class="field" style="margin-top:8px;margin-bottom:0">
+              <label>นับได้ไม่ตรง — เกิดอะไรขึ้น</label>
+              <input type="text" value="นับได้ 47 หาอีก 3 ไม่เจอ" readonly>
+            </div>
+          </div>
+          <span class="cap">แก้เลขเป็น 47 แล้วช่องหมายเหตุจะโผล่มาเอง</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">5</span>
+      <div>
+        <h3>เสร็จแล้ว</h3>
+        <p>จะมีข้อความบอกว่ารับแล้ว ถ้านับไม่ครบจะบอกว่าขาดกี่ชิ้น และแจ้งหัวหน้าให้อัตโนมัติ</p>
+        <div class="warnbox">
+          กดรับแล้วไม่ต้องกลัว — <b>ของที่ขาดเป็นเรื่องที่ต้องตามหา ไม่ใช่ความผิดคนรับ</b>
+          สิ่งที่ผิดคือไม่กด หรือกดรับทั้งที่ยังไม่ได้นับ
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ส่งของ ==================== -->
+  <section class="card">
+    <div class="sec-head" style="display:block;margin-bottom:4px">
+      <h2>ส่งของ</h2>
+      <span class="hint">ทำทุกครั้งที่ส่งงานต่อให้คนอื่น — ก่อนวางหรือยื่นให้ ให้กดในแอปก่อน</span>
+    </div>
+
+    <div class="step">
+      <span class="num">1</span>
+      <div>
+        <h3>เปิดแท็บ "ส่งของ" แล้วกรอก</h3>
+        <ul>
+          <li><b>ล็อตงาน</b> — เลือกล็อตที่ทำอยู่</li>
+          <li><b>ขั้นตอนที่เพิ่งทำเสร็จ</b> — เช่น ตัด, เก็บ</li>
+          <li><b>จำนวนที่ส่ง</b> — นับให้แน่ก่อนใส่</li>
+          <li><b>ส่งให้ใคร</b> — เลือกชื่อคนที่จะรับต่อ</li>
+          <li><b>หมายเหตุ</b> — ไม่บังคับ เช่น "ใส่ถาดแดง 2 ถาด"</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">2</span>
+      <div>
+        <h3>ถ้าไม่ได้ยื่นให้ใครโดยตรง</h3>
+        <p>กดปุ่ม <b>วางที่จุดพัก</b> แล้วเลือกชั้นวางที่เอาไปวาง
+          ใครมาหยิบก็กดรับได้ ระบบจะจดว่าใครหยิบ ตอนกี่โมง</p>
+        <div class="phone">
+          <div class="tabs sm" role="presentation" style="margin-bottom:9px">
+            <button class="tab" aria-selected="false" type="button">ส่งให้คน</button>
+            <button class="tab" aria-selected="true" type="button">วางที่จุดพัก</button>
+          </div>
+          <div class="field" style="margin-bottom:0">
+            <label>วางไว้ที่ไหน</label>
+            <input type="text" value="ชั้นวางหน้าห้อง CNC" readonly>
+          </div>
+          <span class="cap">ใช้ตอนที่คนรับยังไม่อยู่ หรือวางไว้รอเข้าเครื่อง</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">3</span>
+      <div>
+        <h3>ถ่ายรูปของที่ส่ง</h3>
+        <p>กด "เปิดกล้องถ่ายรูป" ถ่ายให้เห็นของทั้งหมดที่จะส่ง เหมือนตอนรับ
+          <b>ข้อนี้ข้ามไม่ได้</b></p>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">4</span>
+      <div>
+        <h3>กด "บันทึกการส่งมอบ"</h3>
+        <p>จะมีข้อความบอกว่าส่งให้ใคร กี่ชิ้น ตอนกี่โมง เท่านี้เสร็จ</p>
+        <div class="phone">
+          <div class="msg ok" style="margin:0">บันทึกแล้ว · ส่งให้ วิน 50 ชิ้น เวลา 09:48</div>
+          <span class="cap">เห็นข้อความนี้แปลว่าเรียบร้อย</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <span class="num">5</span>
+      <div>
+        <h3>ตามดูได้ที่แท็บ "ที่ส่งไป"</h3>
+        <p>ของที่ส่งออกไปแล้วยังไม่มีใครกดรับจะค้างอยู่ตรงนี้ ถ้าค้างนานผิดปกติให้ไปตาม</p>
+        <p class="tip">ถ้าส่งผิด กด "ยกเลิกใบนี้" ได้ ตราบใดที่ยังไม่มีใครกดรับ</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ข้อควรจำ ==================== -->
+  <section class="card">
+    <h2>กฎ 3 ข้อ</h2>
+    <div class="rules">
+      <div><i>1</i><div><b>ของเปลี่ยนมือเมื่อไหร่ กดเมื่อนั้น</b>
+        <span>ถ้าไม่กด พอของหายจะไล่ไม่ได้ว่าหายช่วงไหน</span></div></div>
+      <div><i>2</i><div><b>นับจริงทุกครั้ง อย่ากดรับตามตัวเลขที่เขาส่งมา</b>
+        <span>ตัวเลขที่เขาส่งมาคือที่เขานับ ไม่ใช่ที่คุณนับ จุดที่จับของหายได้คือตรงนี้</span></div></div>
+      <div><i>3</i><div><b>ถ่ายรูปให้เห็นของจริง</b>
+        <span>รูปคือหลักฐาน เวลามีปัญหาจะได้ดูย้อนได้ว่าของครบตอนไหน</span></div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>ถ้าเจอแบบนี้ ทำยังไง</h2>
+    <div class="qa">
+      <div><b>นับได้ไม่ครบ</b>แก้เลขเป็นที่นับได้จริง เขียนบอกสั้น ๆ แล้วกดรับ ระบบจะแจ้งหัวหน้าเอง</div>
+      <div><b>นับได้เกินที่เขาส่งมา</b>ใส่เลขที่นับได้จริงเหมือนกัน เขียนบอกด้วย</div>
+      <div><b>กล้องไม่ขึ้น / ขึ้นว่าไม่ได้อนุญาต</b>กดอนุญาตใช้กล้องในเบราว์เซอร์ แล้วกดปุ่มถ่ายรูปใหม่</div>
+      <div><b>กดรับผิดใบ</b>บอกหัวหน้า หัวหน้าแก้ให้ได้ อย่ากดใหม่ซ้ำ</div>
+      <div><b>ส่งผิดคน</b>ไปแท็บ "ที่ส่งไป" กด "ยกเลิกใบนี้" แล้วส่งใหม่ ทำได้ถ้ายังไม่มีใครกดรับ</div>
+      <div><b>ไม่รู้จะส่งให้ใคร</b>กด "วางที่จุดพัก" แล้วเลือกชั้นวาง</div>
+      <div><b>เน็ตไม่ดี กดแล้วค้าง</b>รอสักครู่แล้วกดใหม่ อย่ากดรัว ๆ ถ้ายังไม่ได้ให้บอกหัวหน้า</div>
+    </div>
+    <p class="lead" style="text-align:center;margin:18px 0 0;color:var(--jade);font-weight:600">
+      ถ้าไม่แน่ใจอะไร ถามหัวหน้าก่อนเสมอ ดีกว่ากดมั่ว
+    </p>
+  </section>
+
+  <div class="backbar">
+    <a class="btn btn-primary" href="handoff.html">ไปหน้าส่ง–รับของ</a>
+    <a class="btn btn-ghost" href="index.html">กลับหน้าลงงานผลิต</a>
+  </div>
+</main>
+
+<script src="config.js?v=41"></script>
+<script src="api.js?v=41"></script>
+<script>
+(function () {
+  "use strict";
+  var J = window.JADE;
+  var f = document.getElementById("factory");
+  if (f && J) f.textContent = J.factory;
+})();
+</script>
+</body>
+</html>

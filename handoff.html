@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=40">
+<link rel="stylesheet" href="app.css?v=41">
 </head>
 <body>
 
@@ -20,6 +20,7 @@
     </div>
     <div class="who" id="who" hidden>
       <span>สวัสดี <b id="who-name"></b></span>
+      <a class="btn btn-sm btn-ghost" href="handoff-help.html">วิธีใช้</a>
       <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
     </div>
   </div>
@@ -63,7 +64,8 @@
 
       <!-- ---------- รอรับ ---------- -->
       <div id="pane-in">
-        <p class="hint">ของที่มีคนส่งมาให้ หรือวางไว้ที่จุดพัก · กดรับแล้วต้องนับจำนวนจริงกับถ่ายรูป</p>
+        <p class="hint">ของที่มีคนส่งมาให้ หรือวางไว้ที่จุดพัก · กดรับแล้วต้องนับจำนวนจริงกับถ่ายรูป ·
+          <a href="handoff-help.html">ดูวิธีใช้</a></p>
         <div class="msg" id="in-msg" hidden></div>
         <div id="in-list"><p class="hint">กำลังโหลด…</p></div>
 
@@ -134,8 +136,8 @@
   </section>
 </main>
 
-<script src="config.js?v=40"></script>
-<script src="api.js?v=40"></script>
+<script src="config.js?v=41"></script>
+<script src="api.js?v=41"></script>
 <script>
 (function () {
   "use strict";

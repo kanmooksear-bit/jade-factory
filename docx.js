@@ -144,7 +144,11 @@
       return list.map(function (it) {
         var t = Array.isArray(it) ? it[0] : it;
         var s = Array.isArray(it) ? (it[1] || o) : o;
-        return "<w:r>" + rPr(s) + '<w:t xml:space="preserve">' + esc(t) + "</w:t></w:r>";
+        // ขึ้นบรรทัดใหม่ในย่อหน้าเดียวกันด้วย <w:br/> ไม่ใช่ตัด \n ทิ้ง
+        var body = String(t == null ? "" : t).split("\n").map(function (ln) {
+          return '<w:t xml:space="preserve">' + esc(ln) + "</w:t>";
+        }).join("<w:br/>");
+        return "<w:r>" + rPr(s) + body + "</w:r>";
       }).join("");
     }
 
@@ -250,19 +254,30 @@
         function cell(v, o) {
           o = o || {};
           var a = o.align === "r" ? "right" : o.align === "c" ? "center" : "left";
+          // ช่องหนึ่งใส่รูปก็ได้ — ส่ง { img: dataUrl, w: ซม., ratio: สูง/กว้าง } มาแทนข้อความ
+          var inner;
+          if (v && typeof v === "object" && !Array.isArray(v) && v.img) {
+            inner = "<w:p>" + pPr({ after: 0, align: "center", line: 240 }) +
+                    (imgRun(v.img, { w: v.w || 4, ratio: v.ratio }) || "") + "</w:p>";
+          } else {
+            var lines = (typeof v === "string" && v.indexOf("\n") >= 0) ? v.split("\n") : [v];
+            inner = lines.map(function (ln, li) {
+              return "<w:p>" + pPr({ after: li === lines.length - 1 ? 0 : 50, align: a, line: 230 }) +
+                runs(ln == null ? "" : ln, { size: o.size || 10, b: o.b, color: o.color }) + "</w:p>";
+            }).join("");
+          }
           return '<w:tc><w:tcPr><w:tcW w:w="' + o.w + '" w:type="dxa"/>' +
             (o.fill ? '<w:shd w:val="clear" w:fill="' + o.fill + '"/>' : "") +
             '<w:tcMar><w:top w:w="70" w:type="dxa"/><w:bottom w:w="70" w:type="dxa"/>' +
             '<w:left w:w="90" w:type="dxa"/><w:right w:w="90" w:type="dxa"/></w:tcMar>' +
-            '<w:vAlign w:val="center"/></w:tcPr>' +
-            "<w:p>" + pPr({ after: 0, align: a, line: 230 }) +
-              runs(v == null ? "" : v, { size: o.size || 10, b: o.b, color: o.color }) +
-            "</w:p></w:tc>";
+            '<w:vAlign w:val="' + (o.vtop ? "top" : "center") + '"/></w:tcPr>' +
+            inner + "</w:tc>";
         }
+        var bcol = t.border === false ? "FFFFFF" : "D8E2DC";
         var x = '<w:tbl><w:tblPr><w:tblW w:w="' + BODY_TW + '" w:type="dxa"/>' +
           "<w:tblBorders>" +
           ['top','left','bottom','right','insideH','insideV'].map(function (s) {
-            return '<w:' + s + ' w:val="single" w:sz="4" w:space="0" w:color="D8E2DC"/>';
+            return '<w:' + s + ' w:val="single" w:sz="4" w:space="0" w:color="' + bcol + '"/>';
           }).join("") + "</w:tblBorders></w:tblPr><w:tblGrid>" +
           ws.map(function (w) { return '<w:gridCol w:w="' + w + '"/>'; }).join("") +
           "</w:tblGrid>";
@@ -276,8 +291,8 @@
         rows.forEach(function (r, ri) {
           var bad = t.badRow && t.badRow(r, ri);
           x += "<w:tr>" + r.map(function (v, i) {
-            return cell(v, { w: ws[i], align: al[i],
-              fill: bad ? "FBECEC" : (ri % 2 ? "F5F8F6" : null),
+            return cell(v, { w: ws[i], align: al[i], vtop: t.vtop, size: t.size,
+              fill: bad ? "FBECEC" : (t.plain ? null : (ri % 2 ? "F5F8F6" : null)),
               color: bad && i === 0 ? "A03028" : null,
               b: bad && i === 0 });
           }).join("") + "</w:tr>";
