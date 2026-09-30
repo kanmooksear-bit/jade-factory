@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=37">
+<link rel="stylesheet" href="app.css?v=38">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -135,6 +135,17 @@
       <button class="btn btn-primary btn-lg" id="f-go" type="button">ดูรายการ</button>
     </div>
 
+    <div class="card" id="card-hoff" hidden>
+      <div class="sec-head" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <h2>ของส่งมอบไม่ตรง / ค้างทาง</h2>
+        <span class="hint" id="hoff-sum"></span>
+      </div>
+      <div class="msg" id="hoff-msg" hidden></div>
+      <div id="hoff-list"></div>
+      <p class="hint" style="margin-top:10px">
+        นับจากใบส่งมอบที่คนรับกดแล้วจำนวนไม่ตรง หรือส่งไปเกิน 24 ชม. ยังไม่มีใครรับ</p>
+    </div>
+
     <div class="card">
       <div class="msg" id="rev-msg" hidden></div>
       <div class="selbar" id="selbar" hidden>
@@ -164,8 +175,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=37"></script>
-<script src="api.js?v=37"></script>
+<script src="config.js?v=38"></script>
+<script src="api.js?v=38"></script>
 <script>
 (function () {
   "use strict";
@@ -280,8 +291,86 @@
       .catch(function (e) { alert(e.message); });
   }
 
+  /* ---------- ใบส่งมอบที่ไม่ตรง ---------- */
+  function loadHandoffs() {
+    var m = J.me.get();
+    return J.rpc("sup_handoffs", {
+      p_name: m.name, p_pin: m.pin,
+      p_from: $("f-from").value || null,
+      p_to: $("f-to").value || null,
+      p_lot: $("f-lot").value || null,
+      p_gap_only: true
+    }).then(function (d) {
+      var moves = (d && d.moves) || [], sm = (d && d.summary) || {};
+      var open = moves.filter(function (r) {
+        return (r.status === "mismatch" && !r.resolved) || r.status === "sent";
+      });
+      $("card-hoff").hidden = !open.length;
+      if (!open.length) return;
+      $("hoff-sum").textContent =
+        "หายรวม " + J.nf.format(sm.lost || 0) + " ชิ้น" +
+        (Number(sm.extra) ? " · เกิน " + J.nf.format(sm.extra) + " ชิ้น" : "") +
+        (Number(sm.stuck) ? " · ค้างทาง " + sm.stuck + " ใบ" : "");
+      $("hoff-list").innerHTML = open.map(function (r) {
+        var stuck = r.status === "sent";
+        return '<div class="hoff gap" data-h="' + r.id + '">' +
+          '<div class="top"><span class="who">' + J.esc(r.from_name) + " → " + J.esc(r.to_name) +
+            (stuck ? " · ยังไม่มีใครรับ" : "") + "</span>" +
+          '<span class="qty">' + (stuck ? J.nf.format(r.qty_sent) + " ชิ้นค้าง"
+             : "ขาด " + J.nf.format(r.gap) + " ชิ้น") + "</span></div>" +
+          '<div class="meta">ล็อต ' + J.esc(r.lot) +
+            (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+            " · ส่ง " + J.esc(r.sent_txt) +
+            (r.recv_txt ? " · รับ " + J.esc(r.recv_txt) + " โดย " + J.esc(r.recv_name || "-") : "") +
+            (r.hours != null ? " · " + r.hours + " ชม." : "") +
+            (stuck ? "" : " · ส่งมา " + J.nf.format(r.qty_sent) + " นับได้ " + J.nf.format(r.qty_recv)) +
+            "</div>" +
+          (r.gap_note ? '<div class="meta">คนรับบอก: ' + J.esc(r.gap_note) + "</div>" : "") +
+          (r.note ? '<div class="meta">คนส่งบอก: ' + J.esc(r.note) + "</div>" : "") +
+          '<div class="act">' +
+            '<button class="btn btn-sm btn-ghost" data-hact="pics">ดูรูป (' + (r.photos || 0) + ")</button>" +
+            (stuck ? "" :
+              '<input type="text" class="rnote" style="min-width:190px" placeholder="เคลียร์ยังไง">' +
+              '<button class="btn btn-sm btn-primary" data-hact="ok">เคลียร์แล้ว</button>') +
+          "</div><div class='pics'></div></div>";
+      }).join("");
+    }).catch(function (err) { J.msg($("hoff-msg"), err.message, "err"); });
+  }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest("[data-hact]") : null;
+    if (!b) return;
+    var box = b.closest(".hoff"), id = box.dataset.h, m = J.me.get();
+
+    if (b.dataset.hact === "pics") {
+      var host = box.querySelector(".pics");
+      if (host.innerHTML) { host.innerHTML = ""; return; }
+      host.innerHTML = '<p class="hint">กำลังโหลดรูป…</p>';
+      J.rpc("app_handoff_photos", { p_name: m.name, p_pin: m.pin, p_id: id })
+        .then(function (ps) {
+          host.innerHTML = !ps.length ? '<p class="hint">ไม่มีรูป</p>' :
+            '<div class="shots">' + ps.map(function (x) {
+              return '<figure><img alt="รูปหลักฐาน" src="' + x.data + '">' +
+                '<figcaption>' + (x.kind === "send" ? "ตอนส่ง" : "ตอนรับ") + " · " +
+                J.esc(x.by || "-") + " · " + J.esc(x.at) + "</figcaption></figure>";
+            }).join("") + "</div>";
+        }).catch(function (err) { host.innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+      return;
+    }
+
+    if (b.dataset.hact === "ok") {
+      var note = (box.querySelector(".rnote").value || "").trim();
+      if (!note) { J.msg($("hoff-msg"), "เขียนด้วยว่าเคลียร์ยังไง", "err"); return; }
+      b.disabled = true;
+      J.rpc("sup_handoff_resolve", { p_name: m.name, p_pin: m.pin, p_id: id, p_note: note })
+        .then(function () { J.msg($("hoff-msg"), "เคลียร์แล้ว", "ok"); loadHandoffs(); })
+        .catch(function (err) { J.msg($("hoff-msg"), err.message, "err"); b.disabled = false; });
+    }
+  });
+
   function load() {
     var m = J.me.get();
+    loadHandoffs();
     $("list").innerHTML = '<p class="hint">กำลังโหลด…</p>';
     $("selbar").hidden = true;
     J.rpc("sup_entries", {

@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>ส่ง–รับของ — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=38">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">ส่ง–รับของ</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span>สวัสดี <b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <nav class="nav" id="nav" hidden>
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อของคุณ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" autocomplete="current-password" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <section id="app" hidden>
+
+    <div class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" id="tab-in" role="tab" aria-selected="true" type="button">รอฉันรับ</button>
+        <button class="tab" id="tab-send" role="tab" aria-selected="false" type="button">ส่งของ</button>
+        <button class="tab" id="tab-out" role="tab" aria-selected="false" type="button">ที่ฉันส่งไป</button>
+      </div>
+
+      <!-- ---------- รอฉันรับ ---------- -->
+      <div id="pane-in">
+        <p class="hint">ของที่มีคนส่งมาให้ หรือวางไว้ที่จุดพัก · กดรับแล้วต้องนับจำนวนจริงกับถ่ายรูป</p>
+        <div class="msg" id="in-msg" hidden></div>
+        <div id="in-list"><p class="hint">กำลังโหลด…</p></div>
+
+        <h2 style="margin-top:22px">ที่ฉันรับไว้ 7 วันล่าสุด</h2>
+        <div id="recv-list"><p class="hint">—</p></div>
+      </div>
+
+      <!-- ---------- ส่งของ ---------- -->
+      <div id="pane-send" hidden>
+        <div class="msg" id="send-msg" hidden></div>
+
+        <div class="field">
+          <label for="f-lot">ล็อตงาน</label>
+          <select id="f-lot"><option value="">— เลือกล็อต —</option></select>
+        </div>
+
+        <div class="two">
+          <div class="field">
+            <label for="f-step">ขั้นตอนที่เพิ่งทำเสร็จ</label>
+            <select id="f-step"><option value="">— ไม่ระบุ —</option></select>
+          </div>
+          <div class="field">
+            <label for="f-qty">จำนวนที่ส่ง (ชิ้น)</label>
+            <input id="f-qty" type="number" inputmode="numeric" min="1" step="1" placeholder="0">
+          </div>
+        </div>
+
+        <div class="tabs sm" id="dest-mode" style="margin:4px 0 10px">
+          <button class="tab" id="d-person" aria-selected="true" type="button">ส่งให้คน</button>
+          <button class="tab" id="d-place" aria-selected="false" type="button">วางที่จุดพัก</button>
+        </div>
+
+        <div class="field" id="wrap-to">
+          <label for="f-to">ส่งให้ใคร</label>
+          <select id="f-to"><option value="">— เลือกคน —</option></select>
+        </div>
+
+        <div class="field" id="wrap-place" hidden>
+          <label for="f-place">วางไว้ที่ไหน</label>
+          <select id="f-place"><option value="">— เลือกจุดพัก —</option></select>
+          <span class="hint">ใครมาหยิบก็กดรับได้ ระบบจดว่าใครหยิบ กี่โมง</span>
+        </div>
+
+        <div class="field">
+          <label for="f-note">หมายเหตุ (ไม่บังคับ)</label>
+          <input id="f-note" type="text" placeholder="เช่น แยกใส่ถาด 2 ถาด">
+        </div>
+
+        <div class="field">
+          <label>รูปของที่ส่ง — บังคับ</label>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-sm" id="send-shot" type="button">เปิดกล้องถ่ายรูป</button>
+            <span id="send-shot-ok"></span>
+          </div>
+          <span class="hint">ต้องถ่ายสดเท่านั้น เลือกจากคลังรูปไม่ได้ · รูปจะมีเวลาประทับไว้</span>
+        </div>
+
+        <button class="btn btn-primary btn-lg" id="send-go" type="button">บันทึกการส่งมอบ</button>
+      </div>
+
+      <!-- ---------- ที่ฉันส่งไป ---------- -->
+      <div id="pane-out" hidden>
+        <p class="hint">ของที่ส่งออกไปแล้ว ยังไม่มีใครกดรับ</p>
+        <div class="msg" id="out-msg" hidden></div>
+        <div id="out-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="config.js?v=38"></script>
+<script src="api.js?v=38"></script>
+<script>
+(function () {
+  "use strict";
+  var J = window.JADE;
+  var $ = function (id) { return document.getElementById(id); };
+  var boot = null, data = null, sendShot = null, dest = "person";
+
+  $("factory").textContent = J.factory;
+
+  /* ---------- แท็บ ---------- */
+  function pickTab(which) {
+    [["in", "tab-in", "pane-in"], ["send", "tab-send", "pane-send"], ["out", "tab-out", "pane-out"]]
+      .forEach(function (t) {
+        var on = t[0] === which;
+        $(t[1]).setAttribute("aria-selected", on ? "true" : "false");
+        $(t[2]).hidden = !on;
+      });
+  }
+  $("tab-in").addEventListener("click", function () { pickTab("in"); });
+  $("tab-send").addEventListener("click", function () { pickTab("send"); });
+  $("tab-out").addEventListener("click", function () { pickTab("out"); });
+
+  $("d-person").addEventListener("click", function () { setDest("person"); });
+  $("d-place").addEventListener("click", function () { setDest("place"); });
+  function setDest(d) {
+    dest = d;
+    $("d-person").setAttribute("aria-selected", d === "person" ? "true" : "false");
+    $("d-place").setAttribute("aria-selected", d === "place" ? "true" : "false");
+    $("wrap-to").hidden = d !== "person";
+    $("wrap-place").hidden = d !== "place";
+  }
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      boot = d;
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        d.employees.map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("app_handoff_inbox", { p_name: name, p_pin: pin }).then(function () {
+      var role = (boot.employees.filter(function (e) { return e.name === name; })[0] || {}).role;
+      J.me.set(name, pin, role || "worker");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  function enterApp() {
+    var m = J.me.get();
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = m.name;
+    J.nav(m.role);
+    fillForm();
+    load();
+  }
+
+  /* ---------- เติมตัวเลือกในฟอร์มส่ง ---------- */
+  function fillForm() {
+    var m = J.me.get();
+    $("f-step").innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+      (boot.steps || []).map(function (s) {
+        return '<option value="' + J.esc(s.name) + '">' + J.esc(s.name) + "</option>";
+      }).join("");
+    $("f-to").innerHTML = '<option value="">— เลือกคน —</option>' +
+      (boot.employees || []).filter(function (e) { return e.name !== m.name; })
+        .map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+    $("f-place").innerHTML = '<option value="">— เลือกจุดพัก —</option>' +
+      (boot.places || []).map(function (p) {
+        return '<option value="' + J.esc(p.name) + '">' + J.esc(p.name) +
+               (p.note ? " — " + J.esc(p.note) : "") + "</option>";
+      }).join("");
+    if (!(boot.places || []).length) {
+      $("d-place").disabled = true;
+      $("d-place").title = "ยังไม่ได้ตั้งจุดพัก — หัวหน้าเพิ่มได้ที่หน้าตั้งค่า";
+    }
+    J.rpc("app_open_lots", { p_name: m.name, p_pin: m.pin }).then(function (d) {
+      var ls = d || [];
+      $("f-lot").innerHTML = !ls.length
+        ? '<option value="">— ยังไม่มีล็อตที่เปิดอยู่ —</option>'
+        : '<option value="">— เลือกล็อต —</option>' + ls.map(function (l) {
+            return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+              J.esc(l.product_code) + " " + J.esc(l.product_name) + "</option>";
+          }).join("");
+    }).catch(function () {
+      $("f-lot").innerHTML = '<option value="">— โหลดรายการล็อตไม่ได้ —</option>';
+    });
+  }
+
+  /* ---------- กล้อง: บังคับถ่ายสด ---------- */
+  function shotOk(host, data) {
+    host.innerHTML = data
+      ? '<span class="shotok"><img alt="รูปที่ถ่าย" src="' + data + '">ถ่ายแล้ว · กดปุ่มอีกครั้งเพื่อถ่ายใหม่</span>'
+      : "";
+  }
+  $("send-shot").addEventListener("click", function () {
+    J.camera(function (d) {
+      if (!d) return;
+      sendShot = d;
+      shotOk($("send-shot-ok"), d);
+    }, { title: "ถ่ายรูปของที่กำลังส่ง" });
+  });
+
+  /* ---------- ส่ง ---------- */
+  $("send-go").addEventListener("click", function () {
+    var m = J.me.get();
+    var lot = $("f-lot").value, qty = Number($("f-qty").value);
+    if (!lot) { J.msg($("send-msg"), "เลือกล็อตก่อน", "err"); return; }
+    if (!(qty > 0)) { J.msg($("send-msg"), "ใส่จำนวนที่ส่ง", "err"); return; }
+    if (dest === "person" && !$("f-to").value) { J.msg($("send-msg"), "เลือกคนที่จะส่งให้", "err"); return; }
+    if (dest === "place" && !$("f-place").value) { J.msg($("send-msg"), "เลือกจุดพัก", "err"); return; }
+    if (!sendShot) { J.msg($("send-msg"), "ต้องถ่ายรูปของที่ส่งก่อน", "err"); return; }
+
+    $("send-go").disabled = true;
+    J.msg($("send-msg"), "กำลังบันทึก…", "ok");
+    J.rpc("app_handoff_send", {
+      p_name: m.name, p_pin: m.pin, p_lot: lot,
+      p_step: $("f-step").value || null, p_qty: qty,
+      p_to: dest === "person" ? $("f-to").value : null,
+      p_place: dest === "place" ? $("f-place").value : null,
+      p_photo: sendShot, p_note: $("f-note").value || null
+    }).then(function (r) {
+      var to = dest === "person" ? $("f-to").value : "จุดพัก " + $("f-place").value;
+      J.msg($("send-msg"), "บันทึกแล้ว · ส่งให้ " + to + " " + J.nf.format(qty) + " ชิ้น เวลา " + r.at, "ok");
+      sendShot = null; shotOk($("send-shot-ok"), null);
+      $("f-qty").value = ""; $("f-note").value = "";
+      load();
+    }).catch(function (err) { J.msg($("send-msg"), err.message, "err"); })
+      .then(function () { $("send-go").disabled = false; });
+  });
+
+  /* ---------- โหลดรายการ ---------- */
+  function load() {
+    var m = J.me.get();
+    return J.rpc("app_handoff_inbox", { p_name: m.name, p_pin: m.pin }).then(function (d) {
+      data = d;
+      renderInbox(d.inbox || []);
+      renderOutbox(d.outbox || []);
+      renderRecent(d.recent || []);
+      var n = (d.inbox || []).length;
+      $("tab-in").textContent = n ? "รอฉันรับ (" + n + ")" : "รอฉันรับ";
+    }).catch(function (err) { J.msg($("in-msg"), err.message, "err"); });
+  }
+
+  function waitTxt(h) {
+    h = Number(h) || 0;
+    if (h < 1) return "เพิ่งส่งมา";
+    if (h < 24) return "รอมาแล้ว " + h.toFixed(1) + " ชม.";
+    return "รอมาแล้ว " + Math.floor(h / 24) + " วัน";
+  }
+
+  function renderInbox(rows) {
+    if (!rows.length) { $("in-list").innerHTML = '<p class="hint">ไม่มีของรออยู่</p>'; return; }
+    $("in-list").innerHTML = rows.map(function (r) {
+      var late = Number(r.hours_waiting) >= 24;
+      return '<div class="hoff' + (late ? " gap" : " wait") + '" data-id="' + r.id + '">' +
+        '<div class="top"><span class="who">' + J.esc(r.from_name) + " ส่งมา" +
+          (r.open_pickup ? " · วางไว้ที่ " + J.esc(r.place) : "") + "</span>" +
+        '<span class="qty">' + J.nf.format(r.qty_sent) + ' <small>ชิ้น</small></span></div>' +
+        '<div class="meta">ล็อต ' + J.esc(r.lot) +
+          (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+          " · ส่งเมื่อ " + J.esc(r.sent_txt) + " · " + waitTxt(r.hours_waiting) +
+          (r.note ? " · " + J.esc(r.note) : "") + "</div>" +
+        '<div class="act">' +
+          '<input type="number" inputmode="numeric" min="0" step="1" class="qcount" ' +
+             'style="max-width:110px" value="' + r.qty_sent + '" aria-label="จำนวนที่นับได้">' +
+          '<button class="btn btn-sm" data-act="shot">ถ่ายรูปของที่รับ</button>' +
+          '<button class="btn btn-sm btn-primary" data-act="recv">รับแล้ว</button>' +
+          '<span class="ok"></span></div>' +
+        '<div class="field gapnote" hidden style="margin-top:8px">' +
+          '<label>นับได้ไม่ตรง — เกิดอะไรขึ้น</label>' +
+          '<input type="text" class="gaptxt" placeholder="เช่น นับได้ 47 หาอีก 3 ไม่เจอ"></div>' +
+        "</div>";
+    }).join("");
+  }
+
+  // เก็บรูปที่ถ่ายของแต่ละใบไว้ในหน่วยความจำ ไม่แตะ localStorage (รูปใหญ่)
+  var recvShots = {};
+
+  $("in-list").addEventListener("input", function (e) {
+    var box = e.target.closest(".hoff");
+    if (!box || !e.target.classList.contains("qcount")) return;
+    var row = (data.inbox || []).filter(function (r) { return r.id === box.dataset.id; })[0];
+    if (!row) return;
+    box.querySelector(".gapnote").hidden = Number(e.target.value) === Number(row.qty_sent);
+  });
+
+  $("in-list").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-act]");
+    if (!b) return;
+    var box = b.closest(".hoff"), id = box.dataset.id;
+
+    if (b.dataset.act === "shot") {
+      J.camera(function (d) {
+        if (!d) return;
+        recvShots[id] = d;
+        shotOk(box.querySelector(".ok"), d);
+      }, { title: "ถ่ายรูปของที่รับมา" });
+      return;
+    }
+
+    if (b.dataset.act === "recv") {
+      var m = J.me.get();
+      var qty = Number(box.querySelector(".qcount").value);
+      var note = (box.querySelector(".gaptxt").value || "").trim();
+      if (!(qty >= 0)) { J.msg($("in-msg"), "ใส่จำนวนที่นับได้", "err"); return; }
+      if (!recvShots[id]) { J.msg($("in-msg"), "ต้องถ่ายรูปของที่รับก่อน", "err"); return; }
+      b.disabled = true;
+      J.rpc("app_handoff_recv", {
+        p_name: m.name, p_pin: m.pin, p_id: id, p_qty: qty,
+        p_photo: recvShots[id], p_note: note || null
+      }).then(function (r) {
+        delete recvShots[id];
+        J.msg($("in-msg"), r.status === "mismatch"
+          ? "รับแล้ว แต่ขาด " + J.nf.format(r.gap) + " ชิ้น — ส่งให้หัวหน้าเคลียร์แล้ว"
+          : "รับครบแล้ว เวลา " + r.at, r.status === "mismatch" ? "err" : "ok");
+        load();
+      }).catch(function (err) {
+        J.msg($("in-msg"), err.message, "err");
+        b.disabled = false;
+      });
+    }
+  });
+
+  function renderOutbox(rows) {
+    if (!rows.length) { $("out-list").innerHTML = '<p class="hint">ไม่มีของค้างอยู่</p>'; return; }
+    $("out-list").innerHTML = rows.map(function (r) {
+      var late = Number(r.hours_waiting) >= 24;
+      return '<div class="hoff' + (late ? " gap" : "") + '" data-id="' + r.id + '">' +
+        '<div class="top"><span class="who">ส่งให้ ' + J.esc(r.to_name) + "</span>" +
+        '<span class="qty">' + J.nf.format(r.qty_sent) + ' <small>ชิ้น</small></span></div>' +
+        '<div class="meta">ล็อต ' + J.esc(r.lot) +
+          (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+          " · ส่งเมื่อ " + J.esc(r.sent_txt) + " · " + waitTxt(r.hours_waiting) + "</div>" +
+        '<div class="act"><button class="btn btn-sm btn-ghost" data-cancel="1">ยกเลิกใบนี้</button></div>' +
+        "</div>";
+    }).join("");
+  }
+
+  $("out-list").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-cancel]");
+    if (!b) return;
+    var m = J.me.get(), id = b.closest(".hoff").dataset.id;
+    b.disabled = true;
+    J.rpc("app_handoff_cancel", { p_name: m.name, p_pin: m.pin, p_id: id })
+      .then(function () { J.msg($("out-msg"), "ยกเลิกแล้ว", "ok"); load(); })
+      .catch(function (err) { J.msg($("out-msg"), err.message, "err"); b.disabled = false; });
+  });
+
+  function renderRecent(rows) {
+    if (!rows.length) { $("recv-list").innerHTML = '<p class="hint">ยังไม่มี</p>'; return; }
+    $("recv-list").innerHTML = rows.map(function (r) {
+      var gap = Number(r.qty_sent) - Number(r.qty_recv);
+      return '<div class="hoff' + (r.status === "mismatch" ? " gap" : "") + '">' +
+        '<div class="top"><span class="who">รับจาก ' + J.esc(r.from_name) + "</span>" +
+        '<span class="qty">' + J.nf.format(r.qty_recv) + ' <small>ชิ้น</small></span></div>' +
+        '<div class="meta">ล็อต ' + J.esc(r.lot) +
+          (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+          " · รับเมื่อ " + J.esc(r.recv_txt) +
+          (gap ? " · ส่งมา " + J.nf.format(r.qty_sent) + " ขาด " + J.nf.format(gap) : " · ครบ") +
+          "</div></div>";
+    }).join("");
+  }
+
+  /* ---------- เริ่ม ---------- */
+  loadBoot().then(function () {
+    var m = J.me.get();
+    if (m.name && m.pin) enterApp();
+  }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+
+  setInterval(function () { if (!$("app").hidden) load(); }, 60000);
+})();
+</script>
+</body>
+</html>

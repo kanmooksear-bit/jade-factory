@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=37">
+<link rel="stylesheet" href="app.css?v=38">
 <style>
   .wrap{max-width:1000px}
   .topbar-in{max-width:1000px}
@@ -97,6 +97,7 @@
       <button class="tab" id="tab-prod" aria-selected="false" type="button">สินค้า</button>
       <button class="tab" id="tab-mach" aria-selected="false" type="button">เครื่องจักร</button>
       <button class="tab" id="tab-step" aria-selected="false" type="button">ขั้นตอน</button>
+      <button class="tab" id="tab-place" aria-selected="false" type="button">จุดพัก</button>
       <button class="tab" id="tab-attr" aria-selected="false" type="button">รายการตัวเลือก</button>
       <button class="tab" id="tab-shot" aria-selected="false" type="button">รูปหลักฐาน</button>
     </div>
@@ -280,6 +281,36 @@
       </div>
     </div>
 
+    <!-- ---------- จุดพัก / ชั้นวาง ---------- -->
+    <div id="pane-place" hidden>
+      <div class="card">
+        <h2>เพิ่ม / แก้จุดพัก</h2>
+        <p class="hint">จุดที่วางของทิ้งไว้ระหว่างขั้นตอน ใครมาหยิบก็กดรับได้ ระบบจดว่าใครหยิบ กี่โมง</p>
+        <div class="msg" id="place-msg" hidden></div>
+        <div class="two">
+          <div class="field">
+            <label for="pl-name">ชื่อจุดพัก</label>
+            <input id="pl-name" type="text" placeholder="เช่น ชั้นวางหน้าห้อง CNC">
+          </div>
+          <div class="field">
+            <label for="pl-note">คำอธิบาย (ไม่บังคับ)</label>
+            <input id="pl-note" type="text" placeholder="เช่น งานรอเข้าเครื่อง">
+          </div>
+        </div>
+        <div class="field">
+          <label for="pl-active">ใช้งานอยู่ไหม</label>
+          <select id="pl-active"><option value="1">ใช้งาน</option><option value="0">ปิดใช้</option></select>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="pl-save" type="button">บันทึก</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>จุดพักในระบบ</h2>
+        <div id="place-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
     <!-- ---------- ขั้นตอนการผลิต ---------- -->
     <div id="pane-step" hidden>
       <div class="card">
@@ -418,8 +449,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=37"></script>
-<script src="api.js?v=37"></script>
+<script src="config.js?v=38"></script>
+<script src="api.js?v=38"></script>
 <script>
 (function () {
   "use strict";
@@ -479,7 +510,7 @@
 
   /* ---------- แท็บ ---------- */
   function setTab(which) {
-    ["emp", "prod", "mach", "step", "attr", "shot"].forEach(function (k) {
+    ["emp", "prod", "mach", "place", "step", "attr", "shot"].forEach(function (k) {
       $("tab-" + k).setAttribute("aria-selected", String(k === which));
       $("pane-" + k).hidden = k !== which;
     });
@@ -487,7 +518,47 @@
   $("tab-emp").addEventListener("click", function () { setTab("emp"); });
   $("tab-prod").addEventListener("click", function () { setTab("prod"); });
   $("tab-mach").addEventListener("click", function () { setTab("mach"); loadMachines(); });
+  $("tab-place").addEventListener("click", function () { setTab("place"); loadPlaces(); });
   $("tab-step").addEventListener("click", function () { setTab("step"); loadSteps(); });
+
+  /* ---------- จุดพัก / ชั้นวาง ---------- */
+  function loadPlaces() {
+    J.rpc("app_bootstrap").then(function (d) {
+      var ps = d.places || [];
+      $("place-list").innerHTML = !ps.length
+        ? '<p class="hint">ยังไม่มีจุดพัก — เพิ่มด้านบน</p>'
+        : ps.map(function (p) {
+            return '<div class="row"><b>' + J.esc(p.name) + "</b>" +
+              (p.note ? ' <span class="hint">' + J.esc(p.note) + "</span>" : "") +
+              ' <button class="btn btn-sm btn-ghost" data-pl="' + J.esc(p.name) +
+              '" data-plnote="' + J.esc(p.note || "") + '" type="button">แก้</button></div>';
+          }).join("");
+    }).catch(function (err) { J.msg($("place-msg"), err.message, "err"); });
+  }
+
+  $("place-list").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-pl]");
+    if (!b) return;
+    $("pl-name").value = b.dataset.pl;
+    $("pl-note").value = b.dataset.plnote || "";
+    $("pl-active").value = "1";
+    $("pl-name").focus();
+  });
+
+  $("pl-save").addEventListener("click", function () {
+    var m = J.me.get(), name = ($("pl-name").value || "").trim();
+    if (!name) { J.msg($("place-msg"), "ใส่ชื่อจุดพัก", "err"); return; }
+    $("pl-save").disabled = true;
+    J.rpc("sup_place_save", {
+      p_name: m.name, p_pin: m.pin, p_place: name,
+      p_note: $("pl-note").value || null, p_active: $("pl-active").value === "1"
+    }).then(function () {
+      J.msg($("place-msg"), "บันทึกแล้ว", "ok");
+      $("pl-name").value = ""; $("pl-note").value = "";
+      loadPlaces();
+    }).catch(function (err) { J.msg($("place-msg"), err.message, "err"); })
+      .then(function () { $("pl-save").disabled = false; });
+  });
   $("tab-attr").addEventListener("click", function () { setTab("attr"); loadAttrs(); });
   $("tab-shot").addEventListener("click", function () { setTab("shot"); });
 

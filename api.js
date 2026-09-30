@@ -374,6 +374,118 @@ window.JADE = (function () {
   }
 
 
+  /* ---------- กล้องในแอป: บังคับถ่ายสด เลือกจากคลังรูปไม่ได้ ----------
+     ใช้ getUserMedia แทน <input type=file capture> เพราะปุ่มเลือกไฟล์
+     ผู้ใช้กดสลับไปคลังรูปได้ทุกเครื่อง ตัวนี้เข้าถึงคลังรูปไม่ได้เลย
+     ต้องเปิดผ่าน https เท่านั้น (GitHub Pages เป็น https อยู่แล้ว) */
+  function camera(cb, opts) {
+    opts = opts || {};
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert("เครื่องนี้เปิดกล้องในแอปไม่ได้ ต้องใช้เบราว์เซอร์ที่ใหม่กว่านี้\n" +
+            "(ระบบไม่ให้เลือกรูปจากคลังรูป เพราะต้องเป็นรูปถ่ายสดเท่านั้น)");
+      cb(null); return;
+    }
+
+    var wrap = document.createElement("div");
+    wrap.className = "camwrap";
+    wrap.innerHTML =
+      '<div class="camtop"><span class="camttl"></span>' +
+      '<button class="btn btn-sm btn-ghost" data-cam="x" type="button">ปิด</button></div>' +
+      '<video class="camview" playsinline muted autoplay></video>' +
+      '<div class="cammsg">กำลังเปิดกล้อง…</div>' +
+      '<div class="cambar">' +
+        '<button class="btn btn-sm btn-ghost" data-cam="flip" type="button" hidden>สลับกล้อง</button>' +
+        '<button class="camshot" data-cam="go" type="button" disabled aria-label="ถ่ายรูป"></button>' +
+        '<span class="camnote">ถ่ายสดเท่านั้น</span>' +
+      '</div>';
+    wrap.querySelector(".camttl").textContent = opts.title || "ถ่ายรูปหลักฐาน";
+    document.body.appendChild(wrap);
+    document.body.style.overflow = "hidden";
+
+    var video = wrap.querySelector(".camview");
+    var msg = wrap.querySelector(".cammsg");
+    var shot = wrap.querySelector('[data-cam="go"]');
+    var flip = wrap.querySelector('[data-cam="flip"]');
+    var stream = null, facing = "environment", done = false;
+
+    function stop() {
+      if (stream) stream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      stream = null;
+    }
+    function close(data) {
+      if (done) return;
+      done = true;
+      stop();
+      document.body.style.overflow = "";
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+      document.removeEventListener("keydown", onKey);
+      cb(data || null);
+    }
+    function onKey(e) { if (e.key === "Escape") close(null); }
+    document.addEventListener("keydown", onKey);
+
+    function start() {
+      stop();
+      shot.disabled = true;
+      msg.hidden = false;
+      msg.textContent = "กำลังเปิดกล้อง…";
+      navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing }, width: { ideal: 1600 }, height: { ideal: 1200 } },
+        audio: false
+      }).then(function (st) {
+        if (done) { st.getTracks().forEach(function (t) { t.stop(); }); return; }
+        stream = st;
+        video.srcObject = st;
+        video.play().catch(function () {});
+        msg.hidden = true;
+        shot.disabled = false;
+        navigator.mediaDevices.enumerateDevices().then(function (ds) {
+          flip.hidden = ds.filter(function (d) { return d.kind === "videoinput"; }).length < 2;
+        }).catch(function () {});
+      }).catch(function (err) {
+        msg.hidden = false;
+        msg.textContent = err && err.name === "NotAllowedError"
+          ? "ยังไม่ได้อนุญาตให้ใช้กล้อง — กดอนุญาตในเบราว์เซอร์แล้วลองใหม่"
+          : "เปิดกล้องไม่ได้: " + ((err && err.message) || "ไม่ทราบสาเหตุ");
+      });
+    }
+
+    wrap.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest("[data-cam]") : null;
+      if (!b) return;
+      if (b.dataset.cam === "x") { close(null); return; }
+      if (b.dataset.cam === "flip") {
+        facing = facing === "environment" ? "user" : "environment";
+        start(); return;
+      }
+      if (b.dataset.cam === "go") {
+        var w = video.videoWidth, h = video.videoHeight;
+        if (!w || !h) { msg.hidden = false; msg.textContent = "ภาพยังไม่มา รออีกนิด"; return; }
+        var scale = Math.min(1, 1000 / Math.max(w, h));
+        var c = document.createElement("canvas");
+        c.width = Math.round(w * scale);
+        c.height = Math.round(h * scale);
+        var ctx = c.getContext("2d");
+        ctx.drawImage(video, 0, 0, c.width, c.height);
+        // ประทับเวลาลงบนรูป กันเอารูปเก่ามาใช้ซ้ำ
+        var stamp = new Date().toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
+        ctx.font = Math.max(13, Math.round(c.width / 34)) + "px system-ui, sans-serif";
+        var tw = ctx.measureText(stamp).width + 14;
+        ctx.fillStyle = "rgba(0,0,0,.55)";
+        ctx.fillRect(c.width - tw - 8, c.height - 32, tw, 24);
+        ctx.fillStyle = "#fff";
+        ctx.textBaseline = "middle";
+        ctx.fillText(stamp, c.width - tw - 1, c.height - 20);
+        var data = null;
+        try { data = c.toDataURL("image/jpeg", 0.62); } catch (e) { data = null; }
+        if (!data) { msg.hidden = false; msg.textContent = "บันทึกรูปไม่สำเร็จ ลองใหม่"; return; }
+        close(data);
+      }
+    });
+
+    start();
+  }
+
   /* ---------- รูปสินค้า: ดึงครั้งเดียวต่อรหัส แล้วจำไว้ ---------- */
   var picCache = {};
   function productPhoto(code, cb) {
@@ -403,7 +515,8 @@ window.JADE = (function () {
   // เมนูที่เพิ่มทีหลัง — เติมให้ทุกหน้าเองจากที่นี่ที่เดียว
   // [ href ของลิงก์ใหม่, ข้อความ, ให้ไปอยู่หลัง href ไหน]
   var EXTRA_NAV = [["kpi.html", "KPI", "cost.html"],
-                   ["rd.html", "งาน RD", "index.html"]];
+                   ["rd.html", "งาน RD", "index.html"],
+                   ["handoff.html", "ส่ง–รับของ", "index.html"]];
 
   // คลังวัสดุเป็นอีกแอพหนึ่ง — ปุ่มสลับแอพอยู่กลางแถบบนสุด เห็นทุกหน้าตั้งแต่ยังไม่ล็อกอิน
   var STOCK_APP = "stock.html";
@@ -483,19 +596,49 @@ window.JADE = (function () {
     a.setAttribute("title", "มีใบเบิกรออนุมัติ " + n + " ใบ");
   }
 
+  // จุดแดงบนลิงก์เมนู (ใช้กับ "ส่ง–รับของ")
+  function paintNavDot(href, n, title) {
+    var a = document.querySelector('#nav a[href="' + href + '"]');
+    if (!a) return;
+    var d = a.querySelector(".dot");
+    if (!n) { if (d) d.remove(); a.removeAttribute("title"); return; }
+    if (!d) { d = document.createElement("span"); d.className = "dot"; a.appendChild(d); }
+    d.textContent = n > 99 ? "99+" : String(n);
+    a.setAttribute("title", title || "");
+  }
+
+  var handoffSeen = null;
+
   function pollAlerts() {
     var m = me.get();
     if (!m.name || !m.pin) return;
     rpc("app_alerts", { p_name: m.name, p_pin: m.pin }).then(function (d) {
       var n = Number(d && d.stock_pending);
-      if (!(n >= 0)) { paintDot(0); return; }   // ไม่ใช่คนดูแลคลัง/หัวหน้า
-      paintDot(n);
-      if (alertSeen !== null && n > alertSeen) {
-        beep();
-        var who = d.stock_latest && d.stock_latest.employee;
-        toast(who ? who + " ขอเบิกของ — ใบ " + d.stock_latest.doc_no : "มีใบเบิกใหม่รออนุมัติ");
+      if (n >= 0) {
+        paintDot(n);
+        if (alertSeen !== null && n > alertSeen) {
+          beep();
+          var who = d.stock_latest && d.stock_latest.employee;
+          toast(who ? who + " ขอเบิกของ — ใบ " + d.stock_latest.doc_no : "มีใบเบิกใหม่รออนุมัติ");
+        }
+        alertSeen = n;
+      } else {
+        paintDot(0);                       // ไม่ใช่คนดูแลคลัง/หัวหน้า
       }
-      alertSeen = n;
+
+      // ของรอรับ — เตือนทุกคน ไม่ใช่เฉพาะหัวหน้า
+      var h = Number(d && d.handoff_in) || 0;
+      var gap = Number(d && d.handoff_gap) || 0;
+      paintNavDot("handoff.html", h + gap,
+        (h ? "มีของรอคุณรับ " + h + " ใบ" : "") +
+        (gap ? (h ? " · " : "") + "ของไม่ตรง " + gap + " ใบ" : ""));
+      if (handoffSeen !== null && h > handoffSeen) {
+        beep();
+        var f = d.handoff_latest;
+        toast(f ? f.from + " ส่งของมาให้ " + nf.format(f.qty) + " ชิ้น (ล็อต " + f.lot + ")"
+                : "มีของส่งมาให้คุณ");
+      }
+      handoffSeen = h;
     }).catch(function () { /* เน็ตหลุดก็เงียบไว้ */ });
   }
 
@@ -539,7 +682,7 @@ window.JADE = (function () {
     nf: nf, esc: esc, msg: msg, toast: toast, pollAlerts: pollAlerts,
     parseThai: parseThai, formatThai: formatThai, thLong: thLong, enhanceDates: enhanceDates,
     parseTime: parseTime, nowTime: nowTime, durationText: durationText, enhanceTimes: enhanceTimes,
-    shrinkImage: shrinkImage,
+    shrinkImage: shrinkImage, camera: camera,
     productPhoto: productPhoto, setPhoto: setPhoto, nav: paintNav,
     factory: CFG.factory || "โรงงานหยก"
   };

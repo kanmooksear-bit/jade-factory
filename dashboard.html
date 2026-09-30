@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=37">
+<link rel="stylesheet" href="app.css?v=38">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -247,8 +247,8 @@
   </div>
 </main>
 
-<script src="config.js?v=37"></script>
-<script src="api.js?v=37"></script>
+<script src="config.js?v=38"></script>
+<script src="api.js?v=38"></script>
 <script>
 (function () {
   "use strict";
@@ -527,6 +527,17 @@
                 f: "ยังไม่มีงานเข้าเครื่องหรือถังในช่วงนี้" }];
     }
     tiles = tiles.slice(0, 3).concat(cncT, tiles.slice(3));
+
+    // ของหายระหว่างส่งมอบ — ขึ้นเฉพาะตอนมีของหายหรือมีใบค้างทาง
+    var ho = d.handoff || {};
+    if (Number(ho.lost) > 0 || Number(ho.stuck) > 0) {
+      var w = ho.worst || {};
+      tiles.push({ k: "ของหายระหว่างส่ง", v: J.nf.format(ho.lost || 0), u: "ชิ้น",
+        f: (w.from ? "หายมากสุดช่วง " + w.from + " → " + w.to + " " + J.nf.format(w.lost) + " ชิ้น" : "") +
+           (Number(ho.open_gap) ? " · ยังไม่เคลียร์ " + ho.open_gap + " ใบ" : "") +
+           (Number(ho.stuck) ? " · ส่งแล้วไม่มีใครรับ " + ho.stuck + " ใบ" : ""),
+        bad: true });
+    }
 
     var rw = d.rework || {};
     if (Number(rw.pieces) > 0) {

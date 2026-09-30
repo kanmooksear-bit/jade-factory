@@ -190,6 +190,11 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
 .nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
        color:var(--ink-2);font-size:13.5px;background:var(--surface)}
 .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+.nav a{position:relative}
+.nav a .dot{display:inline-block;margin-left:6px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:9px;background:var(--alert,#c0392b);color:#fff;
+  font-size:11px;line-height:18px;font-weight:600;text-align:center;
+  animation:jdot 1.4s ease-in-out infinite}
 .nav[hidden]{display:none!important}
 
 /* รูปสินค้าประจำล็อต */
@@ -238,3 +243,38 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
 .rwk .s{margin-bottom:6px}
 .tabs.sm{gap:6px}
 .tabs.sm .tab{padding:5px 10px;font-size:12.5px;border-radius:7px}
+
+/* ---------- กล้องในแอป (บังคับถ่ายสด) ---------- */
+.camwrap{position:fixed;inset:0;z-index:9999;background:#000;display:flex;flex-direction:column}
+.camtop{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 14px;color:#fff;background:rgba(0,0,0,.6)}
+.camttl{font-weight:600;font-size:15px}
+.camview{flex:1;width:100%;object-fit:cover;background:#000;min-height:0}
+.cammsg{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  text-align:center;color:#fff;font-size:15px;padding:0 24px;line-height:1.6}
+.cambar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 18px calc(14px + env(safe-area-inset-bottom));background:rgba(0,0,0,.72)}
+.camnote{color:#9aa;font-size:12px;min-width:76px;text-align:right}
+.cambar .btn{min-width:76px}
+.camshot{width:64px;height:64px;border-radius:50%;border:4px solid #fff;
+  background:#fff;cursor:pointer;flex:0 0 auto;box-shadow:0 0 0 3px rgba(255,255,255,.25)}
+.camshot:disabled{opacity:.35;cursor:default}
+.camshot:active:not(:disabled){transform:scale(.93)}
+
+/* ---------- ใบส่งมอบ ---------- */
+.hoff{border:1px solid var(--line,#2a3a33);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.hoff.wait{border-color:color-mix(in srgb,var(--amber,#c98a00) 45%,transparent);
+  background:color-mix(in srgb,var(--amber,#c98a00) 8%,transparent)}
+.hoff.gap{border-color:color-mix(in srgb,var(--red,#d05a5a) 50%,transparent);
+  background:color-mix(in srgb,var(--red,#d05a5a) 9%,transparent)}
+.hoff .top{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.hoff .who{font-weight:600}
+.hoff .qty{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px}
+.hoff .meta{font-size:12.5px;color:var(--dim,#8fa39a);margin-top:3px}
+.hoff .act{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.shotok{display:inline-flex;align-items:center;gap:6px;font-size:12.5px}
+.shotok img{width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--line,#2a3a33)}
+.shots figure{margin:0;flex:none;max-width:132px}
+.shots figure img{width:132px;height:132px;object-fit:cover;border-radius:8px;
+  border:1px solid var(--line);display:block}
+.shots figcaption{font-size:11.5px;color:var(--dim,#8fa39a);margin-top:4px;line-height:1.4}
