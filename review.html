@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=42">
+<link rel="stylesheet" href="app.css?v=45">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -135,6 +135,16 @@
       <button class="btn btn-primary btn-lg" id="f-go" type="button">ดูรายการ</button>
     </div>
 
+    <div class="card" id="card-pile" hidden>
+      <div class="sec-head" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+        <h2>ของค้างที่จุดพัก</h2>
+        <span class="hint" id="pile-sum"></span>
+      </div>
+      <div id="pile-list"></div>
+      <p class="hint" style="margin-top:10px">
+        ยอดคงเหลือคิดสดจากที่วางไว้ลบที่หยิบไปทุกครั้ง · หยิบเกินยอดคงเหลือไม่ได้</p>
+    </div>
+
     <div class="card" id="card-hoff" hidden>
       <div class="sec-head" style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
         <h2>ของส่งมอบไม่ตรง / ค้างทาง</h2>
@@ -175,8 +185,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=42"></script>
-<script src="api.js?v=42"></script>
+<script src="config.js?v=45"></script>
+<script src="api.js?v=45"></script>
 <script>
 (function () {
   "use strict";
@@ -368,8 +378,41 @@
     }
   });
 
+  /* ---------- กองที่จุดพัก ---------- */
+  function loadPiles() {
+    var m = J.me.get();
+    return J.rpc("sup_piles", { p_name: m.name, p_pin: m.pin }).then(function (d) {
+      var rows = (d && d.rows) || [], sm = (d && d.summary) || {};
+      $("card-pile").hidden = !rows.length;
+      if (!rows.length) return;
+      $("pile-sum").textContent = "เหลือรวม " + J.nf.format(sm.left || 0) + " ชิ้น · " +
+        J.nf.format(sm.piles || 0) + " กอง" +
+        (Number(sm.stuck) ? " · ค้างเกิน 24 ชม. " + sm.stuck + " กอง" : "");
+      $("pile-list").innerHTML = rows.map(function (r) {
+        var left = Number(r.qty_left) || 0, sent = Number(r.qty_sent) || 0;
+        var pct = sent ? Math.round(left / sent * 100) : 0;
+        var late = Number(r.hours) >= 24;
+        return '<div class="hoff pile' + (late ? " gap" : " wait") + '">' +
+          '<div class="top"><span class="who">' + J.esc(r.place) + "</span>" +
+          '<span class="qty">' + J.nf.format(left) + ' <small>เหลือ / ' +
+            J.nf.format(sent) + "</small></span></div>" +
+          '<div class="meta">' + J.esc(r.from_name) + " วางไว้ · ล็อต " + J.esc(r.lot) +
+            (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+            " · " + J.esc(r.sent_txt) +
+            (late ? " · ค้างมาแล้ว " + Math.floor(Number(r.hours) / 24) + " วัน"
+                  : " · " + r.hours + " ชม.") + "</div>" +
+          '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+          '<div class="meta">' + (r.who_took
+            ? "หยิบไปแล้ว " + J.nf.format(r.qty_taken) + " ชิ้น — " + J.esc(r.who_took)
+            : "ยังไม่มีใครหยิบ") + "</div>" +
+          "</div>";
+      }).join("");
+    }).catch(function () { $("card-pile").hidden = true; });
+  }
+
   function load() {
     var m = J.me.get();
+    loadPiles();
     loadHandoffs();
     $("list").innerHTML = '<p class="hint">กำลังโหลด…</p>';
     $("selbar").hidden = true;

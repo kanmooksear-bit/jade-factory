@@ -278,3 +278,10 @@ td.num,th.num{text-align:end;font-variant-numeric:tabular-nums}
 .shots figure img{width:132px;height:132px;object-fit:cover;border-radius:8px;
   border:1px solid var(--line);display:block}
 .shots figcaption{font-size:11.5px;color:var(--dim,#8fa39a);margin-top:4px;line-height:1.4}
+
+/* กองของที่จุดพัก — แถบบอกยอดคงเหลือ */
+.hoff.pile .bar{height:7px;border-radius:4px;margin:9px 0 2px;
+  background:color-mix(in srgb,var(--line,#2a3a33) 60%,transparent);overflow:hidden}
+.hoff.pile .bar span{display:block;height:100%;border-radius:4px;background:var(--jade,#1E6B4F)}
+.hoff.pile.gap .bar span{background:var(--alert,#c0392b)}
+.hoff .picklist{line-height:1.7}

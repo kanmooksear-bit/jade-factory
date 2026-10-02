@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=42">
+<link rel="stylesheet" href="app.css?v=45">
 </head>
 <body>
 
@@ -65,6 +65,7 @@
       <!-- ---------- รอรับ ---------- -->
       <div id="pane-in">
         <p class="hint">ของที่มีคนส่งมาให้ หรือวางไว้ที่จุดพัก · กดรับแล้วต้องนับจำนวนจริงกับถ่ายรูป ·
+          กองที่จุดพักหยิบไปทีละส่วนได้ ยอดคงเหลือลดลงเอง ·
           <a href="handoff-help.html">ดูวิธีใช้</a></p>
         <div class="msg" id="in-msg" hidden></div>
         <div id="in-list"><p class="hint">กำลังโหลด…</p></div>
@@ -136,8 +137,8 @@
   </section>
 </main>
 
-<script src="config.js?v=42"></script>
-<script src="api.js?v=42"></script>
+<script src="config.js?v=45"></script>
+<script src="api.js?v=45"></script>
 <script>
 (function () {
   "use strict";
@@ -307,26 +308,69 @@
   function renderInbox(rows) {
     if (!rows.length) { $("in-list").innerHTML = '<p class="hint">ไม่มีของรออยู่</p>'; return; }
     $("in-list").innerHTML = rows.map(function (r) {
-      var late = Number(r.hours_waiting) >= 24;
-      return '<div class="hoff' + (late ? " gap" : " wait") + '" data-id="' + r.id + '">' +
-        '<div class="top"><span class="who">' + J.esc(r.from_name) + " ส่งมา" +
-          (r.open_pickup ? " · วางไว้ที่ " + J.esc(r.place) : "") + "</span>" +
-        '<span class="qty">' + J.nf.format(r.qty_sent) + ' <small>ชิ้น</small></span></div>' +
-        '<div class="meta">ล็อต ' + J.esc(r.lot) +
-          (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
-          " · ส่งเมื่อ " + J.esc(r.sent_txt) + " · " + waitTxt(r.hours_waiting) +
-          (r.note ? " · " + J.esc(r.note) : "") + "</div>" +
-        '<div class="act">' +
-          '<input type="number" inputmode="numeric" min="0" step="1" class="qcount" ' +
-             'style="max-width:110px" value="' + r.qty_sent + '" aria-label="จำนวนที่นับได้">' +
-          '<button class="btn btn-sm" data-act="shot">ถ่ายรูปของที่รับ</button>' +
-          '<button class="btn btn-sm btn-primary" data-act="recv">รับแล้ว</button>' +
-          '<span class="ok"></span></div>' +
-        '<div class="field gapnote" hidden style="margin-top:8px">' +
-          '<label>นับได้ไม่ตรง — เกิดอะไรขึ้น</label>' +
-          '<input type="text" class="gaptxt" placeholder="เช่น นับได้ 47 หาอีก 3 ไม่เจอ"></div>' +
-        "</div>";
+      return r.is_pile ? pileBox(r) : recvBox(r);
     }).join("");
+  }
+
+  /* ใบที่ส่งถึงเราโดยตรง — รับทั้งใบ นับแล้วใส่เลข */
+  function recvBox(r) {
+    var late = Number(r.hours_waiting) >= 24;
+    return '<div class="hoff' + (late ? " gap" : " wait") + '" data-id="' + r.id + '">' +
+      '<div class="top"><span class="who">' + J.esc(r.from_name) + ' ส่งมา</span>' +
+      '<span class="qty">' + J.nf.format(r.qty_sent) + ' <small>ชิ้น</small></span></div>' +
+      '<div class="meta">ล็อต ' + J.esc(r.lot) +
+        (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+        " · ส่งเมื่อ " + J.esc(r.sent_txt) + " · " + waitTxt(r.hours_waiting) +
+        (r.note ? " · " + J.esc(r.note) : "") + "</div>" +
+      '<div class="act">' +
+        '<input type="number" inputmode="numeric" min="0" step="1" class="qcount" ' +
+           'style="max-width:110px" value="' + r.qty_sent + '" aria-label="จำนวนที่นับได้">' +
+        '<button class="btn btn-sm" data-act="shot">ถ่ายรูปของที่รับ</button>' +
+        '<button class="btn btn-sm btn-primary" data-act="recv">รับแล้ว</button>' +
+        '<span class="ok"></span></div>' +
+      '<div class="field gapnote" hidden style="margin-top:8px">' +
+        '<label>นับได้ไม่ตรง — เกิดอะไรขึ้น</label>' +
+        '<input type="text" class="gaptxt" placeholder="เช่น นับได้ 47 หาอีก 3 ไม่เจอ"></div>' +
+      "</div>";
+  }
+
+  /* กองที่จุดพัก — หยิบไปกี่ชิ้นก็ได้ ยอดคงเหลือลดลงเรื่อย ๆ จนหมด
+     คนที่เอามาวางเองก็หยิบกลับไปทำต่อได้ */
+  function pileBox(r) {
+    var left = Number(r.qty_left) || 0, sent = Number(r.qty_sent) || 0;
+    var took = sent - left, late = Number(r.hours_waiting) >= 24;
+    var pct = sent ? Math.round(left / sent * 100) : 0;
+    return '<div class="hoff pile' + (late ? " gap" : " wait") + '" data-id="' + r.id +
+        '" data-left="' + left + '">' +
+      '<div class="top"><span class="who">' +
+        (r.mine ? "ของที่คุณวางไว้" : J.esc(r.from_name) + " วางไว้") +
+        " · " + J.esc(r.place) + "</span>" +
+      '<span class="qty">' + J.nf.format(left) + ' <small>เหลือ</small></span></div>' +
+      '<div class="meta">ล็อต ' + J.esc(r.lot) +
+        (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
+        " · วางไว้ " + J.nf.format(sent) + " ชิ้น เมื่อ " + J.esc(r.sent_txt) +
+        (took ? " · หยิบไปแล้ว " + J.nf.format(took) : "") +
+        (Number(r.my_taken) ? " (คุณหยิบไป " + J.nf.format(r.my_taken) + ")" : "") +
+        (r.note ? " · " + J.esc(r.note) : "") + "</div>" +
+      '<div class="bar"><span style="width:' + pct + '%"></span></div>' +
+      '<div class="act">' +
+        '<input type="number" inputmode="numeric" min="1" step="1" max="' + left + '" ' +
+           'class="qtake" style="max-width:110px" placeholder="กี่ชิ้น" aria-label="หยิบไปกี่ชิ้น">' +
+        '<button class="btn btn-sm" data-act="shot">ถ่ายรูปของที่หยิบ</button>' +
+        '<button class="btn btn-sm btn-primary" data-act="pick">หยิบไปทำ</button>' +
+        '<span class="ok"></span></div>' +
+      '<div class="act" style="margin-top:6px">' +
+        '<button class="btn btn-sm btn-ghost" data-act="all">หยิบหมดทั้งกอง (' + J.nf.format(left) + ')</button>' +
+        (Number(r.picks) ? '<button class="btn btn-sm btn-ghost" data-act="who">ใครหยิบไปบ้าง</button>' : "") +
+        '<button class="btn btn-sm btn-ghost" data-act="short">ของหมดแล้ว แต่ยอดยังเหลือ</button>' +
+      "</div>" +
+      '<div class="field shortnote" hidden style="margin-top:8px">' +
+        '<label>ของที่จุดพักหมดก่อนยอดในระบบ — เกิดอะไรขึ้น</label>' +
+        '<input type="text" class="shorttxt" placeholder="เช่น มาถึงแล้วของหมดแล้ว หาไม่เจอ">' +
+        '<button class="btn btn-sm" data-act="shortgo" style="margin-top:8px">ยืนยัน ปิดกองแจ้งของขาด</button>' +
+      "</div>" +
+      '<div class="picklist"></div>' +
+      "</div>";
   }
 
   // เก็บรูปที่ถ่ายของแต่ละใบไว้ในหน่วยความจำ ไม่แตะ localStorage (รูปใหญ่)
@@ -350,7 +394,77 @@
         if (!d) return;
         recvShots[id] = d;
         shotOk(box.querySelector(".ok"), d);
-      }, { title: "ถ่ายรูปของที่รับมา" });
+      }, { title: box.classList.contains("pile") ? "ถ่ายรูปของที่หยิบไป" : "ถ่ายรูปของที่รับมา" });
+      return;
+    }
+
+    if (b.dataset.act === "all") {
+      box.querySelector(".qtake").value = box.dataset.left;
+      return;
+    }
+
+    if (b.dataset.act === "who") {
+      var host = box.querySelector(".picklist");
+      if (host.innerHTML) { host.innerHTML = ""; return; }
+      host.innerHTML = '<p class="hint">กำลังโหลด…</p>';
+      J.rpc("app_handoff_picks", { p_name: J.me.get().name, p_pin: J.me.get().pin, p_id: id })
+        .then(function (d) {
+          host.innerHTML = '<div class="meta" style="margin-top:8px">' +
+            (d.picks || []).map(function (x) {
+              return J.esc(x.who) + " หยิบ " + J.nf.format(x.qty) + " ชิ้น · " + J.esc(x.at) +
+                     (x.note ? " · " + J.esc(x.note) : "");
+            }).join("<br>") +
+            "<br><b>วางไว้ " + J.nf.format(d.qty_sent) + " · เหลือ " + J.nf.format(d.qty_left) +
+            "</b></div>";
+        }).catch(function (err) { host.innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+      return;
+    }
+
+    if (b.dataset.act === "short") {
+      var sn = box.querySelector(".shortnote");
+      sn.hidden = !sn.hidden;
+      return;
+    }
+
+    if (b.dataset.act === "shortgo") {
+      var m2 = J.me.get();
+      var txt = (box.querySelector(".shorttxt").value || "").trim();
+      if (!txt) { J.msg($("in-msg"), "เขียนบอกด้วยว่าเกิดอะไรขึ้น", "err"); return; }
+      b.disabled = true;
+      J.rpc("app_handoff_close_short", {
+        p_name: m2.name, p_pin: m2.pin, p_id: id,
+        p_photo: recvShots[id] || null, p_note: txt
+      }).then(function (r) {
+        delete recvShots[id];
+        J.msg($("in-msg"), "ปิดกองแล้ว — ขาด " + J.nf.format(r.gap) +
+          " ชิ้น ส่งให้หัวหน้าเคลียร์แล้ว", "err");
+        load();
+      }).catch(function (err) { J.msg($("in-msg"), err.message, "err"); b.disabled = false; });
+      return;
+    }
+
+    if (b.dataset.act === "pick") {
+      var m3 = J.me.get();
+      var take = Number(box.querySelector(".qtake").value);
+      var left = Number(box.dataset.left);
+      if (!(take > 0)) { J.msg($("in-msg"), "ใส่จำนวนที่หยิบไป", "err"); return; }
+      if (take > left) {
+        J.msg($("in-msg"), "กองนี้เหลือ " + J.nf.format(left) + " ชิ้น หยิบเกินไม่ได้", "err");
+        return;
+      }
+      if (!recvShots[id]) { J.msg($("in-msg"), "ต้องถ่ายรูปของที่หยิบก่อน", "err"); return; }
+      b.disabled = true;
+      J.rpc("app_handoff_pick", {
+        p_name: m3.name, p_pin: m3.pin, p_id: id, p_qty: take,
+        p_photo: recvShots[id], p_note: null
+      }).then(function (r) {
+        delete recvShots[id];
+        J.msg($("in-msg"), r.done
+          ? "หยิบ " + J.nf.format(r.took) + " ชิ้น · กองนี้หมดแล้ว"
+          : "หยิบ " + J.nf.format(r.took) + " ชิ้น · เหลืออีก " + J.nf.format(r.left) +
+            " จาก " + J.nf.format(r.total) + " ชิ้น", "ok");
+        load();
+      }).catch(function (err) { J.msg($("in-msg"), err.message, "err"); b.disabled = false; });
       return;
     }
 
@@ -381,14 +495,23 @@
     if (!rows.length) { $("out-list").innerHTML = '<p class="hint">ไม่มีของค้างอยู่</p>'; return; }
     $("out-list").innerHTML = rows.map(function (r) {
       var late = Number(r.hours_waiting) >= 24;
+      var left = r.is_pile ? Number(r.qty_left) || 0 : null;
+      var took = r.is_pile ? Number(r.qty_sent) - left : 0;
       return '<div class="hoff' + (late ? " gap" : "") + '" data-id="' + r.id + '">' +
-        '<div class="top"><span class="who">ส่งให้ ' + J.esc(r.to_name) + "</span>" +
-        '<span class="qty">' + J.nf.format(r.qty_sent) + ' <small>ชิ้น</small></span></div>' +
+        '<div class="top"><span class="who">' +
+          (r.is_pile ? "วางไว้ที่ " + J.esc(r.to_name).replace("จุดพัก ", "") : "ส่งให้ " + J.esc(r.to_name)) +
+          "</span>" +
+        '<span class="qty">' + J.nf.format(r.is_pile ? left : r.qty_sent) +
+          ' <small>' + (r.is_pile ? "เหลือ" : "ชิ้น") + "</small></span></div>" +
         '<div class="meta">ล็อต ' + J.esc(r.lot) +
           (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
-          " · ส่งเมื่อ " + J.esc(r.sent_txt) + " · " + waitTxt(r.hours_waiting) + "</div>" +
-        '<div class="act"><button class="btn btn-sm btn-ghost" data-cancel="1">ยกเลิกใบนี้</button></div>' +
-        "</div>";
+          " · ส่งเมื่อ " + J.esc(r.sent_txt) + " · " + waitTxt(r.hours_waiting) +
+          (r.is_pile ? " · วางไว้ " + J.nf.format(r.qty_sent) +
+                       (took ? " · ถูกหยิบไปแล้ว " + J.nf.format(took) : " · ยังไม่มีใครหยิบ") : "") +
+          "</div>" +
+        '<div class="act">' +
+          (took ? "" : '<button class="btn btn-sm btn-ghost" data-cancel="1">ยกเลิกใบนี้</button>') +
+        "</div></div>";
     }).join("");
   }
 
@@ -405,14 +528,19 @@
   function renderRecent(rows) {
     if (!rows.length) { $("recv-list").innerHTML = '<p class="hint">ยังไม่มี</p>'; return; }
     $("recv-list").innerHTML = rows.map(function (r) {
-      var gap = Number(r.qty_sent) - Number(r.qty_recv);
-      return '<div class="hoff' + (r.status === "mismatch" ? " gap" : "") + '">' +
-        '<div class="top"><span class="who">รับจาก ' + J.esc(r.from_name) + "</span>" +
+      var pick = r.kind === "pick";
+      var gap = pick ? 0 : Number(r.qty_sent) - Number(r.qty_recv);
+      return '<div class="hoff' + (gap ? " gap" : "") + '">' +
+        '<div class="top"><span class="who">' +
+          (pick ? "หยิบจาก " + J.esc(r.place || "จุดพัก") : "รับจาก " + J.esc(r.from_name)) +
+          "</span>" +
         '<span class="qty">' + J.nf.format(r.qty_recv) + ' <small>ชิ้น</small></span></div>' +
         '<div class="meta">ล็อต ' + J.esc(r.lot) +
           (r.step ? " · หลังขั้น " + J.esc(r.step) : "") +
-          " · รับเมื่อ " + J.esc(r.recv_txt) +
-          (gap ? " · ส่งมา " + J.nf.format(r.qty_sent) + " ขาด " + J.nf.format(gap) : " · ครบ") +
+          (pick ? " · " + J.esc(r.from_name) + " วางไว้ " + J.nf.format(r.qty_sent) : "") +
+          " · " + J.esc(r.recv_txt) +
+          (gap ? " · ส่งมา " + J.nf.format(r.qty_sent) + " ขาด " + J.nf.format(gap)
+               : (pick ? "" : " · ครบ")) +
           "</div></div>";
     }).join("");
   }

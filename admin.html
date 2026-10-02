@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=42">
+<link rel="stylesheet" href="app.css?v=45">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -177,8 +177,8 @@
   </section>
 </main>
 
-<script src="config.js?v=42"></script>
-<script src="api.js?v=42"></script>
+<script src="config.js?v=45"></script>
+<script src="api.js?v=45"></script>
 <script>
 (function () {
   "use strict";
@@ -446,7 +446,7 @@
   });
 
   /* ---------- ดาวน์โหลดไฟล์ Excel สรุปการผลิต ---------- */
-  var XLS_SRC = "xlsx.js?v=33";
+  var XLS_SRC = "xlsx.js?v=45";
   function needXlsx() {
     if (window.XLSXMini) return Promise.resolve();
     return new Promise(function (ok, no) {
@@ -713,7 +713,7 @@
   }
 
   /* ---------- รายงาน Word: ส่ง–รับของ / ไล่ของหาย ---------- */
-  var DOCX_SRC = "docx.js?v=42";
+  var DOCX_SRC = "docx.js?v=45";
   function needDocx() {
     if (window.DOCXMini) return Promise.resolve();
     return new Promise(function (ok, no) {
@@ -730,18 +730,26 @@
     var p = String(iso).slice(0, 10).split("-");
     return p.length === 3 ? p[2] + "/" + p[1] + "/" + (Number(p[0]) + 543) : iso;
   }
-  // ใบที่หัวหน้าต้องตามต่อ = นับไม่ตรง หรือส่งไปแล้วเกิน 24 ชม. ยังไม่มีใครรับ
+  // ใบที่หัวหน้าต้องตามต่อ = นับไม่ตรง หรือค้างเกิน 24 ชม. ยังไม่มีใครรับ/ยังหยิบไม่หมด
   // ใบที่เพิ่งส่งไปเมื่อกี้ยังไม่ถือว่ามีปัญหา ไม่งั้นรายงานจะเต็มไปด้วยของที่กำลังเดินอยู่
   function needsChase(r) {
     return r.status === "mismatch" ||
-           (r.status === "sent" && Number(r.hours) >= 24);
+           ((r.status === "sent" || r.status === "partial") && Number(r.hours) >= 24);
   }
   function statusTxt(r) {
-    if (r.status === "sent") return "ยังไม่มีใครรับ";
+    if (r.status === "sent") return r.is_pile ? "ยังไม่มีใครหยิบ" : "ยังไม่มีใครรับ";
+    if (r.status === "partial") return "เหลือ " + J.nf.format(r.qty_left) + " ที่จุดพัก";
     if (r.status === "cancelled") return "ยกเลิก";
     if (r.status === "mismatch") return Number(r.gap) > 0
       ? "ขาด " + J.nf.format(r.gap) : "เกิน " + J.nf.format(-r.gap);
     return "ครบ";
+  }
+  // ช่อง "รับ" ของกองที่จุดพัก = ยอดที่ถูกหยิบไปแล้ว ไม่ใช่ qty_recv (ซึ่งยังว่างอยู่)
+  function recvTxt(r) {
+    if (r.is_pile && (r.status === "sent" || r.status === "partial")) {
+      return J.nf.format(Number(r.qty_sent) - Number(r.qty_left));
+    }
+    return r.qty_recv == null ? "—" : J.nf.format(r.qty_recv);
   }
 
   // ดึงรูปทีละไม่เกิน 40 ใบ ตามที่ฝั่งฐานข้อมูลจำกัดไว้
@@ -792,6 +800,11 @@
       head += " และมีของที่ส่งออกไปแล้วเกิน 24 ชั่วโมงยังไม่มีใครกดรับ " +
         J.nf.format(stuck) + " ใบ ควรตามหาว่าของอยู่ที่ไหน";
     }
+    var pleft = Number(sm.pile_left) || 0;
+    if (pleft > 0) {
+      head += " ตอนนี้ยังมีของวางค้างอยู่ที่จุดพักอีก " + J.nf.format(pleft) +
+        " ชิ้น ที่ยังไม่มีใครหยิบไปทำต่อ";
+    }
     doc.p(head, { size: 11 });
 
     /* ---- คู่ส่ง–รับ ---- */
@@ -824,8 +837,7 @@
         badRow: function (r, i) { return needsChase(moves[i]); },
         rows: moves.map(function (r) {
           return [r.sent_txt || "—", r.lot, r.step || "—", r.from_name, r.to_name,
-                  J.nf.format(r.qty_sent),
-                  r.qty_recv == null ? "—" : J.nf.format(r.qty_recv),
+                  J.nf.format(r.qty_sent), recvTxt(r),
                   statusTxt(r), r.hours == null ? "—" : r.hours];
         })
       });
@@ -843,15 +855,30 @@
         doc.h3((i + 1) + ". " + r.from_name + "  →  " + r.to_name +
                "   ·   ล็อต " + r.lot + (r.step ? "   ·   หลังขั้น " + r.step : ""));
 
-        var rows = [
-          ["ส่งเมื่อ", r.sent_txt || "—", "จำนวนที่ส่ง", J.nf.format(r.qty_sent) + " ชิ้น"],
-          ["รับเมื่อ", r.recv_txt || "ยังไม่มีใครรับ",
-           "นับได้", r.qty_recv == null ? "—" : J.nf.format(r.qty_recv) + " ชิ้น"],
-          ["คนที่กดรับ", r.recv_name || "—",
-           r.status === "sent" ? "ค้างมาแล้ว" : "ส่วนต่าง",
-           r.status === "sent" ? (r.hours == null ? "—" : r.hours + " ชม.")
-                               : (Number(r.gap) ? J.nf.format(r.gap) + " ชิ้น" : "ตรง")]
-        ];
+        var open = r.status === "sent" || r.status === "partial";
+        var rows;
+        if (r.is_pile) {
+          rows = [
+            ["วางเมื่อ", r.sent_txt || "—", "วางไว้", J.nf.format(r.qty_sent) + " ชิ้น"],
+            ["หยิบไปแล้ว", J.nf.format(Number(r.qty_sent) - Number(r.qty_left)) + " ชิ้น" +
+                           (Number(r.picks) ? "  (" + J.nf.format(r.picks) + " ครั้ง)" : ""),
+             "เหลือที่จุดพัก", J.nf.format(r.qty_left) + " ชิ้น"],
+            ["ใครหยิบไปบ้าง", r.who_took || "ยังไม่มีใครหยิบ",
+             open ? "ค้างมาแล้ว" : "ส่วนต่าง",
+             open ? (r.hours == null ? "—" : r.hours + " ชม.")
+                  : (Number(r.gap) ? J.nf.format(r.gap) + " ชิ้น" : "ตรง")]
+          ];
+        } else {
+          rows = [
+            ["ส่งเมื่อ", r.sent_txt || "—", "จำนวนที่ส่ง", J.nf.format(r.qty_sent) + " ชิ้น"],
+            ["รับเมื่อ", r.recv_txt || "ยังไม่มีใครรับ",
+             "นับได้", r.qty_recv == null ? "—" : J.nf.format(r.qty_recv) + " ชิ้น"],
+            ["คนที่กดรับ", r.recv_name || "—",
+             open ? "ค้างมาแล้ว" : "ส่วนต่าง",
+             open ? (r.hours == null ? "—" : r.hours + " ชม.")
+                  : (Number(r.gap) ? J.nf.format(r.gap) + " ชิ้น" : "ตรง")]
+          ];
+        }
         doc.table({
           widths: [16, 34, 16, 34],
           align: ["l", "l", "l", "l"],
@@ -872,7 +899,8 @@
         if (ps.length) {
           doc.imageRow(ps.map(function (x) {
             return { data: x.data, ratio: x.ratio,
-                     caption: (x.kind === "send" ? "ตอนส่ง" : "ตอนรับ") +
+                     caption: (x.kind === "send" ? "ตอนส่ง" :
+                               x.kind === "pick" ? "ตอนหยิบ" : "ตอนรับ") +
                               " · " + (x.by || "-") + " · " + x.at };
           }));
         } else {
