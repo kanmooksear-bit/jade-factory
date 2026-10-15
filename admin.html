@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="app.css?v=46">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -136,8 +136,8 @@
       <h2>ดาวน์โหลดข้อมูล</h2>
       <div class="msg" id="e-msg" hidden></div>
       <p class="hint" style="margin-bottom:12px">
-        ได้ไฟล์ Excel สรุปการผลิต 10 ชีต — สรุป · รายวัน · รายคน · รายขั้นตอน ·
-        รายสินค้า · รายล็อต · CNC · เครื่องจักร · ต้นทุนรายเดือน · ข้อมูลดิบ
+        ได้ไฟล์ Excel สรุปการผลิต 12 ชีต — สรุป · รายวัน · รายคน · รายขั้นตอน ·
+        รายสินค้า · รายล็อต · CNC · เครื่องจักร · ต้นทุนรายเดือน · งานซ่อม · งานซ่อมรายครั้ง · ข้อมูลดิบ
         มีสูตรในไฟล์ เอาไปทำ Pivot ต่อได้เลย
       </p>
       <div class="two">
@@ -177,8 +177,8 @@
   </section>
 </main>
 
-<script src="config.js?v=45"></script>
-<script src="api.js?v=45"></script>
+<script src="config.js?v=46"></script>
+<script src="api.js?v=46"></script>
 <script>
 (function () {
   "use strict";
@@ -446,7 +446,7 @@
   });
 
   /* ---------- ดาวน์โหลดไฟล์ Excel สรุปการผลิต ---------- */
-  var XLS_SRC = "xlsx.js?v=45";
+  var XLS_SRC = "xlsx.js?v=46";
   function needXlsx() {
     if (window.XLSXMini) return Promise.resolve();
     return new Promise(function (ok, no) {
@@ -709,11 +709,45 @@
         x.cnc_start ? { f: "IF(R" + r + "=\"\",TODAY()-Q" + r + ",R" + r + "-Q" + r + ")", s: 7 } : ""]);
     });
 
-    return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sCnc, sMach, sMon, sRaw]);
+    /* ---------- งานซ่อม (JOB) ---------- */
+    var reps = d.repairs || [], repPpl = d.repair_people || [], repLog = d.repair_log || [];
+    var sRep = {
+      name: "งานซ่อม", freeze: 1,
+      cols: [{ w: 14 }, { w: 13 }, { w: 30 }, { w: 14 }, { w: 26 }, { w: 11 }, { w: 12 },
+             { w: 12 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 8 }, { w: 9 }, { w: 14 }],
+      rows: [[H("JOB"), H("ประเภท"), H("งาน"), H("เครื่อง"), H("ของใคร / สินค้า"), H("สถานะ"),
+              H("วันเปิด"), H("วันปิด"), H("ชม. ในช่วงนี้"), H("ชม. ยืนยันแล้ว"),
+              H("นาทีในช่วงนี้"), H("คน"), H("ครั้ง"), H("ชม. รวมทั้ง JOB")]]
+    };
+    reps.forEach(function (x) {
+      sRep.rows.push([x.code, x.kind, x.title, x.machine, x.item, x.status,
+        x.opened ? { d: x.opened } : "", x.closed ? { d: x.closed } : "",
+        N(x.hours), N(x.hours_ok), I(x.minutes), I(x.people), I(x.entries), N(x.hours_all_time)]);
+    });
+    sRep.rows.push([]);
+    sRep.rows.push([H("JOB"), H("งาน"), H("พนักงาน"), H("ชม."), H("นาที"), H("ครั้ง"),
+                    H("วันแรก"), H("วันล่าสุด")]);
+    repPpl.forEach(function (x) {
+      sRep.rows.push([x.code, x.title, x.employee, N(x.hours), I(x.minutes), I(x.entries),
+        x.first_day ? { d: x.first_day } : "", x.last_day ? { d: x.last_day } : ""]);
+    });
+    var sRepLog = {
+      name: "งานซ่อม รายครั้ง", freeze: 1,
+      cols: [{ w: 12 }, { w: 14 }, { w: 28 }, { w: 14 }, { w: 9 }, { w: 9 }, { w: 9 },
+             { w: 9 }, { w: 12 }, { w: 30 }],
+      rows: [[H("วันที่"), H("JOB"), H("งาน"), H("พนักงาน"), H("เริ่ม"), H("เสร็จ"),
+              H("นาที"), H("ชม."), H("สถานะ"), H("หมายเหตุ")]]
+    };
+    repLog.forEach(function (x) {
+      sRepLog.rows.push([{ d: x.d }, x.code, x.title, x.employee, x.t_start || "", x.t_end || "",
+        I(x.minutes), N(x.hours), x.review, x.note]);
+    });
+
+    return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sCnc, sMach, sMon, sRep, sRepLog, sRaw]);
   }
 
   /* ---------- รายงาน Word: ส่ง–รับของ / ไล่ของหาย ---------- */
-  var DOCX_SRC = "docx.js?v=45";
+  var DOCX_SRC = "docx.js?v=46";
   function needDocx() {
     if (window.DOCXMini) return Promise.resolve();
     return new Promise(function (ok, no) {

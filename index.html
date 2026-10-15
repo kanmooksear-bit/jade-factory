@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="app.css?v=46">
 </head>
 <body>
 
@@ -61,6 +61,7 @@
       <div class="tabs" role="tablist">
         <button class="tab" id="tab-prod" role="tab" aria-selected="true" type="button">งานผลิต</button>
         <button class="tab" id="tab-other" role="tab" aria-selected="false" type="button">งานอื่น / ลา</button>
+        <button class="tab" id="tab-repair" role="tab" aria-selected="false" type="button">งานซ่อม</button>
       </div>
 
       <div class="msg" id="form-msg" hidden></div>
@@ -205,6 +206,36 @@
 
         <button class="btn btn-primary btn-lg" id="submit-other" type="button">ส่งบันทึก</button>
       </div>
+
+      <!-- งานซ่อม -->
+      <div id="pane-repair" hidden>
+        <p class="hint" style="margin-bottom:14px">ลงเวลาที่ใช้ซ่อมเข้า JOB ที่หัวหน้าเปิดไว้ ระบบรวมชั่วโมงของแต่ละ JOB ให้เอง — ไม่นับเข้ายอดผลิต</p>
+        <div class="field">
+          <label for="r-job">JOB งานซ่อม</label>
+          <select id="r-job"><option value="">— กำลังโหลด —</option></select>
+        </div>
+        <div class="rjob" id="r-info" hidden></div>
+        <div class="field">
+          <label for="r-date">วันที่</label>
+          <input id="r-date" type="date">
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="r-tstart">เริ่มกี่โมง</label>
+            <input id="r-tstart" type="time">
+          </div>
+          <div class="field">
+            <label for="r-tend">เสร็จกี่โมง</label>
+            <input id="r-tend" type="time">
+          </div>
+        </div>
+        <span class="durnote" id="r-dur"></span>
+        <div class="field" style="margin-top:10px">
+          <label for="r-note">ทำอะไรไปบ้าง (ไม่บังคับ)</label>
+          <input id="r-note" type="text" placeholder="เช่น ติดกาวหัวพระ / ถอดเปลี่ยนสายพาน">
+        </div>
+        <button class="btn btn-primary btn-lg" id="submit-repair" type="button">ส่งบันทึก</button>
+      </div>
     </div>
 
     <!-- ช่องเลือกไฟล์ที่ซ่อนไว้ — ปุ่มด้านบนเป็นตัวสั่งเปิด -->
@@ -238,8 +269,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=45"></script>
-<script src="api.js?v=45"></script>
+<script src="config.js?v=46"></script>
+<script src="api.js?v=46"></script>
 <script>
 (function () {
   "use strict";
@@ -475,6 +506,7 @@
     $("who-name").textContent = m.name;
     $("f-date").value = J.today();
     $("o-date").value = J.today();
+    $("r-date").value = J.today();
     fillRework();
     loadLots();
     loadRecent();
@@ -507,12 +539,16 @@
     mode = m;
     $("tab-prod").setAttribute("aria-selected", String(m === "production"));
     $("tab-other").setAttribute("aria-selected", String(m === "other"));
+    $("tab-repair").setAttribute("aria-selected", String(m === "repair"));
     $("pane-prod").hidden = m !== "production";
     $("pane-other").hidden = m !== "other";
+    $("pane-repair").hidden = m !== "repair";
+    if (m === "repair") loadRepairs();
     J.msg($("form-msg"), "", "");
   }
   $("tab-prod").addEventListener("click", function () { setMode("production"); });
   $("tab-other").addEventListener("click", function () { setMode("other"); });
+  $("tab-repair").addEventListener("click", function () { setMode("repair"); });
 
   $("f-lot").addEventListener("change", showLotInfo);
   $("f-step").addEventListener("change", onStepChange);
@@ -527,6 +563,15 @@
   }
   $("o-tstart").addEventListener("timechange", updateOtherDuration);
   $("o-tend").addEventListener("timechange", updateOtherDuration);
+
+  function updateRepairDuration() {
+    var t = J.durationText($("r-tstart").value, $("r-tend").value);
+    var box = $("r-dur");
+    box.textContent = t || "";
+    box.className = "durnote" + (t && t.indexOf("ต้องหลัง") >= 0 ? " bad" : "");
+  }
+  $("r-tstart").addEventListener("timechange", updateRepairDuration);
+  $("r-tend").addEventListener("timechange", updateRepairDuration);
 
   /* ---------- ส่งบันทึก ---------- */
   function send(args, btn, clear, fn) {
@@ -722,6 +767,78 @@
     });
   });
 
+  /* ---------- งานซ่อม (JOB ที่หัวหน้าเปิด) ---------- */
+  var repairs = [];
+  function hrs(h) {
+    var m = Math.round(Number(h || 0) * 60);
+    if (!m) return "0 ชม.";
+    return (m >= 60 ? Math.floor(m / 60) + " ชม." : "") +
+           (m % 60 ? (m >= 60 ? " " : "") + (m % 60) + " น." : "");
+  }
+  function showRepairInfo() {
+    var j = repairs.filter(function (x) { return x.code === $("r-job").value; })[0];
+    var box = $("r-info");
+    if (!j) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML =
+      '<span class="chip ' + (j.kind === "machine" ? "warn" : "ok") + '">' +
+        (j.kind === "machine" ? "ซ่อมเครื่อง" : "ซ่อมชิ้นงาน") + "</span> " +
+      "<b>" + J.esc(j.title) + "</b>" +
+      (j.machine ? '<br><span class="s">เครื่อง: ' + J.esc(j.machine) + "</span>" : "") +
+      (j.item ? '<br><span class="s">' + J.esc(j.item) + "</span>" : "") +
+      (j.note ? '<br><span class="s">หัวหน้าฝากไว้: ' + J.esc(j.note) + "</span>" : "") +
+      '<div class="rhrs"><span><b>' + hrs(j.hours) + '</b><i>JOB นี้ใช้ไปแล้ว</i></span>' +
+      "<span><b>" + hrs(j.my_hours) + "</b><i>ของคุณ</i></span></div>";
+  }
+  function loadRepairs() {
+    var m = J.me.get();
+    if (!m.name) return;
+    J.rpc("app_repair_jobs", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      repairs = list || [];
+      var keep = $("r-job").value;
+      if (!repairs.length) {
+        $("r-job").innerHTML = '<option value="">ยังไม่มี JOB ซ่อมที่เปิดอยู่ — ให้หัวหน้าเปิด JOB ก่อน</option>';
+        $("submit-repair").disabled = true;
+      } else {
+        $("r-job").innerHTML = '<option value="">— เลือก JOB —</option>' + repairs.map(function (j) {
+          return '<option value="' + J.esc(j.code) + '">' + J.esc(j.code + " · " + j.title +
+                 (j.machine ? " (" + j.machine + ")" : "")) + "</option>";
+        }).join("");
+        if (keep && repairs.some(function (j) { return j.code === keep; })) $("r-job").value = keep;
+        else if (repairs.length === 1) $("r-job").value = repairs[0].code;
+        $("submit-repair").disabled = false;
+      }
+      showRepairInfo();
+    }).catch(function (err) { J.msg($("form-msg"), err.message, "err"); });
+  }
+  $("r-job").addEventListener("change", showRepairInfo);
+
+  $("submit-repair").addEventListener("click", function () {
+    var m = J.me.get();
+    var code = $("r-job").value;
+    if (!code) { J.msg($("form-msg"), "เลือก JOB งานซ่อมก่อน", "err"); return; }
+    var t1 = $("r-tstart").value, t2 = $("r-tend").value;
+    if (!t1 || !t2) { J.msg($("form-msg"), "ใส่ทั้งเวลาเริ่มและเวลาเสร็จ — งานซ่อมนับเป็นชั่วโมง", "err"); return; }
+    if (t2 <= t1) { J.msg($("form-msg"), "เวลาเสร็จต้องหลังเวลาเริ่ม", "err"); return; }
+    send({
+      p_name: m.name, p_pin: m.pin, p_code: code,
+      p_date: $("r-date").value || J.today(),
+      p_time_start: t1, p_time_end: t2,
+      p_note: $("r-note").value.trim() || null
+    }, $("submit-repair"), function (r) {
+      $("r-tstart").value = ""; $("r-tend").value = ""; $("r-note").value = "";
+      updateRepairDuration();
+      if (r && r.ok && !r.queued) {
+        var ov = Number(r.overlap_prod) || 0;
+        J.msg($("form-msg"), "บันทึกแล้ว " + code + " · " + hrs((r.minutes_raw || 0) / 60) +
+          " — JOB นี้ใช้ไปรวม " + hrs(r.job_hours) +
+          (ov ? " · ช่วงเวลานี้ทับกับงานผลิตที่ลงไว้ " + ov + " นาที ถ้าลงซ้ำให้ลบอันที่ผิด" : ""),
+          ov ? "warn" : "ok");
+      }
+      loadRepairs();
+    }, "app_repair_submit");
+  });
+
   /* ---------- แก้รายการของตัวเอง ---------- */
   function openFix(id, list) {
     var r = list.filter(function (x) { return x.id === id; })[0];
@@ -730,7 +847,7 @@
     if (!box.hidden) { box.hidden = true; return; }
     box.hidden = false;
     box.innerHTML =
-      '<div class="row2">' +
+      '<div class="row2"' + (r.repair ? " hidden" : "") + ">" +
         '<div><label>จำนวนดี</label><input type="number" min="0" step="1" data-f="good" value="' + (r.qty_good || 0) + '"></div>' +
         '<div><label>จำนวนเสีย</label><input type="number" min="0" step="1" data-f="bad" value="' + (r.qty_bad || 0) + '"></div>' +
       "</div>" +
@@ -770,19 +887,22 @@
       var list = (all || []).filter(function (e) { return rdNames.indexOf(e.step) < 0; }).slice(0, 15);
       if (!list.length) { $("recent").innerHTML = '<p class="hint">ยังไม่มีรายการ</p>'; return; }
       $("recent").innerHTML = list.map(function (e) {
-        var title = e.category === "other"
+        var title = e.repair
+          ? "ซ่อม " + e.repair + " · " + (e.repair_title || "")
+          : e.category === "other"
           ? (e.note || "งานอื่น")
           : (e.lot || "—") + " · " + (e.step || "—");
         var sub = J.thDate(e.work_date) +
           (e.time_start && e.time_end
             ? " · " + e.time_start + "–" + e.time_end +
-              (e.minutes ? " (" + (e.minutes >= 60 ? Math.floor(e.minutes / 60) + " ชม. " : "") +
-                            (e.minutes % 60 ? (e.minutes % 60) + " น." : "") + ")" : "")
+              (e.minutes ? " (" + ((e.minutes >= 60 ? Math.floor(e.minutes / 60) + " ชม. " : "") +
+                            (e.minutes % 60 ? (e.minutes % 60) + " น." : "")).trim() + ")" : "")
             : "") +
           (e.machine ? " · " + e.machine : "") +
           (e.photos ? " · " + e.photos + " รูป" : "") +
           (e.category === "production" && e.note ? " · " + e.note : "") +
-          (e.category === "other" ? " · งานอื่น" : "");
+          (e.repair ? (e.note ? " · " + e.note : "") + " · งานซ่อม"
+                    : e.category === "other" ? " · งานอื่น" : "");
         var chip = e.review_status === "approved" ? '<span class="chip ok">หัวหน้ายืนยันแล้ว</span>'
                  : e.review_status === "rejected" ? '<span class="chip bad">ถูกตีกลับ</span>'
                  : e.review_status === "inmachine" ? '<span class="chip">อยู่ในเครื่อง</span>'
@@ -805,7 +925,7 @@
               J.nf.format(e.step_total) + " จากล็อต " + J.nf.format(e.lot_qty) +
               " ชิ้น (เกิน " + J.nf.format(e.step_total - e.lot_qty) + ")</span>"
             : "") + "</span>" +
-          '<span class="n">' + J.nf.format(e.qty_good) +
+          '<span class="n">' + (e.repair ? "" : J.nf.format(e.qty_good)) +
           (e.qty_bad ? "<i>เสีย " + J.nf.format(e.qty_bad) + "</i>" : "") +
           (e.can_delete ? ' <button class="btn btn-sm" data-fix="' + J.esc(e.id) + '" type="button">แก้</button>' +
                           ' <button class="btn btn-sm btn-danger" data-del="' + J.esc(e.id) + '" type="button">ลบ</button>' : "") +

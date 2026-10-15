@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="app.css?v=46">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -185,8 +185,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=45"></script>
-<script src="api.js?v=45"></script>
+<script src="config.js?v=46"></script>
+<script src="api.js?v=46"></script>
 <script>
 (function () {
   "use strict";
@@ -454,13 +454,15 @@
         '<input type="checkbox" data-id="' + J.esc(r.id) + '" aria-label="เลือกรายการ">' +
         '<div class="body">' +
           '<div class="l1"><span class="t">' +
-            J.esc(r.lot || "งานอื่น") + " · " + J.esc(r.step || "—") + " · " + J.esc(r.employee) +
+            (r.repair
+              ? "ซ่อม " + J.esc(r.repair) + " · " + J.esc(r.repair_title || "") + " · " + J.esc(r.employee)
+              : J.esc(r.lot || "งานอื่น") + " · " + J.esc(r.step || "—") + " · " + J.esc(r.employee)) +
             " " + (CHIP[r.review_status] || "") +
             (over ? ' <span class="chip warn">เกินล็อต +' + J.nf.format(over) + "</span>" : "") +
             (r.is_rework
               ? ' <span class="chip warn">งานแก้ของ ' + J.esc(r.rework_of || "ไม่ระบุ") + "</span>"
               : "") +
-          '</span><span class="n">' + J.nf.format(r.qty_good) +
+          '</span><span class="n">' + (r.repair ? "" : J.nf.format(r.qty_good)) +
             (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") + "</span></div>" +
           '<div class="s">' + J.esc(when) + (r.note ? " · " + J.esc(r.note) : "") +
             (r.lot_start ? " · ล็อตเริ่ม " + J.esc(J.thDate(r.lot_start)) : "") + "</div>" +

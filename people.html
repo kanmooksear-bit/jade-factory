@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="app.css?v=46">
 <style>
   .wrap{max-width:1080px}
   .topbar-in{max-width:1080px}
@@ -105,8 +105,8 @@
   </div>
 </main>
 
-<script src="config.js?v=45"></script>
-<script src="api.js?v=45"></script>
+<script src="config.js?v=46"></script>
+<script src="api.js?v=46"></script>
 <script>
 (function () {
   "use strict";
@@ -280,9 +280,10 @@
     if (ot.length) {
       html += '<section><div class="sec-head"><h2>งานอื่น / วันลา</h2>' +
         '<span class="hint">บันทึกไว้แต่ไม่นับเข้ายอดผลิต</span></div><div class="panel scroll">' +
-        "<table><thead><tr><th>วันที่</th><th>ทำอะไร</th><th class='num'>จำนวน</th></tr></thead><tbody>" +
+        "<table><thead><tr><th>วันที่</th><th>ทำอะไร</th><th class='num'>เวลา</th><th class='num'>จำนวน</th></tr></thead><tbody>" +
         ot.map(function (x) {
           return "<tr><td>" + J.esc(J.thDate(x.d)) + "</td><td>" + J.esc(x.note) +
+            "</td><td class='num'>" + (Number(x.minutes) ? hoursTxt(x.minutes) : "—") +
             "</td><td class='num'>" + (Number(x.qty) ? J.nf.format(x.qty) : "—") + "</td></tr>";
         }).join("") + "</tbody></table></div></section>";
     }
@@ -309,7 +310,8 @@
         return sep + '<div class="tl"><span class="when">' +
           (x.time_start || J.thDate(x.work_date, false)) + "</span>" +
           '<span class="body"><span class="t">' +
-            J.esc(x.category === "other" ? (x.note || "งานอื่น") : (x.lot || "—") + " · " + (x.step || "—")) +
+            J.esc(x.repair ? "ซ่อม " + x.repair + " · " + (x.repair_title || "")
+                  : x.category === "other" ? (x.note || "งานอื่น") : (x.lot || "—") + " · " + (x.step || "—")) +
             " " + chip + "</span>" +
             (sub.length ? '<span class="s">' + J.esc(sub.join(" · ")) + "</span>" : "") +
           "</span>" +

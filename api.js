@@ -510,13 +510,14 @@ window.JADE = (function () {
 
   /* ---------- เมนู: หัวหน้าเห็นครบ พนักงานเห็นเฉพาะลงงานผลิต + แดชบอร์ด ---------- */
   var SUP_ONLY = ["admin.html", "review.html", "people.html", "cost.html", "kpi.html",
-                  "manage.html", "log.html"];
+                  "manage.html", "log.html", "repair.html"];
 
   // เมนูที่เพิ่มทีหลัง — เติมให้ทุกหน้าเองจากที่นี่ที่เดียว
   // [ href ของลิงก์ใหม่, ข้อความ, ให้ไปอยู่หลัง href ไหน]
   var EXTRA_NAV = [["kpi.html", "KPI", "cost.html"],
                    ["rd.html", "งาน RD", "index.html"],
-                   ["handoff.html", "ส่ง–รับของ", "index.html"]];
+                   ["handoff.html", "ส่ง–รับของ", "index.html"],
+                   ["repair.html", "งานซ่อม", "review.html"]];
 
   // คลังวัสดุเป็นอีกแอพหนึ่ง — ปุ่มสลับแอพอยู่กลางแถบบนสุด เห็นทุกหน้าตั้งแต่ยังไม่ล็อกอิน
   var STOCK_APP = "stock.html";

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="app.css?v=46">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -239,16 +239,16 @@
 
     <section id="sec-other">
       <div class="sec-head">
-        <h2>งานอื่น / วันลา</h2>
-        <span class="hint">บันทึกไว้แต่ไม่นับเข้ายอดผลิต</span>
+        <h2>งานอื่น / วันลา / งานซ่อม</h2>
+        <span class="hint" id="other-sum">ไม่นับเข้ายอดผลิต · นับเฉพาะที่หัวหน้ายืนยันแล้ว</span>
       </div>
       <div class="panel scroll"><table id="other"></table></div>
     </section>
   </div>
 </main>
 
-<script src="config.js?v=45"></script>
-<script src="api.js?v=45"></script>
+<script src="config.js?v=46"></script>
+<script src="api.js?v=46"></script>
 <script>
 (function () {
   "use strict";
@@ -805,14 +805,38 @@
       }).join("") + "</tbody>";
   }
 
+  // เวลาแบบ "2 ชม. 30 น." อ่านง่ายกว่าทศนิยมสำหรับงานที่ลงเป็นช่วงเวลา
+  function hmTxt(minutes) {
+    var m = Math.round(Number(minutes) || 0);
+    if (!m) return "—";
+    return ((m >= 60 ? J.nf.format(Math.floor(m / 60)) + " ชม. " : "") +
+            (m % 60 ? (m % 60) + " น." : "")).trim();
+  }
   function renderOther(rows) {
-    if (!rows.length) { $("other").innerHTML = '<tr><td class="empty">ไม่มีบันทึกงานอื่นในช่วงนี้</td></tr>'; return; }
+    var base = "ไม่นับเข้ายอดผลิต · นับเฉพาะที่หัวหน้ายืนยันแล้ว";
+    if (!rows.length) {
+      $("other-sum").textContent = base;
+      $("other").innerHTML = '<tr><td class="empty">ไม่มีบันทึกงานอื่นในช่วงนี้</td></tr>';
+      return;
+    }
+    var tot = 0, rep = 0, n = 0, noT = 0;
+    rows.forEach(function (r) {
+      tot += Number(r.minutes) || 0; n += Number(r.n) || 0; noT += Number(r.no_time) || 0;
+      if (r.repair) rep += Number(r.minutes) || 0;
+    });
+    $("other-sum").textContent = "รวม " + hmTxt(tot) + (rep ? " · ในนี้งานซ่อม " + hmTxt(rep) : "") + " · " + base;
     $("other").innerHTML =
-      "<thead><tr><th>งาน</th><th>พนักงาน</th><th class='num'>จำนวนครั้ง</th></tr></thead><tbody>" +
+      "<thead><tr><th>งาน</th><th>พนักงาน</th><th class='num'>ครั้ง</th><th class='num'>เวลา</th></tr></thead><tbody>" +
       rows.map(function (r) {
+        var nt = Number(r.no_time) || 0;
         return "<tr><td>" + J.esc(r.note) + "</td><td>" + J.esc(r.name) +
-          "</td><td class='num'>" + J.nf.format(r.n) + "</td></tr>";
-      }).join("") + "</tbody>";
+          "</td><td class='num'>" + J.nf.format(r.n) +
+          "</td><td class='num'>" + hmTxt(r.minutes) +
+          (nt ? '<br><span class="hint">' + nt + " ครั้งไม่ได้ลงเวลา</span>" : "") + "</td></tr>";
+      }).join("") +
+      "<tr><td><b>รวม</b></td><td></td><td class='num'><b>" + J.nf.format(n) + "</b></td>" +
+      "<td class='num'><b>" + hmTxt(tot) + "</b>" +
+      (noT ? '<br><span class="hint">' + noT + " ครั้งไม่ได้ลงเวลา</span>" : "") + "</td></tr></tbody>";
   }
 
   /* ---------- เริ่ม ---------- */

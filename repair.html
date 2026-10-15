@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1E6B4F">
+<title>งานซ่อม — โรงงานหยก</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="app.css?v=46">
+<style>
+  .wrap{max-width:1000px;padding-bottom:80px}
+  .topbar-in{max-width:1000px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .nav a{padding:8px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;
+         color:var(--ink-2);font-size:13.5px;background:var(--surface)}
+  .nav a.on{background:var(--jade);border-color:var(--jade);color:var(--on-jade)}
+
+  .kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .kind label{display:flex;gap:9px;align-items:center;padding:12px;border:1px solid var(--line);
+              border-radius:9px;background:var(--surface);cursor:pointer;font-size:14.5px}
+  .kind input{width:18px;height:18px;accent-color:var(--jade);flex:none}
+  .kind label:has(input:checked){border-color:var(--jade);background:var(--jade-soft);color:var(--jade-ink)}
+  .kind small{display:block;color:var(--ink-3);font-size:12px}
+
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+  .tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .tile i{display:block;font-style:normal;font-size:12px;color:var(--ink-3)}
+  .tile b{display:block;font-family:var(--display);font-size:26px;font-weight:500;
+          font-variant-numeric:tabular-nums;color:var(--ink);margin-top:2px}
+  .tile.warn b{color:var(--amber)}
+  .tile a{color:inherit}
+
+  .seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .seg button{padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);
+              color:var(--ink-2);font:inherit;font-size:13.5px;cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+
+  .job{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .job.closed{opacity:.8}
+  .job .hd{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3)}
+  .job .hd b{color:var(--ink-2);font-variant-numeric:tabular-nums;letter-spacing:.2px}
+  .job h3{margin:6px 0 2px;font-size:17px;font-weight:600;line-height:1.4}
+  .job .sub{font-size:13px;color:var(--ink-2);line-height:1.55}
+  .job .big{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;margin:12px 0 4px}
+  .job .big b{font-family:var(--display);font-size:32px;font-weight:500;line-height:1;
+              font-variant-numeric:tabular-nums;color:var(--jade)}
+  .job .big span{font-size:12.5px;color:var(--ink-3);line-height:1.5}
+  .ppl{margin-top:10px;display:grid;gap:7px}
+  .ppl .p{display:grid;grid-template-columns:minmax(64px,auto) 1fr auto;gap:10px;align-items:center;font-size:13.5px}
+  .ppl .bar{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+  .ppl .bar span{display:block;height:100%;background:var(--jade);border-radius:4px}
+  .ppl .h{font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+  .job .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .det{margin-top:10px;border-top:1px solid var(--line-2)}
+  .det .r{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:9px 0;border-bottom:1px solid var(--line-2);font-size:13.5px}
+  .det .r .s{grid-column:1 / -1;font-size:12.5px;color:var(--ink-3)}
+  .det .r.rej{opacity:.55}
+  .det .r .h{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .det[hidden],.job [hidden]{display:none!important}
+  .empty{color:var(--ink-3);font-size:14px;padding:18px 4px}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="eyebrow">งานซ่อม</span>
+      <span class="nm" id="factory">โรงงานหยก</span>
+    </div>
+    <div class="who" id="who" hidden>
+      <span><b id="who-name"></b></span>
+      <button class="btn btn-sm btn-ghost" id="logout" type="button">ออก</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <nav class="nav">
+    <a href="index.html">ลงงานผลิต</a>
+    <a href="admin.html">หน้าหัวหน้า</a>
+    <a href="review.html">ตรวจงาน</a>
+    <a href="dashboard.html">แดชบอร์ด</a>
+    <a href="people.html">พนักงาน</a>
+    <a href="cost.html">ต้นทุน</a>
+    <a href="manage.html">ตั้งค่า</a>
+    <a href="log.html">Log</a>
+  </nav>
+
+  <section id="login" class="card">
+    <h2>เข้าใช้งาน (หัวหน้า)</h2>
+    <div class="msg err" id="login-msg" hidden></div>
+    <div class="field">
+      <label for="l-name">ชื่อ</label>
+      <select id="l-name"><option value="">— กำลังโหลด —</option></select>
+    </div>
+    <div class="field">
+      <label for="l-pin">PIN</label>
+      <input id="l-pin" type="password" inputmode="numeric" placeholder="••••">
+    </div>
+    <button class="btn btn-primary btn-lg" id="l-go" type="button">เข้าใช้งาน</button>
+  </section>
+
+  <div id="app" hidden>
+    <!-- เปิด JOB -->
+    <section class="card">
+      <h2>เปิด JOB ซ่อมใหม่</h2>
+      <div class="msg" id="open-msg" hidden></div>
+      <div class="kind" role="radiogroup" aria-label="ประเภทงานซ่อม">
+        <label><input type="radio" name="kind" value="item" checked>
+          <span>ซ่อมชิ้นงาน<small>พระ/ชิ้นงานแตก บิ่น ลูกค้าส่งคืน</small></span></label>
+        <label><input type="radio" name="kind" value="machine">
+          <span>ซ่อมเครื่อง<small>เครื่องจักร อุปกรณ์ในโรงงาน</small></span></label>
+      </div>
+      <div class="field">
+        <label for="o-title">ชื่องานซ่อม</label>
+        <input id="o-title" type="text" maxlength="120" placeholder="เช่น ซ่อมหัวพระแตก / เปลี่ยนสายพาน CNC">
+      </div>
+      <div class="field" id="o-item-box">
+        <label for="o-item">ของใคร / สินค้าอะไร / กี่ชิ้น (ไม่บังคับ)</label>
+        <input id="o-item" type="text" placeholder="เช่น ลูกค้าคุณเอ · พระปิดตา 3 องค์">
+      </div>
+      <div class="field" id="o-mach-box" hidden>
+        <label for="o-mach">เครื่องที่ซ่อม (ไม่บังคับ)</label>
+        <select id="o-mach"><option value="">— ไม่ระบุ / อุปกรณ์อื่น —</option></select>
+      </div>
+      <div class="field">
+        <label for="o-note">ฝากบอกคนซ่อม (ไม่บังคับ)</label>
+        <input id="o-note" type="text" placeholder="เช่น ด่วน ลูกค้ารับวันศุกร์">
+      </div>
+      <button class="btn btn-primary btn-lg" id="o-go" type="button">เปิด JOB</button>
+      <p class="hint" style="margin-top:10px">เปิดแล้วพนักงานลงเวลาได้ที่หน้า "ลงงานผลิต" › แท็บ "งานซ่อม" · ชั่วโมงทั้งหมดออกเป็น Excel ได้ที่หน้าหัวหน้า (ชีต "งานซ่อม")</p>
+    </section>
+
+    <div class="tiles" id="tiles"></div>
+
+    <section class="card">
+      <h2>JOB ซ่อมทั้งหมด</h2>
+      <div class="msg" id="list-msg" hidden></div>
+      <div class="seg" id="seg">
+        <button type="button" data-st="open" aria-pressed="true">เปิดอยู่</button>
+        <button type="button" data-st="closed" aria-pressed="false">ปิดแล้ว</button>
+        <button type="button" data-st="all" aria-pressed="false">ทั้งหมด</button>
+      </div>
+      <div id="jobs"><p class="empty">กำลังโหลด…</p></div>
+    </section>
+  </div>
+</main>
+
+<script src="config.js?v=46"></script>
+<script src="api.js?v=46"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var J = window.JADE;
+  var status = "open", jobs = [];
+
+  $("factory").textContent = J.factory;
+
+  function hrs(h) {
+    var m = Math.round(Number(h || 0) * 60);
+    if (!m) return "0 ชม.";
+    return (m >= 60 ? J.nf.format(Math.floor(m / 60)) + " ชม." : "") +
+           (m % 60 ? (m >= 60 ? " " : "") + (m % 60) + " น." : "");
+  }
+  function kindOf() {
+    var r = document.querySelector('input[name="kind"]:checked');
+    return r ? r.value : "item";
+  }
+
+  /* ---------- เข้าใช้งาน ---------- */
+  function loadBoot() {
+    return J.rpc("app_bootstrap").then(function (d) {
+      var sup = d.employees.filter(function (e) { return e.role === "supervisor"; });
+      $("l-name").innerHTML = '<option value="">— เลือกชื่อ —</option>' +
+        (sup.length ? sup : d.employees).map(function (e) {
+          return '<option value="' + J.esc(e.name) + '">' + J.esc(e.name) + "</option>";
+        }).join("");
+      $("o-mach").innerHTML = '<option value="">— ไม่ระบุ / อุปกรณ์อื่น —</option>' +
+        (d.machines || []).map(function (m) {
+          return '<option value="' + J.esc(m.name) + '">' + J.esc(m.name) + "</option>";
+        }).join("");
+      var saved = J.me.get();
+      if (saved.name) $("l-name").value = saved.name;
+    });
+  }
+
+  function enterApp() {
+    $("login").hidden = true;
+    $("app").hidden = false;
+    $("who").hidden = false;
+    $("who-name").textContent = J.me.get().name;
+    load();
+  }
+
+  $("l-go").addEventListener("click", function () {
+    var name = $("l-name").value, pin = $("l-pin").value;
+    if (!name || !pin) { J.msg($("login-msg"), "เลือกชื่อและใส่ PIN", "err"); return; }
+    $("l-go").disabled = true;
+    J.rpc("sup_repairs", { p_name: name, p_pin: pin, p_status: "open" }).then(function () {
+      J.me.set(name, pin, "supervisor");
+      enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); })
+      .then(function () { $("l-go").disabled = false; });
+  });
+  $("l-pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("l-go").click(); });
+  $("logout").addEventListener("click", function () { J.me.clear(); location.reload(); });
+
+  /* ---------- เปิด JOB ---------- */
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="kind"]'), function (r) {
+    r.addEventListener("change", function () {
+      var k = kindOf();
+      $("o-item-box").hidden = k !== "item";
+      $("o-mach-box").hidden = k !== "machine";
+    });
+  });
+
+  $("o-go").addEventListener("click", function () {
+    var m = J.me.get(), title = $("o-title").value.trim(), k = kindOf();
+    if (!title) { J.msg($("open-msg"), "ใส่ชื่องานซ่อมก่อน", "err"); $("o-title").focus(); return; }
+    $("o-go").disabled = true;
+    J.rpc("sup_repair_open", {
+      p_name: m.name, p_pin: m.pin, p_kind: k, p_title: title,
+      p_machine: k === "machine" ? ($("o-mach").value || null) : null,
+      p_item: k === "item" ? ($("o-item").value.trim() || null) : null,
+      p_note: $("o-note").value.trim() || null
+    }).then(function (r) {
+      J.msg($("open-msg"), "เปิด JOB " + r.code + " แล้ว — บอกพนักงานให้เลือก " + r.code +
+        " ในแท็บ \"งานซ่อม\" ตอนลงเวลา", "ok");
+      $("o-title").value = ""; $("o-item").value = ""; $("o-note").value = ""; $("o-mach").value = "";
+      setStatus("open");
+    }).catch(function (err) { J.msg($("open-msg"), err.message, "err"); })
+      .then(function () { $("o-go").disabled = false; });
+  });
+
+  /* ---------- รายการ JOB ---------- */
+  function setStatus(st) {
+    status = st;
+    Array.prototype.forEach.call($("seg").querySelectorAll("button"), function (b) {
+      b.setAttribute("aria-pressed", String(b.getAttribute("data-st") === st));
+    });
+    load();
+  }
+  $("seg").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-st]");
+    if (b) setStatus(b.getAttribute("data-st"));
+  });
+
+  function load() {
+    var m = J.me.get();
+    J.rpc("sup_repairs", { p_name: m.name, p_pin: m.pin, p_status: status }).then(function (d) {
+      jobs = d.jobs || [];
+      renderTiles(d.summary || {});
+      renderJobs();
+    }).catch(function (err) { J.msg($("list-msg"), err.message, "err"); });
+  }
+
+  function renderTiles(s) {
+    $("tiles").innerHTML =
+      '<div class="tile"><i>JOB ที่เปิดอยู่</i><b>' + J.nf.format(s.open || 0) + "</b></div>" +
+      '<div class="tile"><i>ชั่วโมงของ JOB ที่เปิดอยู่</i><b>' + hrs(s.open_hours) + "</b></div>" +
+      '<div class="tile"><i>ซ่อมชิ้นงาน (รวมทุก JOB)</i><b>' + hrs(s.item_hours) + "</b></div>" +
+      '<div class="tile"><i>ซ่อมเครื่อง (รวมทุก JOB)</i><b>' + hrs(s.machine_hours) + "</b></div>" +
+      '<div class="tile' + (s.pending ? " warn" : "") + '"><i>เวลาซ่อมที่รอตรวจ</i><b>' +
+        (s.pending ? '<a href="review.html">' + J.nf.format(s.pending) + " รายการ</a>" : "0") + "</b></div>";
+  }
+
+  var STATUS = {
+    open:      '<span class="chip ok">เปิดอยู่</span>',
+    done:      '<span class="chip idle">ซ่อมเสร็จแล้ว</span>',
+    cancelled: '<span class="chip bad">ยกเลิก</span>'
+  };
+
+  function renderJobs() {
+    if (!jobs.length) {
+      $("jobs").innerHTML = '<p class="empty">' +
+        (status === "open" ? "ไม่มี JOB ซ่อมที่เปิดอยู่" : "ยังไม่มี JOB ในหมวดนี้") + "</p>";
+      return;
+    }
+    $("jobs").innerHTML = jobs.map(function (j, i) {
+      var top = Math.max.apply(null, (j.by_person || []).map(function (p) { return p.minutes; }).concat([1]));
+      var ppl = (j.by_person || []).map(function (p) {
+        return '<div class="p"><span>' + J.esc(p.name) + '</span>' +
+          '<span class="bar"><span style="width:' + Math.max(3, Math.round(p.minutes / top * 100)) + '%"></span></span>' +
+          '<span class="h">' + hrs(p.hours) + " · " + p.n + " ครั้ง</span></div>";
+      }).join("");
+      var open = j.status === "open";
+      return '<article class="job' + (open ? "" : " closed") + '" data-i="' + i + '">' +
+        '<div class="hd"><b>' + J.esc(j.code) + "</b>" +
+          '<span class="chip ' + (j.kind === "machine" ? "warn" : "ok") + '">' +
+            (j.kind === "machine" ? "ซ่อมเครื่อง" : "ซ่อมชิ้นงาน") + "</span>" + STATUS[j.status] + "</div>" +
+        "<h3>" + J.esc(j.title) + "</h3>" +
+        '<div class="sub">' +
+          (j.machine ? "เครื่อง: " + J.esc(j.machine) + "<br>" : "") +
+          (j.item ? J.esc(j.item) + "<br>" : "") +
+          (j.note ? "ฝากไว้: " + J.esc(j.note) + "<br>" : "") +
+          "เปิด " + J.esc(j.opened_txt) + (j.opened_by ? " โดย " + J.esc(j.opened_by) : "") +
+          (open ? " · เปิดมาแล้ว " + j.days + " วัน"
+                : " · ปิด " + J.esc(j.closed_txt || "") + (j.closed_by ? " โดย " + J.esc(j.closed_by) : "") +
+                  " · ใช้เวลา " + j.days + " วัน") +
+        "</div>" +
+        '<div class="big"><b>' + hrs(j.hours) + "</b>" +
+          "<span>ใช้ไปแล้ว · " + J.nf.format(j.people) + " คน · " + J.nf.format(j.entries) + " ครั้ง" +
+          (Number(j.hours_wait) ? "<br>ในนี้รอหัวหน้าตรวจ " + hrs(j.hours_wait) : "") + "</span></div>" +
+        (ppl ? '<div class="ppl">' + ppl + "</div>" : '<p class="hint" style="margin-top:8px">ยังไม่มีใครลงเวลาเข้า JOB นี้</p>') +
+        '<div class="acts">' +
+          (j.entries ? '<button class="btn btn-sm" type="button" data-act="det">ดูรายการเวลา</button>' : "") +
+          (open
+            ? '<button class="btn btn-sm btn-primary" type="button" data-act="done">ซ่อมเสร็จ — ปิด JOB</button>' +
+              '<button class="btn btn-sm btn-ghost" type="button" data-act="cancelled">ยกเลิก JOB</button>'
+            : '<button class="btn btn-sm btn-ghost" type="button" data-act="open">เปิด JOB นี้ใหม่</button>') +
+        "</div>" +
+        '<div class="det" hidden></div>' +
+      "</article>";
+    }).join("");
+  }
+
+  $("jobs").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-act]");
+    if (!b) return;
+    var card = b.closest(".job"), j = jobs[Number(card.getAttribute("data-i"))];
+    var act = b.getAttribute("data-act"), m = J.me.get();
+    if (act === "det") { toggleDetail(card, j); return; }
+
+    // ยกเลิกต้องกดยืนยันซ้ำ กันนิ้วพลาด
+    if (act === "cancelled" && !b.dataset.sure) {
+      b.dataset.sure = "1";
+      b.textContent = "กดอีกครั้งเพื่อยืนยันยกเลิก";
+      b.classList.add("btn-danger");
+      setTimeout(function () {
+        if (b.isConnected) { delete b.dataset.sure; b.textContent = "ยกเลิก JOB"; b.classList.remove("btn-danger"); }
+      }, 4000);
+      return;
+    }
+    b.disabled = true;
+    J.rpc("sup_repair_close", { p_name: m.name, p_pin: m.pin, p_code: j.code, p_status: act })
+      .then(function (r) {
+        J.msg($("list-msg"),
+          act === "done" ? "ปิด " + j.code + " แล้ว — ใช้ไปทั้งหมด " + hrs(r.hours)
+          : act === "open" ? "เปิด " + j.code + " ใหม่แล้ว พนักงานลงเวลาเพิ่มได้"
+          : "ยกเลิก " + j.code + " แล้ว", "ok");
+        load();
+      })
+      .catch(function (err) { J.msg($("list-msg"), err.message, "err"); b.disabled = false; });
+  });
+
+  var REV = { approved: "ยืนยันแล้ว", pending: "รอตรวจ", rejected: "ตีกลับ — ไม่นับ" };
+  function toggleDetail(card, j) {
+    var box = card.querySelector(".det");
+    if (!box.hidden) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = '<p class="hint" style="padding:10px 0">กำลังโหลด…</p>';
+    var m = J.me.get();
+    J.rpc("sup_repair_detail", { p_name: m.name, p_pin: m.pin, p_code: j.code }).then(function (list) {
+      box.innerHTML = (list || []).map(function (r) {
+        return '<div class="r' + (r.review_status === "rejected" ? " rej" : "") + '">' +
+          "<span>" + J.thDate(r.work_date) + " · " + J.esc(r.employee) + " · " +
+            J.esc(r.time_start || "") + "–" + J.esc(r.time_end || "") + "</span>" +
+          '<span class="h">' + hrs((r.minutes || 0) / 60) + "</span>" +
+          '<span class="s">' + (REV[r.review_status] || r.review_status) +
+            (r.note ? " · " + J.esc(r.note) : "") +
+            (r.review_note ? " · หัวหน้า: " + J.esc(r.review_note) : "") + "</span></div>";
+      }).join("") || '<p class="hint" style="padding:10px 0">ยังไม่มีรายการ</p>';
+    }).catch(function (err) { box.innerHTML = '<p class="msg err">' + J.esc(err.message) + "</p>"; });
+  }
+
+  /* ---------- เริ่ม ---------- */
+  if (!J.configured()) {
+    J.msg($("login-msg"), "ยังไม่ได้ตั้งค่า config.js", "err");
+  } else {
+    loadBoot().then(function () {
+      var m = J.me.get();
+      if (m.name && m.pin && m.role === "supervisor") enterApp();
+    }).catch(function (err) { J.msg($("login-msg"), err.message, "err"); });
+  }
+})();
+</script>
+</body>
+</html>
