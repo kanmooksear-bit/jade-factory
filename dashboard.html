@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=46">
+<link rel="stylesheet" href="app.css?v=47">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -76,6 +76,11 @@
   .hval{font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .hval i{font-style:normal;color:var(--alert);font-size:12px;margin-inline-start:7px}
   .hval b.rate{font-weight:400;color:var(--ink-3);font-size:12px;margin-inline-start:9px}
+  /* จอมือถือ: ตัวเลขกับป้ายต่อท้ายยาว ให้ขึ้นบรรทัดใหม่ใต้แถบ ไม่ล้นจอ */
+  @media (max-width:600px){
+    .hrow{grid-template-columns:90px 1fr;row-gap:4px}
+    .hval{grid-column:2;white-space:normal;line-height:1.5}
+  }
 
   .hm td.cell{text-align:center;font-variant-numeric:tabular-nums;font-size:11.5px;
               padding:6px 8px;border:1px solid var(--surface);border-radius:3px}
@@ -170,6 +175,14 @@
       <div class="panel scroll"><table id="lots"></table></div>
     </section>
 
+    <section id="sec-rework" hidden>
+      <div class="sec-head">
+        <h2>ล็อตแก้ไข</h2>
+        <span class="hint" id="rework-sum">ของเสียที่ส่งกลับไปแก้ — ไม่นับเป็นยอดผลิตใหม่</span>
+      </div>
+      <div class="panel scroll"><table id="rework"></table></div>
+    </section>
+
     <section id="sec-over" hidden>
       <div class="sec-head">
         <h2>ขั้นตอนที่ลงเกินจำนวนล็อต</h2>
@@ -247,8 +260,8 @@
   </div>
 </main>
 
-<script src="config.js?v=46"></script>
-<script src="api.js?v=46"></script>
+<script src="config.js?v=47"></script>
+<script src="api.js?v=47"></script>
 <script>
 (function () {
   "use strict";
@@ -396,7 +409,9 @@
         " · หยก" + J.esc(info.jade) + "</span>" +
         '<span class="chip ' + (info.status === "open" ? "ok" : "idle") + '">' +
         (info.status === "open" ? "กำลังทำ" : "ปิดแล้ว") + "</span>" +
-        (late ? '<span class="chip bad">เลยกำหนดส่ง</span>' : "") + "</div>" +
+        (late ? '<span class="chip bad">เลยกำหนดส่ง</span>' : "") +
+        (info.rework ? '<span class="chip warn">ล็อตแก้ไข · แก้ของ ' + J.esc(info.rework_of || "—") + "</span>" : "") +
+        "</div>" +
       '<span class="lc-prog">' +
         '<i style="width:' + pct(ok)   + ';background:var(--jade)"></i>' +
         '<i style="width:' + pct(wait) + ';background:var(--amber)"></i>' +
@@ -405,10 +420,11 @@
       '<div class="lc-facts">' +
         "<span>เริ่มเมื่อ <b>" + J.esc(J.thDate(info.opened_at)) + "</b>" +
           (info.days != null ? " (" + J.nf.format(info.days) + " วันแล้ว)" : "") + "</span>" +
-        "<span>เปิดล็อต <b>" + J.nf.format(open) + "</b> ชิ้น</span>" +
-        "<span>ผ่าน QC <b>" + J.nf.format(ok) + "</b></span>" +
+        "<span>" + (info.rework ? "ส่งมาแก้" : "เปิดล็อต") + " <b>" + J.nf.format(open) + "</b> ชิ้น</span>" +
+        "<span>" + (info.rework ? "แก้ผ่าน" : "ผ่าน QC") + " <b>" + J.nf.format(ok) + "</b></span>" +
         (wait ? "<span>รอตรวจ <b>" + J.nf.format(wait) + "</b></span>" : "") +
-        "<span>เสีย <b>" + J.nf.format(bad) + "</b></span>" +
+        "<span>" + (info.rework ? "แก้ไม่ได้" : "เสีย") + " <b>" + J.nf.format(bad) + "</b></span>" +
+        (Number(info.rework_sent) ? "<span>ส่งไปแก้แล้ว <b>" + J.nf.format(info.rework_sent) + "</b></span>" : "") +
         "<span>ค้างในสาย <b>" + J.nf.format(wip) + "</b></span>" +
         "<span>ขั้นตอนล่าสุด <b>" + J.esc(info.last_step || "—") + "</b>" +
           (info.last_date ? " เมื่อ " + J.esc(J.thDate(info.last_date)) : "") + "</span>" +
@@ -443,6 +459,7 @@
     renderDaily(d.daily || [], one);
     renderLots(d.lots || [], one);
     renderOver(d.over_quota || [], one);
+    renderRework(d.rework || null);
     renderByEmp(d.by_employee || [], one);
     renderHeat(d.by_emp_step || []);
     renderByTime(d.by_step || [], one);
@@ -600,9 +617,37 @@
     $("daily-note").textContent = note.join(" · ");
   }
 
+  // ล็อตแก้ไขแยกไปอยู่ตารางของตัวเอง จะได้ไม่ปนกับยอดผลิต
+  function renderRework(rw) {
+    var list = (rw && rw.list) || [];
+    $("sec-rework").hidden = !list.length;
+    if (!list.length) return;
+    var sent = Number(rw.sent) || 0, ok = Number(rw.passed) || 0, bad = Number(rw.failed) || 0;
+    var done = ok + bad;
+    $("rework-sum").textContent = "ส่งไปแก้ " + J.nf.format(sent) + " ชิ้น · แก้ผ่าน " + J.nf.format(ok) +
+      (done ? " (" + Math.round(ok / done * 100) + "% ของที่แก้เสร็จ)" : "") +
+      " · แก้ไม่ได้ " + J.nf.format(bad) + " · กำลังแก้ " + J.nf.format(rw.wip || 0) +
+      " — ไม่นับเป็นยอดผลิตใหม่";
+    $("rework").innerHTML =
+      "<thead><tr><th>ล็อตแก้ไข</th><th>แก้ของ</th><th>สินค้า</th><th class='num'>ส่งมาแก้</th>" +
+      "<th class='num'>แก้ผ่าน</th><th class='num'>รอตรวจ</th><th class='num'>แก้ไม่ได้</th>" +
+      "<th class='num'>กำลังแก้</th><th>ขั้นที่ทำ</th><th>สถานะ</th></tr></thead><tbody>" +
+      list.map(function (r) {
+        var late = r.due_date && r.status === "open" && r.due_date < J.today();
+        return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.rework_of || "—") + "</td><td>" +
+          J.esc(r.product_code) + "</td><td class='num'>" + J.nf.format(r.sent) +
+          "</td><td class='num'>" + J.nf.format(r.passed) + "</td><td class='num'>" +
+          (Number(r.pending) ? '<span class="chip warn">' + J.nf.format(r.pending) + "</span>" : "—") +
+          "</td><td class='num'>" + J.nf.format(r.failed) + "</td><td class='num'>" + J.nf.format(r.wip) +
+          "</td><td>" + J.esc((r.steps || []).join(", ") || "—") + "</td><td>" +
+          '<span class="chip ' + (r.status === "closed" ? "idle" : late ? "bad" : "ok") + '">' +
+          (r.status === "closed" ? "ปิดแล้ว" : late ? "เลยกำหนด" : "กำลังแก้") + "</span></td></tr>";
+      }).join("") + "</tbody>";
+  }
+
   function renderLots(lots, one) {
     var open = lots.filter(function (l) {
-      return one ? l.code === one : l.status === "open";
+      return one ? l.code === one : l.status === "open" && !l.rework;
     });
     if (!open.length) { $("lots").innerHTML = '<tr><td class="empty">ไม่มีล็อตที่กำลังทำอยู่</td></tr>'; return; }
     $("lots").innerHTML =

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=46">
+<link rel="stylesheet" href="app.css?v=47">
 <style>
   .lot{padding:14px 0;border-top:1px solid var(--line-2)}
   .lot:first-child{border-top:0}
@@ -19,6 +19,20 @@
   .lot-nums b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
   .lot-nums .bad b{color:var(--alert)}
   .lot-actions{display:flex;gap:8px;margin-top:10px}
+  .lot.rw{border-inline-start:3px solid var(--amber);padding-inline-start:12px}
+  .lot-rw{font-size:13px;color:var(--amber);margin-top:4px;line-height:1.55}
+  .src{display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center;
+       padding:10px 0;border-top:1px solid var(--line-2)}
+  .src:first-child{border-top:0}
+  .src .c{font-weight:600;font-variant-numeric:tabular-nums}
+  .src .s{grid-column:1 / -1;font-size:12.5px;color:var(--ink-3)}
+  .src .q{display:flex;gap:6px;align-items:center}
+  .src input{width:84px;padding:8px 9px;border:1px solid var(--line);border-radius:7px;
+             background:var(--paper);color:var(--ink);font-size:15px;text-align:end}
+  .steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 12px;margin:4px 0 6px}
+  .steps label{display:flex;gap:8px;align-items:center;font-size:14px;padding:6px 0}
+  .steps input{width:18px;height:18px;accent-color:var(--jade);flex:none}
+  .rw-sum{font-size:14px;margin:6px 0 12px;font-variant-numeric:tabular-nums}
   .nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
   .nav a{
     padding:8px 14px;border:1px solid var(--line);border-radius:999px;
@@ -104,6 +118,41 @@
       <button class="btn btn-primary btn-lg" id="n-go" type="button">เปิดล็อต</button>
     </div>
 
+    <div class="card" id="rw-card">
+      <h2>เปิดล็อตแก้ไข</h2>
+      <p class="hint" style="margin-bottom:12px">เอาของเสียที่หัวหน้ายืนยันแล้วกลับมาแก้ — เลือกได้หลายล็อตถ้าเป็นสินค้าเดียวกัน
+        ของที่แก้ผ่านจะไม่นับเป็นยอดผลิตใหม่ (เคยนับเป็นของเสียไปแล้ว) และค่าแก้ไขจะไปรวมเป็นต้นทุนของล็อตเดิม</p>
+      <div class="msg" id="rw-msg" hidden></div>
+      <div id="rw-empty" class="hint" hidden>ยังไม่มีของเสียที่ยืนยันแล้วให้ส่งไปแก้</div>
+      <div id="rw-form" hidden>
+        <div class="field">
+          <label for="rw-prod">สินค้า</label>
+          <select id="rw-prod"></select>
+        </div>
+        <div class="field">
+          <label>ของเสียจากล็อตไหน กี่ชิ้น</label>
+          <div id="rw-src"></div>
+        </div>
+        <div class="rw-sum" id="rw-sum"></div>
+        <div class="field">
+          <label>ต้องทำขั้นไหนซ้ำ (ต้องมี QC)</label>
+          <div class="steps" id="rw-steps"></div>
+          <span class="hint">พนักงานจะลงงานล็อตนี้ได้เฉพาะขั้นที่ติ๊กไว้</span>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="rw-due">กำหนดเสร็จ (ถ้ามี)</label>
+            <input id="rw-due" type="date">
+          </div>
+          <div class="field">
+            <label for="rw-note">หมายเหตุ</label>
+            <input id="rw-note" type="text" placeholder="เช่น ขอบบิ่น ขัดใหม่">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="rw-go" type="button">เปิดล็อตแก้ไข</button>
+      </div>
+    </div>
+
     <div class="card">
       <div style="display:flex;gap:10px;align-items:baseline;justify-content:space-between;flex-wrap:wrap;margin-bottom:8px">
         <h2 style="margin:0">ล็อตงาน</h2>
@@ -177,8 +226,8 @@
   </section>
 </main>
 
-<script src="config.js?v=46"></script>
-<script src="api.js?v=46"></script>
+<script src="config.js?v=47"></script>
+<script src="api.js?v=47"></script>
 <script>
 (function () {
   "use strict";
@@ -219,6 +268,7 @@
     $("e-to").value = J.today();
     $("e-from").value = J.monthsAgo(1);
     loadLots();
+    loadRework();
   }
 
   $("l-go").addEventListener("click", function () {
@@ -307,6 +357,102 @@
       .then(function () { $("n-go").disabled = false; });
   });
 
+  /* ---------- เปิดล็อตแก้ไข ---------- */
+  var rwSrc = [];
+  function loadRework() {
+    var m = J.me.get();
+    J.rpc("sup_rework_sources", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      rwSrc = list || [];
+      $("rw-empty").hidden = rwSrc.length > 0;
+      $("rw-form").hidden = rwSrc.length === 0;
+      if (!rwSrc.length) return;
+      var prods = {}, order = [];
+      rwSrc.forEach(function (x) {
+        if (!prods[x.product_code]) { prods[x.product_code] = { name: x.product_name, free: 0, n: 0 }; order.push(x.product_code); }
+        prods[x.product_code].free += Number(x.free) || 0;
+        prods[x.product_code].n++;
+      });
+      var keep = $("rw-prod").value;
+      $("rw-prod").innerHTML = order.map(function (c) {
+        var p = prods[c];
+        return '<option value="' + J.esc(c) + '">' + J.esc(c + " · " + p.name) + " — ของเสียรอแก้ " +
+          J.nf.format(p.free) + " ชิ้น (" + p.n + " ล็อต)</option>";
+      }).join("");
+      if (keep && prods[keep]) $("rw-prod").value = keep;
+      renderRwSrc();
+      renderRwSteps();
+    }).catch(function (err) { J.msg($("rw-msg"), err.message, "err"); });
+  }
+  function renderRwSrc() {
+    var pc = $("rw-prod").value;
+    var list = rwSrc.filter(function (x) { return x.product_code === pc; });
+    $("rw-src").innerHTML = list.map(function (x) {
+      return '<div class="src"><span class="c">' + J.esc(x.code) +
+        (x.status === "closed" ? ' <span class="chip idle">ปิดแล้ว</span>' : "") + "</span>" +
+        '<span class="q"><input type="number" inputmode="numeric" min="0" step="1" max="' + x.free +
+          '" data-src="' + J.esc(x.code) + '" placeholder="0" aria-label="จำนวนที่ส่งไปแก้จาก ' + J.esc(x.code) + '">' +
+          '<button class="btn btn-sm btn-ghost" type="button" data-all="' + J.esc(x.code) + '">ทั้งหมด ' + J.nf.format(x.free) + "</button></span>" +
+        '<span class="s">เสียที่ยืนยันแล้ว ' + J.nf.format(x.bad) +
+          (Number(x.sent) ? " · ส่งไปแก้แล้ว " + J.nf.format(x.sent) : "") +
+          " · ส่งได้อีก <b>" + J.nf.format(x.free) + "</b> ชิ้น" +
+          (Number(x.bad_pending) ? " · มีของเสียรอยืนยันอีก " + J.nf.format(x.bad_pending) + " ชิ้น (ยืนยันในหน้าตรวจงานก่อน)" : "") +
+        "</span></div>";
+    }).join("");
+    rwSum();
+  }
+  function renderRwSteps() {
+    if ($("rw-steps").children.length) return;
+    var steps = ((boot && boot.steps) || []).filter(function (s) { return s.dept !== "rd"; });
+    $("rw-steps").innerHTML = steps.map(function (s) {
+      return '<label><input type="checkbox" value="' + J.esc(s.name) + '"' + (s.is_qc ? " checked" : "") + "> " +
+        J.esc(s.name) + "</label>";
+    }).join("");
+  }
+  function rwPicked() {
+    var out = [], bad = null;
+    Array.prototype.forEach.call($("rw-src").querySelectorAll("[data-src]"), function (inp) {
+      var q = Number(inp.value || 0), max = Number(inp.max);
+      if (q > max) bad = inp.dataset.src + " ส่งได้ไม่เกิน " + max + " ชิ้น";
+      if (q > 0) out.push({ lot: inp.dataset.src, qty: Math.floor(q) });
+    });
+    return { list: out, bad: bad };
+  }
+  function rwSum() {
+    var p = rwPicked(), tot = 0;
+    p.list.forEach(function (x) { tot += x.qty; });
+    $("rw-sum").innerHTML = p.bad ? '<span style="color:var(--alert)">' + J.esc(p.bad) + "</span>"
+      : tot ? "รวม <b>" + J.nf.format(tot) + "</b> ชิ้น จาก " + p.list.length + " ล็อต — " +
+              (p.list.length === 1 ? "รหัสจะเป็น " + J.esc(p.list[0].lot) + "-R…" : "รหัสจะเป็น RW-…")
+      : '<span class="hint">ใส่จำนวนที่จะส่งไปแก้อย่างน้อยหนึ่งล็อต</span>';
+  }
+  $("rw-prod").addEventListener("change", renderRwSrc);
+  $("rw-src").addEventListener("input", rwSum);
+  $("rw-src").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-all]");
+    if (!b) return;
+    var inp = $("rw-src").querySelector('[data-src="' + b.dataset.all + '"]');
+    inp.value = inp.max; rwSum();
+  });
+  $("rw-go").addEventListener("click", function () {
+    var p = rwPicked();
+    if (p.bad) { J.msg($("rw-msg"), p.bad, "err"); return; }
+    if (!p.list.length) { J.msg($("rw-msg"), "ใส่จำนวนที่จะส่งไปแก้อย่างน้อยหนึ่งล็อต", "err"); return; }
+    var steps = Array.prototype.map.call($("rw-steps").querySelectorAll("input:checked"), function (c) { return c.value; });
+    if (!steps.length) { J.msg($("rw-msg"), "ติ๊กขั้นตอนที่ต้องทำซ้ำ (ต้องมี QC)", "err"); return; }
+    var m = J.me.get();
+    $("rw-go").disabled = true;
+    J.rpc("sup_open_rework", {
+      p_name: m.name, p_pin: m.pin, p_sources: p.list, p_steps: steps,
+      p_due: $("rw-due").value || null, p_note: $("rw-note").value.trim() || null
+    }).then(function (r) {
+      J.msg($("rw-msg"), "เปิดล็อตแก้ไข " + r.code + " แล้ว (" + J.nf.format(r.qty) +
+        " ชิ้น) — พนักงานเลือกล็อตนี้ได้ที่หน้าลงงานผลิต", "ok");
+      $("rw-note").value = ""; $("rw-due").value = "";
+      lotFilter = "open"; setTab(); loadLots(); loadRework();
+    }).catch(function (err) { J.msg($("rw-msg"), err.message, "err"); })
+      .then(function () { $("rw-go").disabled = false; });
+  });
+
   /* ---------- รายการล็อต ---------- */
   function setTab() {
     $("t-open").setAttribute("aria-selected", String(lotFilter === "open"));
@@ -326,20 +472,30 @@
       $("lots").innerHTML = list.map(function (l) {
         var done = l.qty_opened ? Math.min(100, l.qc_passed / l.qty_opened * 100) : 0;
         var late = l.due_date && l.status === "open" && l.due_date < J.today();
-        return '<div class="lot">' +
+        var rw = !!l.rework;
+        return '<div class="lot' + (rw ? " rw" : "") + '">' +
           '<div class="lot-top"><span class="withpic">' +
             (l.has_photo ? '<img class="lotpic" data-pic="' + J.esc(l.product_code) + '" alt="">' : "") +
             '<span class="txt"><span class="lot-code">' + J.esc(l.code) + "</span> " +
+            (rw ? '<span class="chip warn">ล็อตแก้ไข</span> ' : "") +
             '<span class="lot-sub">' + J.esc(l.product_code) + " · " + J.esc(l.product_name) +
             " · หยก" + J.esc(l.jade) + "</span><br>" +
-            '<span class="lot-sub">เริ่ม ' + J.esc(J.thDate(l.opened_at)) + "</span></span></span>" +
+            '<span class="lot-sub">เริ่ม ' + J.esc(J.thDate(l.opened_at)) + "</span>" +
+            (rw ? '<br><span class="lot-rw">แก้ของ ' + J.esc(l.rework_of || "—") +
+                  ((l.steps || []).length ? " · ทำขั้น " + J.esc(l.steps.join(", ")) : "") + "</span>" : "") +
+            "</span></span>" +
             '<span class="chip ' + (l.status === "closed" ? "idle" : late ? "bad" : "ok") + '">' +
             (l.status === "closed" ? "ปิดแล้ว" : late ? "เลยกำหนดส่ง" : "กำลังทำ") + "</span></div>" +
           '<div class="lot-nums">' +
-            "<span>เปิด <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น</span>" +
-            "<span>ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b></span>" +
-            '<span class="bad">เสีย <b>' + J.nf.format(l.total_bad) + "</b></span>" +
-            "<span>อยู่ในสาย <b>" + J.nf.format(l.wip) + "</b></span>" +
+            (rw ? "<span>ส่งมาแก้ <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น</span>" +
+                  "<span>แก้ผ่าน <b>" + J.nf.format(l.qc_passed) + "</b></span>" +
+                  '<span class="bad">แก้ไม่ได้ <b>' + J.nf.format(l.total_bad) + "</b></span>" +
+                  "<span>กำลังแก้ <b>" + J.nf.format(l.wip) + "</b></span>"
+                : "<span>เปิด <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น</span>" +
+                  "<span>ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b></span>" +
+                  '<span class="bad">เสีย <b>' + J.nf.format(l.total_bad) + "</b></span>" +
+                  (Number(l.rework_sent) ? "<span>ส่งไปแก้แล้ว <b>" + J.nf.format(l.rework_sent) + "</b></span>" : "") +
+                  "<span>อยู่ในสาย <b>" + J.nf.format(l.wip) + "</b></span>") +
             (l.last_step ? "<span>ล่าสุด: <b>" + J.esc(l.last_step) + "</b> " + J.thDate(l.last_date) + "</span>" : "") +
             (l.due_date ? "<span>กำหนดส่ง <b>" + J.thDate(l.due_date) + "</b></span>" : "") +
           "</div>" +
@@ -384,8 +540,9 @@
                (Number(l.total_bad) || 0) + (Number(l.bad_pending) || 0);
     box.innerHTML =
       '<div class="row2">' +
-        '<div><label>จำนวนที่เปิดล็อต</label><input type="number" min="1" step="1" data-f="qty" value="' +
-          (l.qty_opened || 0) + '"></div>' +
+        '<div><label>จำนวนที่เปิดล็อต' + (l.rework ? " (มาจากล็อตต้นทาง แก้ไม่ได้)" : "") +
+          '</label><input type="number" min="1" step="1" data-f="qty" value="' +
+          (l.qty_opened || 0) + '"' + (l.rework ? " readonly" : "") + "></div>" +
         '<div><label>กำหนดส่ง (เว้นว่าง = ไม่กำหนด)</label><input type="text" data-f="due" placeholder="วว/ดด/ปปปป" value="' +
           J.esc(l.due_date ? J.formatThai(l.due_date) : "") + '"></div>' +
       "</div>" +
@@ -446,7 +603,7 @@
   });
 
   /* ---------- ดาวน์โหลดไฟล์ Excel สรุปการผลิต ---------- */
-  var XLS_SRC = "xlsx.js?v=46";
+  var XLS_SRC = "xlsx.js?v=47";
   function needXlsx() {
     if (window.XLSXMini) return Promise.resolve();
     return new Promise(function (ok, no) {
@@ -616,15 +773,18 @@
       cols: [{ w: 14 }, { w: 10 }, { w: 12 }, { w: 28 }, { w: 14 }, { w: 12 }, { w: 12 },
              { w: 12 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 18 }, { w: 12 }, { w: 10 },
              { w: 12 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 14 }, { w: 10 },
-             { w: 10 }, { w: 22 }, { w: 16 }, { w: 14 }],
+             { w: 10 }, { w: 22 }, { w: 16 }, { w: 14 }, { w: 22 }, { w: 12 }, { w: 16 }],
       rows: [[H("ล็อต"), H("สถานะ"), H("รหัสสินค้า"), H("สินค้า"), H("ชนิดหยก"),
               H("เปิดเมื่อ"), H("กำหนดส่ง"), H("ยอดเปิด"), H("ผ่าน QC"), H("ของเสีย"),
               H("คงค้าง"), H("ขั้นล่าสุด"), H("ล่าสุดเมื่อ"), H("ชั่วโมง"),
               H("ค่าหยก"), H("ค่าแรง"), H("โสหุ้ย"), H("ต้นทุนรวม"),
               H("ต้นทุนต่อชิ้น"), H("% เสีย"), H("งาน CNC"),
               H("วัน CNC (เข้าครั้งแรก→ออกครั้งสุดท้าย)"), H("วัน-เครื่อง CNC รวม"),
-              H("ยังอยู่ในเครื่อง")]]
+              H("ยังอยู่ในเครื่อง"), H("ล็อตแก้ไข — แก้ของ"), H("ส่งไปแก้ (ชิ้น)"),
+              H("ค่าแก้ไขที่ย้ายมารวม")]]
     };
+    // ต้นทุนรวมของล็อต = ค่าหยก + ค่าแรง + โสหุ้ย + ค่าแก้ไข (คอลัมน์ AA)
+    // ล็อตแก้ไขเองไม่มีต้นทุนต่อชิ้น เพราะย้ายไปรวมที่ล็อตต้นทางแล้ว
     lots.forEach(function (x, i) {
       var r = i + 2;
       sLots.rows.push([x.code, x.status === "open" ? "เปิดอยู่" : "ปิดแล้ว",
@@ -633,11 +793,14 @@
         I(x.qty_opened), I(x.pieces), I(x.defects), I(x.wip),
         x.last_step || "", x.last_date ? { d: x.last_date } : "", N(x.hours),
         N(x.material), N(x.labour), N(x.overhead),
-        { f: "O" + r + "+P" + r + "+Q" + r, s: 4 },
-        { f: "IFERROR(R" + r + "/I" + r + ",0)", s: 4 },
+        { f: "O" + r + "+P" + r + "+Q" + r + "+AA" + r, s: 4 },
+        x.rework ? "" : { f: "IFERROR(R" + r + "/I" + r + ",0)", s: 4 },
         pct("I" + r, "J" + r),
         I(x.cnc_jobs), x.cnc_jobs ? I(x.cnc_span) : "", x.cnc_jobs ? I(x.cnc_days) : "",
-        x.cnc_open ? I(x.cnc_open) : ""]);
+        x.cnc_open ? I(x.cnc_open) : "",
+        x.rework ? (x.rework_of || "ล็อตแก้ไข") : "",
+        Number(x.rework_sent) ? I(x.rework_sent) : "",
+        N(x.rework_cost)]);
     });
 
     /* ---------- 7. เครื่องจักร ---------- */
@@ -747,7 +910,7 @@
   }
 
   /* ---------- รายงาน Word: ส่ง–รับของ / ไล่ของหาย ---------- */
-  var DOCX_SRC = "docx.js?v=46";
+  var DOCX_SRC = "docx.js?v=47";
   function needDocx() {
     if (window.DOCXMini) return Promise.resolve();
     return new Promise(function (ok, no) {

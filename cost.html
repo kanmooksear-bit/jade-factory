@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=46">
+<link rel="stylesheet" href="app.css?v=47">
 <style>
   .wrap{max-width:1080px}
   .topbar-in{max-width:1080px}
@@ -149,8 +149,8 @@
   </div>
 </main>
 
-<script src="config.js?v=46"></script>
-<script src="api.js?v=46"></script>
+<script src="config.js?v=47"></script>
+<script src="api.js?v=47"></script>
 <script>
 (function () {
   "use strict";
@@ -296,12 +296,14 @@
   function render() {
     // ---- สรุปรวม ----
     var mat = 0, lab = 0, oh = 0, qc = 0, noMat = 0;
+    // รวมทั้งโรงงานใช้ต้นทุนของแต่ละล็อตเอง ค่าแก้ไขที่ย้ายไปล็อตต้นทางไม่นับซ้ำ
+    // ชิ้นผ่าน QC ไม่นับล็อตแก้ไข (เป็นของเสียเดิมที่แก้กลับมา ไม่ใช่ของผลิตใหม่)
     rows.forEach(function (r) {
       mat += Number(r.material) || 0;
       lab += Number(r.labour) || 0;
       oh  += Number(r.overhead) || 0;
-      qc  += Number(r.qc_passed) || 0;
-      if (!r.material_set) noMat++;
+      if (!r.rework) qc += Number(r.qc_passed) || 0;
+      if (!r.material_set && !r.rework) noMat++;
     });
     var tot = mat + lab + oh;
     var pct = function (v) { return tot ? (v / tot * 100) : 0; };
@@ -336,11 +338,24 @@
     $("lots").innerHTML =
       "<thead><tr><th>ล็อต</th><th>สินค้า</th><th class='num'>ผ่าน QC</th>" +
       "<th class='money'>ค่าหยก (กรอกได้)</th><th class='money'>ค่าแรง</th><th class='money'>โสหุ้ย</th>" +
+      "<th class='money'>ค่าแก้ไข</th>" +
       "<th class='money'>รวม</th><th class='money'>ต่อชิ้น</th><th class='money'>ราคาขาย</th><th>กำไร/ชิ้น</th></tr></thead><tbody>" +
       rows.map(function (r) {
         var pp = r.per_piece == null ? null : Number(r.per_piece);
         var price = r.price == null ? null : Number(r.price);
         var gain = (pp != null && price != null) ? price - pp : null;
+        if (r.rework) {
+          return '<tr style="color:var(--ink-2)"><td>' + J.esc(r.code) +
+            ' <span class="chip warn">ล็อตแก้ไข</span></td><td>' + J.esc(r.product_code) + " " +
+            J.esc(r.product_name) + '<br><span class="hint">แก้ของ ' + J.esc(r.rework_of || "—") + "</span></td>" +
+            "<td class='num'>แก้ผ่าน " + J.nf.format(r.qc_passed) + "</td><td class='money'>—</td>" +
+            '<td class="money">' + money(r.labour) + "</td>" +
+            '<td class="money">' + money(r.overhead) + "</td>" +
+            '<td class="money">—</td>' +
+            '<td class="money">' + money(r.total) + "</td>" +
+            '<td colspan="3"><span class="hint">ย้ายไปรวมเป็นต้นทุนของ ' + J.esc(r.rework_of || "ล็อตต้นทาง") +
+            " แล้ว</span></td></tr>";
+        }
         return "<tr><td>" + J.esc(r.code) + "</td><td>" + J.esc(r.product_code) + " " +
           J.esc(r.product_name) + "</td><td class='num'>" + J.nf.format(r.qc_passed) + "</td>" +
           '<td class="money"><input type="number" min="0" step="1" data-mat="' + J.esc(r.code) +
@@ -350,6 +365,7 @@
             ';border-radius:6px;background:var(--paper);color:var(--ink);text-align:end;font-size:14px"></td>' +
           '<td class="money">' + money(r.labour) + "</td>" +
           '<td class="money">' + money(r.overhead) + "</td>" +
+          '<td class="money">' + (Number(r.rework_cost) ? money(r.rework_cost) : "—") + "</td>" +
           '<td class="money"><b>' + money(r.total) + "</b></td>" +
           '<td class="money">' + (pp == null ? "—" : money(pp)) + "</td>" +
           '<td class="money">' + (price == null ? "—" : money(price)) + "</td>" +
@@ -395,7 +411,8 @@
   function renderDetail(d) {
     var p = d.product || {};
     var mat = Number(d.material) || 0, lab = Number(d.labour) || 0, oh = Number(d.overhead) || 0;
-    var tot = mat + lab + oh;
+    var rw = Number(d.rework_cost) || 0;
+    var tot = mat + lab + oh + rw;
     var w = function (v) { return tot ? (v / tot * 100).toFixed(1) + "%" : "0%"; };
     var pp = d.per_piece == null ? null : Number(d.per_piece);
     var price = p.price == null ? null : Number(p.price);
@@ -409,12 +426,26 @@
     html += '<div class="stack-bar">' +
       '<i style="width:' + w(mat) + ';background:var(--gold)"></i>' +
       '<i style="width:' + w(lab) + ';background:var(--jade)"></i>' +
-      '<i style="width:' + w(oh)  + ';background:var(--amber)"></i></div>' +
+      '<i style="width:' + w(oh)  + ';background:var(--amber)"></i>' +
+      '<i style="width:' + w(rw)  + ';background:var(--alert)"></i></div>' +
       '<div class="legend-row">' +
         '<span><i class="swatch" style="background:var(--gold)"></i>ค่าหยก ' + money(mat) + "</span>" +
         '<span><i class="swatch" style="background:var(--jade)"></i>ค่าแรง ' + money(lab) + "</span>" +
         '<span><i class="swatch" style="background:var(--amber)"></i>โสหุ้ย ' + money(oh) + "</span>" +
+        (rw ? '<span><i class="swatch" style="background:var(--alert)"></i>ค่าแก้ไข ' + money(rw) + "</span>" : "") +
         "<span><b>รวม " + money(tot) + " บาท</b></span></div>";
+
+    if (d.rework) {
+      html += '<p class="msg warn" style="margin-top:8px">นี่คือล็อตแก้ไข (แก้ของ ' + J.esc(d.rework_of || "—") +
+        ") — ต้นทุนทั้งหมดของล็อตนี้ถูกย้ายไปรวมกับล็อตต้นทางตามสัดส่วนชิ้นแล้ว จึงไม่มีต้นทุนต่อชิ้นของตัวเอง</p>";
+    }
+    if ((d.rework_lots || []).length) {
+      html += '<p class="hint" style="margin-top:6px">ค่าแก้ไขมาจาก ' + d.rework_lots.map(function (x) {
+        return J.esc(x.code) + " (ส่งไป " + J.nf.format(x.qty) + " ชิ้น · " + money(x.cost) + " บาท · แก้ผ่าน " +
+          J.nf.format(x.passed) + " · แก้ไม่ได้ " + J.nf.format(x.failed) +
+          (Number(x.wip) ? " · กำลังแก้ " + J.nf.format(x.wip) : "") + ")";
+      }).join(", ") + "</p>";
+    }
 
     if (Number(d.labour_spread) > 0 || Number(d.labour_direct) > 0) {
       html += '<p class="hint" style="margin-top:6px">ค่าแรงคิดจาก เวลาที่ลงไว้ ' +

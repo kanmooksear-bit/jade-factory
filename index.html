@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=46">
+<link rel="stylesheet" href="app.css?v=47">
 </head>
 <body>
 
@@ -269,8 +269,8 @@
 
 <div class="queue" id="queue" hidden></div>
 
-<script src="config.js?v=46"></script>
-<script src="api.js?v=46"></script>
+<script src="config.js?v=47"></script>
+<script src="api.js?v=47"></script>
 <script>
 (function () {
   "use strict";
@@ -304,6 +304,7 @@
         return '<option value="' + J.esc(s.name) + '">' + J.esc(s.name) + "</option>";
       }).join("");
       $("f-step").innerHTML = '<option value="">— เลือกขั้นตอน —</option>' + stepOpts;
+      allStepOpts = $("f-step").innerHTML;
       $("o-step").innerHTML = '<option value="">— ไม่ระบุ —</option>' + stepOpts;
       $("f-machine").innerHTML = '<option value="">— เลือกเครื่อง —</option>' +
         d.machines.map(function (m) {
@@ -316,6 +317,24 @@
     });
   }
 
+  // ล็อตแก้ไขทำได้เฉพาะขั้นที่หัวหน้าเลือก — ซ่อนขั้นอื่นไปเลย พนักงานจะได้ไม่ลงผิด
+  var allStepOpts = "";
+  function filterSteps() {
+    var l = currentLot(), keep = $("f-step").value;
+    if (!allStepOpts) return;
+    if (!l || !(l.steps || []).length) {
+      if ($("f-step").dataset.limited) { $("f-step").innerHTML = allStepOpts; delete $("f-step").dataset.limited; }
+    } else {
+      $("f-step").innerHTML = '<option value="">— เลือกขั้นตอน —</option>' + l.steps.map(function (n) {
+        return '<option value="' + J.esc(n) + '">' + J.esc(n) + "</option>";
+      }).join("");
+      $("f-step").dataset.limited = "1";
+    }
+    var ok = Array.prototype.some.call($("f-step").options, function (o) { return o.value === keep && keep; });
+    $("f-step").value = ok ? keep : "";
+    if (!ok && keep) onStepChange();
+  }
+
   function loadLots() {
     var m = J.me.get();
     return J.rpc("app_open_lots", { p_name: m.name, p_pin: m.pin }).then(function (d) {
@@ -324,6 +343,7 @@
         ? '<option value="">— ยังไม่มีล็อตที่เปิดอยู่ —</option>'
         : '<option value="">— เลือกล็อต —</option>' + lots.map(function (l) {
             return '<option value="' + J.esc(l.code) + '">' + J.esc(l.code) + " · " +
+              (l.rework ? "แก้ไข · " : "") +
               J.esc(l.product_code) + " " + J.esc(l.product_name) + "</option>";
           }).join("");
       showLotInfo();
@@ -338,6 +358,7 @@
 
   function showLotInfo() {
     var l = currentLot(), box = $("lotinfo");
+    filterSteps();
     if (!l) { box.hidden = true; return; }
     box.hidden = false;
     J.setPhoto($("lotpic"), l.product_code, l.has_photo);
@@ -349,16 +370,18 @@
     var size = [pd.w, pd.l, pd.h].filter(function (x) { return x != null; }).join(" × ");
     if (size) spec.push(size + " ซม.");
     $("lottext").innerHTML =
+      (l.rework ? '<span class="chip warn">ล็อตแก้ไข</span> แก้ของ <b>' + J.esc(l.rework_of || "—") + "</b>" +
+                  ((l.steps || []).length ? " · ทำได้เฉพาะขั้น <b>" + J.esc(l.steps.join(", ")) + "</b>" : "") + "<br>" : "") +
       "<b>" + J.esc(l.product_code) + "</b> " + J.esc(l.product_name) +
       (spec.length ? "<br>" + J.esc(spec.join(" · ")) : "") +
       (pd.detail ? '<br><span style="color:var(--gold)">' + J.esc(pd.detail) + "</span>" : "") +
       "<br>" +
       "เริ่มล็อต <b>" + J.esc(J.thDate(l.opened_at)) + "</b> · " +
-      "เปิดล็อต <b>" + J.nf.format(l.qty_opened) + "</b> ชิ้น · " +
-      "ผ่าน QC <b>" + J.nf.format(l.qc_passed) + "</b> · " +
+      (l.rework ? "ส่งมาแก้ <b>" : "เปิดล็อต <b>") + J.nf.format(l.qty_opened) + "</b> ชิ้น · " +
+      (l.rework ? "แก้ผ่าน <b>" : "ผ่าน QC <b>") + J.nf.format(l.qc_passed) + "</b> · " +
       (l.qc_pending ? "รอตรวจ <b>" + J.nf.format(l.qc_pending) + "</b> · " : "") +
-      "เสีย <b>" + J.nf.format(l.total_bad) + "</b> · " +
-      "อยู่ในสาย <b>" + J.nf.format(l.wip) + "</b>" +
+      (l.rework ? "แก้ไม่ได้ <b>" : "เสีย <b>") + J.nf.format(l.total_bad) + "</b> · " +
+      (l.rework ? "กำลังแก้ <b>" : "อยู่ในสาย <b>") + J.nf.format(l.wip) + "</b>" +
       (l.last_step ? "<br>ขั้นตอนล่าสุด: " + J.esc(l.last_step) : "") +
       (l.due_date ? " · กำหนดส่ง " + J.thDate(l.due_date) : "");
   }
