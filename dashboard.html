@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=47">
+<link rel="stylesheet" href="app.css?v=48">
 <style>
   .wrap{max-width:1180px}
   .topbar-in{max-width:1180px}
@@ -186,7 +186,7 @@
     <section id="sec-over" hidden>
       <div class="sec-head">
         <h2>ขั้นตอนที่ลงเกินจำนวนล็อต</h2>
-        <span class="hint">อาจเป็นการตัดเผื่อ หรือขั้นตอนนั้นวนทำหลายรอบ — ไม่ใช่ความผิด แต่ควรรู้</span>
+        <span class="hint">อาจเป็นการทำเผื่อ (รวมถึง QC ที่ผ่านเกินล็อต) หรือขั้นตอนนั้นวนทำหลายรอบ — ไม่ใช่ความผิด แต่ควรรู้</span>
       </div>
       <div class="panel scroll"><table id="over"></table></div>
     </section>
@@ -260,8 +260,8 @@
   </div>
 </main>
 
-<script src="config.js?v=47"></script>
-<script src="api.js?v=47"></script>
+<script src="config.js?v=48"></script>
+<script src="api.js?v=48"></script>
 <script>
 (function () {
   "use strict";
@@ -441,7 +441,8 @@
       "<th class='num'>ลงไปแล้ว</th><th class='num'>เกิน</th><th>เท่ากับ</th></tr></thead><tbody>" +
       rows.map(function (r) {
         var n = Number(r.rounds) || 0;
-        var why = n >= 1.9 ? "ทำซ้ำ " + n.toFixed(1) + " รอบของล็อต" : "ตัดเผื่อ " + Math.round((n - 1) * 100) + "%";
+        var why = r.is_qc ? "ผ่าน QC เกินล็อต (ทำเผื่อ " + Math.round((n - 1) * 100) + "%)"
+                : n >= 1.9 ? "ทำซ้ำ " + n.toFixed(1) + " รอบของล็อต" : "ทำเผื่อ " + Math.round((n - 1) * 100) + "%";
         return "<tr><td>" + J.esc(r.lot) + "</td><td>" + J.esc(r.step) +
           "</td><td class='num'>" + J.nf.format(r.lot_qty) +
           "</td><td class='num'>" + J.nf.format(r.step_total) +

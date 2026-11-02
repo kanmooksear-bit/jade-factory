@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
-<link rel="stylesheet" href="app.css?v=47">
+<link rel="stylesheet" href="app.css?v=48">
 <style>
   .wrap{max-width:1000px;padding-bottom:120px}
   .topbar-in{max-width:1000px}
@@ -185,8 +185,8 @@
 
 <div class="lightbox" id="lightbox" hidden><img id="lightbox-img" alt="รูปหลักฐาน"></div>
 
-<script src="config.js?v=47"></script>
-<script src="api.js?v=47"></script>
+<script src="config.js?v=48"></script>
+<script src="api.js?v=48"></script>
 <script>
 (function () {
   "use strict";
@@ -469,7 +469,7 @@
           (r.lot_qty
             ? '<div class="s">ขั้นตอนนี้ลงรวม ' + J.nf.format(r.step_total) + " / เปิดล็อต " +
               J.nf.format(r.lot_qty) + " ชิ้น" +
-              (over ? " — ตัดเผื่อ " + J.nf.format(over) + " ชิ้น" : "") + "</div>"
+              (over ? " — ทำเผื่อ " + J.nf.format(over) + " ชิ้น" : "") + "</div>"
             : "") +
           (r.is_rework ? reworkBox(r) : "") +
           (r.review_status === "rejected" && r.review_note
