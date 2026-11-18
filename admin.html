@@ -227,14 +227,14 @@
       <div class="dl-grid">
         <div class="dl-box">
           <div class="dl-t">Excel สรุปการผลิต</div>
-          <p class="dl-d">ยอดผลิต ของเสีย ชั่วโมงงาน ค่าแรง และต้นทุน ครบในไฟล์เดียว</p>
+          <p class="dl-d">ยอดผลิต ของเสีย ชั่วโมงงาน ค่าแรง และต้นทุน ครบในไฟล์เดียว — ตัวเลขตรงกับแดชบอร์ด</p>
           <div class="msg" id="e-msg" hidden></div>
           <button class="btn btn-primary" id="e-go" type="button">ดาวน์โหลด Excel</button>
           <details class="dl-more">
-            <summary>มีอะไรในไฟล์ (12 ชีต)</summary>
+            <summary>มีอะไรในไฟล์ (13 ชีต)</summary>
             <ul>
               <li><b>ภาพรวม</b> — สรุป · รายวัน</li>
-              <li><b>คนและงาน</b> — รายคน · รายขั้นตอน · รายสินค้า · รายล็อต</li>
+              <li><b>คนและงาน</b> — รายคน · รายขั้นตอน · สาเหตุของเสีย · รายสินค้า · รายล็อต</li>
               <li><b>เครื่อง</b> — CNC · เครื่องจักร</li>
               <li><b>ต้นทุน</b> — ต้นทุนรายเดือน</li>
               <li><b>งานซ่อม</b> — งานซ่อม · งานซ่อมรายครั้ง</li>
@@ -695,7 +695,8 @@
     });
   });
 
-  function thDay(iso) { return iso ? J.formatThai(iso) : "เริ่มใช้ระบบ"; }
+  // วันที่แบบไทยในไฟล์ Excel (ชื่อไม่ชนกับ thDay ของรายงาน Word ด้านล่าง)
+  function xlDay(iso) { return iso ? J.formatThai(String(iso).slice(0, 10)) : "เริ่มใช้ระบบ"; }
   function thMonth(iso) {
     var M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
              "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
@@ -703,277 +704,328 @@
     return M[+p[1] - 1] + " " + (+p[0] + 543);
   }
 
+  /* ไฟล์ Excel สรุปการผลิต
+     - ทุกตัวเลขมาจากฐานข้อมูลตรง ๆ (sup_prod_export) ไม่มีการเดาหรือเติมค่า
+     - ตัวเลขสรุปใช้นิยามเดียวกับแดชบอร์ด: ยืนยันแล้วเท่านั้น · ไม่นับล็อตแก้ไขในยอดผลิต/ของเสีย
+     - ค่าที่ยังไม่ได้กรอก (ค่าหยก ค่าแรง) ขึ้นว่า "ยังไม่กรอก" ไม่ใช่ 0
+     - ทุกชีต: แถว 1 ชื่อชีต · แถว 2 นับอะไรบ้าง · แถว 3 หัวตาราง · ข้อมูลเริ่มแถว 4 */
   function buildProdBook(d) {
     var X = window.XLSXMini;
-    var H = function (v) { return { v: v, s: 2 }; };               // หัวตาราง
-    var N = function (v) { return { v: Number(v) || 0, s: 4 }; };   // ทศนิยม
-    var I = function (v) { return { v: Number(v) || 0, s: 7 }; };   // จำนวนเต็ม
-    var L = function (v) { return { v: v, s: 5 }; };                // ป้ายตัวหนา
-    var pct = function (g, b) {                                     // % ของเสีย
-      return { f: "IFERROR(" + b + "/(" + g + "+" + b + "),0)", s: 6 };
-    };
-    var last = function (n) { return Math.max(n + 1, 2); };
-    var sum = function (sheet, col, n) { return "SUM('" + sheet + "'!" + col + "2:" + col + n + ")"; };
+    var TOP = 4;                                                     // แถวแรกของข้อมูล
+    var H = function (v) { return { v: v, s: 2 }; };
+    var T = function (v) { return { v: v, s: 1 }; };
+    var B = function (v) { return { v: v, s: 5 }; };
+    var I = function (v) { return { v: Number(v) || 0, s: 7 }; };
+    var N = function (v) { return { v: Math.round((Number(v) || 0) * 100) / 100, s: 4 }; };
+    var P = function (v) { return { v: v, s: 6 }; };                  // 0.123 → 12.3%
+    var hrs = function (min) { return N((Number(min) || 0) / 60); };
+    var day = function (iso) { return iso ? { d: String(iso).slice(0, 10) } : ""; };
+    var NOTSET = "ยังไม่กรอก";
+    var k = d.kpi || {};
+    var num = function (v) { return Number(v) || 0; };
+    var ratio = function (a, b) { return num(b) ? num(a) / num(b) : ""; };
 
-    var daily = d.daily || [], people = d.people || [], steps = d.steps || [];
-    var prods = d.products || [], lots = d.lots || [], machines = d.machines || [];
-    var months = d.months || [], raw = d.raw || [], cnc = d.cnc || [];
-    var dLast = last(daily.length), pLast = last(people.length);
-    var lLast = last(lots.length), mLast = last(months.length), cLast = last(cnc.length);
+    // ชีตตาราง: cols = [[หัว, กว้าง], ...]
+    function table(name, title, note, cols, data) {
+      return {
+        name: name, freeze: 3,
+        cols: cols.map(function (c) { return { w: c[1] }; }),
+        rows: [[T(title)], [note], cols.map(function (c) { return H(c[0]); })].concat(data)
+      };
+    }
+    // แถวรวมท้ายตาราง: sumCols = ตัวอักษรคอลัมน์ที่ต้องรวม
+    function totalRow(n, width, sumCols, style) {
+      var last = TOP + n - 1, row = [];
+      for (var i = 0; i < width; i++) row.push("");
+      row[0] = B("รวม");
+      if (n > 0) sumCols.forEach(function (c) {
+        var idx = c.charCodeAt(0) - 65;
+        row[idx] = { f: "SUM(" + c + TOP + ":" + c + last + ")", s: style || 7 };
+      });
+      return row;
+    }
+
+    var range = xlDay(d.all_time ? null : d.from) + " ถึง " + xlDay(d.to);
 
     /* ---------- 1. สรุป ---------- */
+    var rateOk = num(k.timed_minutes) > 0;
     var dash = {
-      name: "สรุป", cols: [{ w: 30 }, { w: 18 }, { w: 46 }],
+      name: "สรุป", cols: [{ w: 34 }, { w: 16 }, { w: 10 }, { w: 70 }],
       rows: [
-        [{ v: "IRJ FACTORY — สรุปการผลิต", s: 1 }],
-        [L("ช่วงข้อมูล"), thDay(d.all_time ? null : d.from) + " ถึง " + thDay(d.to)],
-        [L("ออกไฟล์เมื่อ"), (d.made_at || "") + " โดย " + (d.made_by || "")],
+        [T("IRJ FACTORY — สรุปการผลิต")],
+        [B("ช่วงวันที่"), range],
+        [B("ออกไฟล์เมื่อ"), (d.made_at || "") + " โดย " + (d.made_by || "")],
+        ["ตัวเลขในหน้านี้นับเหมือนแดชบอร์ดทุกตัว — เลือกช่วงวันที่เดียวกันแล้วจะได้ตัวเลขเท่ากัน"],
         [],
-        [{ v: "งานที่ทำได้", s: 5 }],
-        [L("ชิ้นงานดี"), { f: sum("รายวัน", "C", dLast), s: 7 },
-          "รวมทุกขั้นตอน — ชิ้นเดียวผ่านหลายขั้นจะถูกนับหลายครั้ง"],
-        [L("ชิ้นงานเสีย"), { f: sum("รายวัน", "D", dLast), s: 7 }],
-        [L("% ของเสีย"), pct("B6", "B7")],
-        [L("ชั่วโมงงานผลิต"), { f: sum("รายวัน", "F", dLast), s: 4 }],
-        [L("ชั่วโมงงาน RD"), { f: sum("รายวัน", "G", dLast), s: 4 }],
-        [L("ชั่วโมงงานอื่น ๆ"), { f: sum("รายวัน", "H", dLast), s: 4 }],
-        [L("ชิ้นดีต่อชั่วโมง"), { f: "IFERROR(B6/B9,0)", s: 4 }],
+        [H("ยอดผลิต (หัวหน้ายืนยันแล้ว)"), H("ตัวเลข"), H("หน่วย"), H("หมายความว่า")],
+        [B("ผ่าน QC"), I(k.qc), "ชิ้น",
+          "ยอดผลิตจริง = ชิ้นดีของขั้น QC ที่ยืนยันแล้ว จาก " + num(k.qc_lots) + " ล็อต"],
+        [B("ของเสีย"), I(k.bad), "ชิ้น", "ของเสียทุกขั้นตอนที่ยืนยันแล้ว — ดูสาเหตุที่ชีต \"สาเหตุของเสีย\""],
+        [B("% ของเสีย"), P(ratio(k.bad, k.lot_base)), "",
+          num(k.lot_base) ? "ของเสีย ÷ จำนวนเปิดล็อต " + J.nf.format(num(k.lot_base)) +
+            " ชิ้น (ไม่หารด้วยผลรวมทุกขั้น เพราะบางขั้นทำซ้ำหลายรอบ)" : "ยังไม่มีล็อตที่มีงานยืนยันในช่วงนี้"],
+        [B("ค้างในสาย ณ วันออกไฟล์"), I(k.wip), "ชิ้น",
+          num(k.open_lots) + " ล็อตที่ยังเปิดอยู่ (ตัวเลขปัจจุบัน ไม่ตัดตามช่วงวันที่)"],
         [],
-        [{ v: "คนและวัน", s: 5 }],
-        [L("วันที่มีงานเข้า"), { f: "COUNT('รายวัน'!A2:A" + dLast + ")", s: 7 }],
-        [L("คนที่ลงงาน"), { f: "COUNTA('รายคน'!A2:A" + pLast + ")", s: 7 }],
-        [L("งานที่ยังรอตรวจ"), { f: sum("รายวัน", "J", dLast), s: 7 }],
+        [H("ยังไม่นับในตัวเลขด้านบน"), H("ตัวเลข"), H("หน่วย"), H("หมายความว่า")],
+        [B("รอหัวหน้าตรวจ"), I(k.pending_pieces), "ชิ้น",
+          num(k.pending_entries) ? num(k.pending_entries) + " รายการ · ค้างตั้งแต่ " + xlDay(k.pending_oldest) +
+            " — ยืนยันแล้วถึงจะนับ" : "ตรวจครบแล้ว"],
+        [B("ถูกตีกลับ"), I(k.rejected), "รายการ", "ไม่นับในทุกชีต (ยกเว้นชีตข้อมูลดิบที่มีสถานะบอกไว้)"],
+        [B("อยู่ในเครื่อง / ถังเขย่า"), I(k.inmachine), "งาน", "ยังไม่ได้นับจำนวน จะนับตอนเอาออก (ตัวเลขปัจจุบัน)"],
+        [B("ล็อตแก้ไข — แก้ผ่าน"), I(k.rework_lots_qc), "ชิ้น", "ของเสียเดิมที่เอามาแก้แล้วผ่าน QC — ไม่นับเป็นยอดผลิตใหม่"],
+        [B("ล็อตแก้ไข — แก้ไม่ได้"), I(k.rework_lots_bad), "ชิ้น", "นับเป็นของเสียของล็อตเดิมไปแล้ว — ไม่นับซ้ำ"],
         [],
-        [{ v: "ล็อตและต้นทุน", s: 5 }],
-        [L("ล็อตที่มีงานเดิน"), { f: "COUNTA('รายล็อต'!A2:A" + lLast + ")", s: 7 }],
-        [L("ค่าหยกรวม"), { f: sum("รายล็อต", "O", lLast), s: 4 }],
-        [L("ค่าแรงเข้าล็อต"), { f: sum("รายล็อต", "P", lLast), s: 4 }],
-        [L("ค่าโสหุ้ยเข้าล็อต"), { f: sum("รายล็อต", "Q", lLast), s: 4 }],
-        [L("ต้นทุนรวมของล็อต"), { f: "B21+B22+B23", s: 8 }],
-        [L("ค่าแรงที่จ่ายจริง"), { f: sum("ต้นทุนรายเดือน", "B", mLast), s: 4 },
-          "ค่าแรงรายวันทั้งโรงงาน ในเดือนที่อยู่ในช่วงนี้"],
+        [H("เวลาและคน"), H("ตัวเลข"), H("หน่วย"), H("หมายความว่า")],
+        [B("ชั่วโมงงานผลิต"), hrs(k.prod_minutes), "ชม.", "เวลาที่ลงไว้ (คนเดียวลงเวลาซ้อนกัน นับครั้งเดียว)"],
+        [B("ชั่วโมงงาน RD"), hrs(k.rd_minutes), "ชม."],
+        [B("ชั่วโมงงานอื่น / ลา / ซ่อม"), hrs(k.other_minutes), "ชม."],
+        [B("ชิ้นต่อชั่วโมง"), rateOk ? N(num(k.timed_pieces) / (num(k.timed_minutes) / 60)) : "", "ชิ้น/ชม.",
+          rateOk ? "คิดเฉพาะรายการที่ลงเวลา" +
+            (num(k.untimed_entries) ? " · ไม่ได้ลงเวลา " + num(k.untimed_entries) + " จาก " + num(k.prod_entries) +
+              " รายการ (ไม่เอามาคิด จะได้ไม่พองเกินจริง)" : " ครบทุกรายการ")
+            : "ยังไม่มีรายการที่ลงเวลา"],
+        [B("วันที่โรงงานเปิด"), I(k.work_days), "วัน", "วันที่มีคนลงงานอย่างน้อย 1 คน"],
+        [B("คนที่ลงงาน"), I(k.people), "คน"],
         [],
-        [{ v: "เครื่อง CNC", s: 5 }],
-        [L("งานที่เข้าเครื่อง CNC"), { f: "COUNTA('CNC'!A2:A" + cLast + ")", s: 7 }],
-        [L("ยังอยู่ในเครื่อง"), { f: "COUNTIF('CNC'!K2:K" + cLast + ",\"อยู่ในเครื่อง\")", s: 7 }],
-        [L("เฉลี่ยวันต่องาน (ที่ออกแล้ว)"),
-          { f: "IFERROR(AVERAGEIF('CNC'!K2:K" + cLast + ",\"ออกแล้ว\",'CNC'!J2:J" + cLast + "),0)", s: 4 }],
-        [L("นานสุด (วัน)"), { f: "MAX('CNC'!J2:J" + cLast + ")", s: 7 },
-          "งานที่ยังไม่ออก นับถึงวันที่เปิดไฟล์"],
+        [H("ค่าแรง"), H("ตัวเลข"), H("หน่วย"), H("หมายความว่า")],
+        [B("ค่าแรงที่จ่ายจริงในช่วงนี้"), N(k.wage_paid), "บาท",
+          "ค่าแรงรายวัน × วันที่โรงงานเปิด (เหมือนหน้าต้นทุน)" +
+            (num(k.no_wage) ? " · ยังไม่ได้ตั้งค่าแรง " + num(k.no_wage) + " คน ไม่ได้นับรวม" : "")],
         [],
-        [{ v: "อ่านตัวเลขยังไง", s: 5 }],
-        [null, null, "ทุกชีตไม่นับงานที่หัวหน้าตีกลับ"],
-        [null, null, "ค่าแรงเข้าล็อต = ค่าแรงตรงตามเวลาที่ลง + ค่าแรงส่วนที่เหลือเฉลี่ยตามชั่วโมง"],
-        [null, null, "โสหุ้ยคิดจากค่าโสหุ้ยต่อเดือน หารด้วยชั่วโมงงานทั้งเดือน (ตั้งที่หน้าต้นทุน)"],
-        [null, null, "ชีตข้อมูลดิบคือบันทึกทีละรายการ เอาไปทำ Pivot เองได้"]
+        [H("ชีตในไฟล์นี้"), "", "", H("ดูอะไร")],
+        [B("รายวัน"), "", "", "ยอดผลิต ของเสีย ชั่วโมง ทีละวัน"],
+        [B("รายคน"), "", "", "ผลงาน ชั่วโมง ค่าแรง ของแต่ละคน"],
+        [B("รายขั้นตอน"), "", "", "แต่ละขั้นทำได้กี่ชิ้น เสียกี่ชิ้น ใช้เวลาเท่าไหร่"],
+        [B("สาเหตุของเสีย"), "", "", "เสียเพราะอะไร เสียที่ขั้นไหน ใครทำเสีย"],
+        [B("รายสินค้า"), "", "", "ยอดผลิตและของเสียของแต่ละสินค้า"],
+        [B("รายล็อต"), "", "", "สถานะและต้นทุนทั้งล็อต (ไม่ตัดตามช่วงวันที่)"],
+        [B("CNC · เครื่องจักร"), "", "", "งานเข้าเครื่องทีละงาน และสรุปรายเครื่อง"],
+        [B("ต้นทุนรายเดือน"), "", "", "ค่าแรงจ่ายจริง ค่าโสหุ้ย ทั้งเดือน"],
+        [B("งานซ่อม"), "", "", "JOB ซ่อม และเวลาที่ใช้ทีละครั้ง"],
+        [B("ข้อมูลดิบ"), "", "", "ทุกรายการทุกสถานะ (รวมรอตรวจ/ตีกลับ) เอาไปทำ Pivot เองได้"]
       ]
     };
 
     /* ---------- 2. รายวัน ---------- */
-    var sDaily = {
-      name: "รายวัน", freeze: 1,
-      cols: [{ w: 12 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 12 },
-             { w: 12 }, { w: 12 }, { w: 12 }, { w: 12 }],
-      rows: [[H("วันที่"), H("จำนวนบันทึก"), H("ชิ้นดี"), H("ชิ้นเสีย"), H("% เสีย"),
-              H("ชม. ผลิต"), H("ชม. RD"), H("ชม. อื่น"), H("คนที่ลงงาน"), H("รอตรวจ")]]
-    };
-    daily.forEach(function (x, i) {
-      var r = i + 2;
-      sDaily.rows.push([{ d: x.d }, I(x.entries), I(x.good), I(x.bad), pct("C" + r, "D" + r),
-        N(x.prod_hours), N(x.rd_hours), N(x.other_hours), I(x.people), I(x.pending)]);
-    });
+    var daily = d.daily || [];
+    var sDaily = table("รายวัน", "รายวัน",
+      "ยืนยันแล้วเท่านั้น · ผ่าน QC = ยอดผลิตของวันนั้น · ไม่นับล็อตแก้ไข · ช่อง \"รอตรวจ\" = รายการที่ยังไม่นับ",
+      [["วันที่", 13], ["ผ่าน QC (ชิ้น)", 14], ["ของเสีย (ชิ้น)", 14], ["ชม. ผลิต", 11], ["ชม. RD", 10],
+       ["ชม. งานอื่น", 11], ["คนที่ลงงาน", 12], ["รายการผลิต", 12], ["รอตรวจ (รายการ)", 15]],
+      daily.map(function (x) {
+        return [day(x.d), I(x.qc), I(x.bad), hrs(x.prod_min), hrs(x.rd_min), hrs(x.other_min),
+                I(x.people), I(x.entries), num(x.pending) ? I(x.pending) : ""];
+      }));
+    if (daily.length) {
+      var dt = totalRow(daily.length, 9, ["B", "C", "H", "I"]);
+      ["D", "E", "F"].forEach(function (c) {
+        dt[c.charCodeAt(0) - 65] = { f: "SUM(" + c + TOP + ":" + c + (TOP + daily.length - 1) + ")", s: 8 };
+      });
+      sDaily.rows.push(dt);
+    }
 
     /* ---------- 3. รายคน ---------- */
-    var sPeople = {
-      name: "รายคน", freeze: 1,
-      cols: [{ w: 18 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 }, { w: 12 },
-             { w: 10 }, { w: 10 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 14 },
-             { w: 14 }, { w: 16 }],
-      rows: [[H("ชื่อ"), H("ตำแหน่ง"), H("วันที่ลงงาน"), H("ชม. ผลิต"), H("ชม. RD"),
-              H("ชม. อื่น"), H("ชม. รวม"), H("ชิ้นดีสุทธิ"), H("ชิ้นเสีย"), H("% เสีย"),
-              H("ชิ้นดี/ชม."), H("แก้ให้คนอื่น"), H("ถูกเอาไปแก้"),
-              H("ค่าแรงต่อวัน"), H("ค่าแรงช่วงนี้")]]
-    };
-    people.forEach(function (x, i) {
-      var r = i + 2;
-      sPeople.rows.push([x.name, x.role, I(x.days), N(x.prod_hours), N(x.rd_hours), N(x.other_hours),
-        { f: "D" + r + "+E" + r + "+F" + r, s: 4 }, I(x.good), I(x.bad),
-        pct("H" + r, "I" + r), { f: "IFERROR(H" + r + "/D" + r + ",0)", s: 4 },
-        I(x.rework_done), I(x.rework_taken),
-        x.daily_wage == null ? "" : N(x.daily_wage),
-        { f: "IFERROR(C" + r + "*N" + r + ",0)", s: 4 }]);
-    });
+    var people = d.people || [];
+    var sPeople = table("รายคน", "รายคน",
+      "ยืนยันแล้วเท่านั้น · \"ชิ้นที่ทำ\" รวมทุกขั้นที่คนนั้นลง (ไม่ใช่ยอดผลิต) · ชิ้น/ชม. คิดเฉพาะรายการที่ลงเวลา · " +
+      "ของเสียรายคนรวมงานในล็อตแก้ไขด้วย (ผลรวมจึงอาจมากกว่าหน้าสรุป) · ค่าแรง = ค่าแรงรายวัน × วันที่โรงงานเปิด",
+      [["ชื่อ", 16], ["ตำแหน่ง", 12], ["สถานะ", 10], ["วันที่ลงงาน", 12], ["ชม. ผลิต", 10], ["ชม. RD", 9],
+       ["ชม. งานอื่น", 11], ["ชิ้นที่ทำ (ดี+เสีย)", 17], ["ผ่าน QC", 10], ["ของเสีย", 10],
+       ["ชิ้น/ชม.", 10], ["แก้ให้คนอื่น", 12], ["ถูกเอาไปแก้", 12], ["ถูกระบุว่าทำเสีย", 15],
+       ["ค่าแรง/วัน", 11], ["วันที่ได้ค่าแรง", 14], ["ค่าแรงช่วงนี้ (บาท)", 17]],
+      people.map(function (x) {
+        var tm = num(x.timed_min);
+        return [x.name, x.role, x.active ? "ทำงานอยู่" : "ออกแล้ว", I(x.days),
+          hrs(x.prod_min), hrs(x.rd_min), hrs(x.other_min), I(x.qty), I(x.qc), I(x.bad),
+          tm > 0 ? N(num(x.timed_qty) / (tm / 60)) : "",
+          num(x.rework_done) ? I(x.rework_done) : "", num(x.rework_taken) ? I(x.rework_taken) : "",
+          num(x.blamed) ? I(x.blamed) : "",
+          x.daily_wage == null ? NOTSET : N(x.daily_wage), I(x.paid_days),
+          x.wage_paid == null ? NOTSET : N(x.wage_paid)];
+      }));
+    if (people.length) {
+      var pt = totalRow(people.length, 17, ["D", "H", "I", "J", "L", "M", "N", "P"]);
+      ["E", "F", "G", "Q"].forEach(function (c) {
+        pt[c.charCodeAt(0) - 65] = { f: "SUM(" + c + TOP + ":" + c + (TOP + people.length - 1) + ")", s: 8 };
+      });
+      sPeople.rows.push(pt);
+    }
 
     /* ---------- 4. รายขั้นตอน ---------- */
-    var sSteps = {
-      name: "รายขั้นตอน", freeze: 1,
-      cols: [{ w: 18 }, { w: 22 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 },
-             { w: 10 }, { w: 12 }, { w: 12 }],
-      rows: [[H("แผนก"), H("ขั้นตอน"), H("จำนวนบันทึก"), H("ชั่วโมง"), H("ชิ้นดี"),
-              H("ชิ้นเสีย"), H("% เสีย"), H("ชิ้นดี/ชม."), H("คนที่ทำ")]]
-    };
-    steps.forEach(function (x, i) {
-      var r = i + 2;
-      sSteps.rows.push([x.dept, x.step, I(x.entries), N(x.hours), I(x.good), I(x.bad),
-        pct("E" + r, "F" + r), { f: "IFERROR(E" + r + "/D" + r + ",0)", s: 4 }, I(x.people)]);
-    });
+    var steps = d.steps || [];
+    var sSteps = table("รายขั้นตอน", "รายขั้นตอน",
+      "ยืนยันแล้วเท่านั้น · ชิ้นของแต่ละขั้นบวกกันไม่ได้ (ชิ้นเดียวผ่านหลายขั้น) · งานแก้และล็อตแก้ไขแยกไว้ ไม่บวกซ้ำ",
+      [["แผนก", 18], ["ขั้นตอน", 22], ["รายการ", 9], ["ชิ้นดี", 10], ["ของเสีย", 10],
+       ["% เสียในขั้นนี้", 14], ["งานแก้ (ชิ้น)", 13], ["ชั่วโมง", 10], ["ชิ้น/ชม.", 10], ["คนที่ทำ", 9]],
+      steps.map(function (x, i) {
+        var r = TOP + i, tm = num(x.timed_min);
+        return [x.dept, x.step + (x.is_qc && !/QC/i.test(x.step) ? " (QC)" : ""), I(x.entries), I(x.qty), I(x.bad),
+          { f: "IFERROR(E" + r + "/(D" + r + "+E" + r + "),\"\")", s: 6 },
+          num(x.rework) ? I(x.rework) : "", hrs(x.minutes),
+          tm > 0 ? N(num(x.timed_qty) / (tm / 60)) : "", I(x.people)];
+      }));
 
-    /* ---------- 5. รายสินค้า ---------- */
-    var sProd = {
-      name: "รายสินค้า", freeze: 1,
-      cols: [{ w: 12 }, { w: 30 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 8 }, { w: 12 },
-             { w: 10 }, { w: 10 }, { w: 10 }, { w: 12 }, { w: 14 }, { w: 14 }],
-      rows: [[H("รหัสสินค้า"), H("สินค้า"), H("ชนิดหยก"), H("สี"), H("แหล่ง"), H("ล็อต"),
-              H("ยอดเปิดรวม"), H("ชิ้นดี"), H("ชิ้นเสีย"), H("% เสีย"), H("ชั่วโมง"),
-              H("ต้นทุนมาตรฐาน"), H("ราคาขาย")]]
+    /* ---------- 5. สาเหตุของเสีย ---------- */
+    var df = d.defects || {}, byC = df.by_cause || [], unl = num(df.unlabeled);
+    var badAll = num(k.bad);
+    var sCause = {
+      name: "สาเหตุของเสีย", freeze: 0,
+      cols: [{ w: 34 }, { w: 12 }, { w: 16 }, { w: 10 }, { w: 40 }],
+      rows: [[T("สาเหตุของเสีย")],
+        ["ยืนยันแล้วเท่านั้น · ไม่นับล็อตแก้ไข · \"ยังไม่ระบุสาเหตุ\" = รายการที่ลงก่อนมีระบบติ๊กสาเหตุ"],
+        [H("สาเหตุ"), H("ชิ้น"), H("% ของของเสียทั้งหมด"), H("รายการ"), H("พบที่ขั้น")]]
     };
-    prods.forEach(function (x, i) {
-      var r = i + 2;
-      sProd.rows.push([x.code, x.name, x.jade, x.color || "", x.origin || "", I(x.lots),
-        I(x.qty_opened), I(x.good), I(x.bad), pct("H" + r, "I" + r), N(x.hours),
-        x.cost == null ? "" : N(x.cost), x.price == null ? "" : N(x.price)]);
+    byC.forEach(function (x) {
+      sCause.rows.push([x.cause, I(x.qty), P(ratio(x.qty, badAll)), I(x.entries), x.steps || ""]);
     });
+    if (unl) sCause.rows.push(["ยังไม่ระบุสาเหตุ", I(unl), P(ratio(unl, badAll)), "", ""]);
+    sCause.rows.push([B("รวม"), { v: badAll, s: 7 }, badAll ? P(1) : "", "", ""]);
+    if (!byC.length && !unl) sCause.rows.push(["ไม่มีของเสียในช่วงนี้"]);
 
-    /* ---------- 6. รายล็อต ---------- */
-    var sLots = {
-      name: "รายล็อต", freeze: 1,
-      cols: [{ w: 14 }, { w: 10 }, { w: 12 }, { w: 28 }, { w: 14 }, { w: 12 }, { w: 12 },
-             { w: 12 }, { w: 10 }, { w: 10 }, { w: 10 }, { w: 18 }, { w: 12 }, { w: 10 },
-             { w: 12 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 14 }, { w: 10 },
-             { w: 10 }, { w: 22 }, { w: 16 }, { w: 14 }, { w: 22 }, { w: 12 }, { w: 16 }],
-      rows: [[H("ล็อต"), H("สถานะ"), H("รหัสสินค้า"), H("สินค้า"), H("ชนิดหยก"),
-              H("เปิดเมื่อ"), H("กำหนดส่ง"), H("ยอดเปิด"), H("ผ่าน QC"), H("ของเสีย"),
-              H("คงค้าง"), H("ขั้นล่าสุด"), H("ล่าสุดเมื่อ"), H("ชั่วโมง"),
-              H("ค่าหยก"), H("ค่าแรง"), H("โสหุ้ย"), H("ต้นทุนรวม"),
-              H("ต้นทุนต่อชิ้น"), H("% เสีย"), H("งาน CNC"),
-              H("วัน CNC (เข้าครั้งแรก→ออกครั้งสุดท้าย)"), H("วัน-เครื่อง CNC รวม"),
-              H("ยังอยู่ในเครื่อง"), H("ล็อตแก้ไข — แก้ของ"), H("ส่งไปแก้ (ชิ้น)"),
-              H("ค่าแก้ไขที่ย้ายมารวม")]]
-    };
-    // ต้นทุนรวมของล็อต = ค่าหยก + ค่าแรง + โสหุ้ย + ค่าแก้ไข (คอลัมน์ AA)
-    // ล็อตแก้ไขเองไม่มีต้นทุนต่อชิ้น เพราะย้ายไปรวมที่ล็อตต้นทางแล้ว
-    lots.forEach(function (x, i) {
-      var r = i + 2;
-      sLots.rows.push([x.code, x.status === "open" ? "เปิดอยู่" : "ปิดแล้ว",
-        x.product_code, x.product_name, x.jade,
-        { d: x.opened_at }, x.due_date ? { d: x.due_date } : "",
-        I(x.qty_opened), I(x.pieces), I(x.defects), I(x.wip),
-        x.last_step || "", x.last_date ? { d: x.last_date } : "", N(x.hours),
-        N(x.material), N(x.labour), N(x.overhead),
-        { f: "O" + r + "+P" + r + "+Q" + r + "+AA" + r, s: 4 },
-        x.rework ? "" : { f: "IFERROR(R" + r + "/I" + r + ",0)", s: 4 },
-        pct("I" + r, "J" + r),
-        I(x.cnc_jobs), x.cnc_jobs ? I(x.cnc_span) : "", x.cnc_jobs ? I(x.cnc_days) : "",
-        x.cnc_open ? I(x.cnc_open) : "",
-        x.rework ? (x.rework_of || "ล็อตแก้ไข") : "",
-        Number(x.rework_sent) ? I(x.rework_sent) : "",
-        N(x.rework_cost)]);
-    });
+    var byS = df.by_step || [];
+    if (byS.length) {
+      sCause.rows.push([], [B("แยกตามขั้นตอนที่พบ")], [H("ขั้นตอน"), H("สาเหตุ"), H("ชิ้น")]);
+      byS.forEach(function (x) { sCause.rows.push([x.step, x.cause, I(x.qty)]); });
+    }
+    var byW = df.by_who || [];
+    sCause.rows.push([], [B("ใครทำเสีย (เฉพาะที่ระบุชื่อตอนลงงาน)")]);
+    if (byW.length) {
+      sCause.rows.push([H("ชื่อ"), H("สาเหตุ"), H("ชิ้น"), H("รายการ")]);
+      byW.forEach(function (x) { sCause.rows.push([x.who, x.cause, I(x.qty), I(x.entries)]); });
+    } else {
+      sCause.rows.push(["ยังไม่มีการระบุชื่อในช่วงนี้"]);
+    }
 
-    /* ---------- 7. เครื่องจักร ---------- */
-    var sMach = {
-      name: "เครื่องจักร", freeze: 1,
-      cols: [{ w: 20 }, { w: 14 }, { w: 12 }, { w: 12 }, { w: 10 }, { w: 10 },
-             { w: 12 }, { w: 16 }],
-      rows: [[H("เครื่อง"), H("ชนิด"), H("จำนวนบันทึก"), H("ชั่วโมงคน"), H("ชิ้นดี"),
-              H("ชิ้นเสีย"), H("งาน CNC"), H("วันอยู่ในเครื่องรวม")]]
-    };
-    machines.forEach(function (x) {
-      sMach.rows.push([x.name, x.kind || "", I(x.entries), N(x.hours), I(x.good),
-        I(x.bad), I(x.cnc_jobs), I(x.cnc_days)]);
-    });
+    /* ---------- 6. รายสินค้า ---------- */
+    var prods = d.products || [];
+    var sProd = table("รายสินค้า", "รายสินค้า",
+      "ยืนยันแล้วเท่านั้น · ไม่นับล็อตแก้ไข · % เสีย = ของเสีย ÷ ยอดเปิดล็อต · ต้นทุน/ราคา = ค่าที่ตั้งไว้ในหน้าตั้งค่าสินค้า",
+      [["รหัส", 11], ["สินค้า", 28], ["ชนิดหยก", 13], ["สี", 11], ["แหล่ง", 11], ["ล็อต", 7],
+       ["ยอดเปิด", 10], ["ผ่าน QC", 10], ["ของเสีย", 10], ["% เสีย", 9], ["ชั่วโมง", 10],
+       ["ต้นทุนมาตรฐาน/ชิ้น", 18], ["ราคาขาย/ชิ้น", 13]],
+      prods.map(function (x, i) {
+        var r = TOP + i;
+        return [x.code, x.name, x.jade || "", x.color || "", x.origin || "", I(x.lots),
+          I(x.qty_opened), I(x.qc), I(x.bad), { f: "IFERROR(I" + r + "/G" + r + ",\"\")", s: 6 },
+          hrs(x.minutes), x.cost == null ? NOTSET : N(x.cost), x.price == null ? NOTSET : N(x.price)];
+      }));
 
-    /* ---------- CNC งานละแถว ---------- */
-    var sCnc = {
-      name: "CNC", freeze: 1,
-      cols: [{ w: 14 }, { w: 12 }, { w: 26 }, { w: 18 }, { w: 14 }, { w: 14 }, { w: 14 },
-             { w: 14 }, { w: 14 }, { w: 12 }, { w: 14 }, { w: 10 }, { w: 10 }],
-      rows: [[H("ล็อต"), H("รหัสสินค้า"), H("สินค้า"), H("ขั้นตอน"), H("เครื่อง"),
-              H("คนเอาเข้า"), H("คนเอาออก"), H("วันเข้าเครื่อง"), H("วันออกจากเครื่อง"),
-              H("จำนวนวัน"), H("สถานะ"), H("ชิ้นดี"), H("ชิ้นเสีย")]]
-    };
-    cnc.forEach(function (x, i) {
-      var r = i + 2;
-      sCnc.rows.push([x.lot, x.product_code, x.product, x.step, x.machine,
-        x.put_in || "", x.took_out || "", { d: x.cnc_start }, x.cnc_end ? { d: x.cnc_end } : "",
-        { f: "IF(I" + r + "=\"\",TODAY()-H" + r + ",I" + r + "-H" + r + ")", s: 7 },
-        x.in_machine ? "อยู่ในเครื่อง" : "ออกแล้ว",
-        x.in_machine ? "" : I(x.qty_good), x.in_machine ? "" : I(x.qty_bad)]);
-    });
+    /* ---------- 7. รายล็อต ---------- */
+    var lots = d.lots || [];
+    var sLots = table("รายล็อต", "รายล็อต",
+      "ตัวเลขทั้งล็อตตั้งแต่เปิด (ไม่ตัดตามช่วงวันที่) · แสดงล็อตที่มีงานในช่วงนี้ · " +
+      "ต้นทุนรวม = ค่าหยก + ค่าแรง + ค่าโสหุ้ย + ค่าแก้ไขที่ย้ายมา · ต้นทุน/ชิ้น = ต้นทุนรวม ÷ ผ่าน QC",
+      [["ล็อต", 15], ["ประเภท", 18], ["สถานะ", 9], ["รหัสสินค้า", 11], ["สินค้า", 24], ["ชนิดหยก", 12],
+       ["เปิดเมื่อ", 12], ["กำหนดส่ง", 12], ["ยอดเปิด", 9], ["ผ่าน QC", 9], ["QC รอตรวจ", 11],
+       ["ของเสีย", 9], ["เสียรอตรวจ", 11], ["ค้างในสาย", 10], ["ขั้นล่าสุด", 16], ["ล่าสุดเมื่อ", 12],
+       ["ชั่วโมง", 9], ["ค่าหยก", 12], ["ค่าแรง", 12], ["ค่าโสหุ้ย", 12], ["ค่าแก้ไขที่ย้ายมา", 16],
+       ["ต้นทุนรวม", 13], ["ต้นทุน/ชิ้น", 12], ["หมายเหตุต้นทุน", 34],
+       ["งาน CNC", 9], ["วัน CNC รวม", 12], ["ยังอยู่ในเครื่อง", 14], ["ส่งไปแก้ (ชิ้น)", 14]],
+      lots.map(function (x, i) {
+        var r = TOP + i, notes = [];
+        if (!x.material_set) notes.push("ยังไม่กรอกค่าหยก (ต้นทุนต่ำกว่าจริง)");
+        if (x.rework) notes.push("ล็อตแก้ไข — ต้นทุนย้ายไปรวมที่ล็อตต้นทางแล้ว");
+        else if (!num(x.qc_passed)) notes.push("ยังไม่มีชิ้นผ่าน QC");
+        return [x.code, x.rework ? "แก้ไข ของ " + (x.rework_of || "") : "ปกติ",
+          x.status === "open" ? "เปิดอยู่" : "ปิดแล้ว", x.product_code, x.product_name, x.jade || "",
+          day(x.opened_at), day(x.due_date), I(x.qty_opened), I(x.qc_passed),
+          num(x.qc_pending) ? I(x.qc_pending) : "", I(x.total_bad),
+          num(x.bad_pending) ? I(x.bad_pending) : "", I(x.wip), x.last_step || "", day(x.last_date),
+          hrs(x.minutes), x.material_set ? N(x.material) : NOTSET, N(x.labour), N(x.overhead),
+          num(x.rework_cost) ? N(x.rework_cost) : "",
+          { f: "N(R" + r + ")+N(S" + r + ")+N(T" + r + ")+N(U" + r + ")", s: 4 },
+          x.rework || !num(x.qc_passed) ? "" : { f: "IFERROR(V" + r + "/J" + r + ",\"\")", s: 4 },
+          notes.join(" · "),
+          num(x.cnc_jobs) ? I(x.cnc_jobs) : "", num(x.cnc_jobs) ? I(x.cnc_days) : "",
+          num(x.cnc_open) ? I(x.cnc_open) : "", num(x.rework_sent) ? I(x.rework_sent) : ""];
+      }));
 
-    /* ---------- 8. ต้นทุนรายเดือน ---------- */
-    var sMon = {
-      name: "ต้นทุนรายเดือน", freeze: 1,
-      cols: [{ w: 14 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 14 }, { w: 16 }, { w: 12 },
-             { w: 16 }, { w: 14 }, { w: 16 }, { w: 14 }, { w: 14 }],
-      rows: [[H("เดือน"), H("ค่าแรงจ่ายจริง"), H("คน-วัน"), H("จำนวนคน"), H("วันโรงงานเปิด"),
-              H("ค่าแรงเข้างานตรง"), H("ชม. ผลิต"), H("ค่าแรงส่วนที่เหลือ"),
-              H("เฉลี่ยต่อ ชม."), H("% ลงงานครอบคลุม"), H("ชม. ฐานโสหุ้ย"), H("โสหุ้ย/ชม.")]]
-    };
-    months.forEach(function (x) {
-      sMon.rows.push([thMonth(x.ym), N(x.wage_paid), I(x.man_days), I(x.head_count),
-        I(x.work_days), N(x.wage_direct), N(x.prod_hours), N(x.wage_rest),
-        N(x.spread_rate), x.covered_pct == null ? "" : N(x.covered_pct),
-        N(x.base_hours), N(x.overhead_rate)]);
-    });
+    /* ---------- 8. CNC ---------- */
+    var cnc = d.cnc || [];
+    var sCnc = table("CNC", "งานเข้าเครื่อง CNC / ถังเขย่า (งานละแถว)",
+      "งานที่อยู่ในเครื่องช่วงไหนก็ได้ของช่วงที่เลือก · ยังไม่ออก = นับวันถึงวันออกไฟล์ · ไม่นับที่ตีกลับ",
+      [["ล็อต", 15], ["รหัสสินค้า", 11], ["สินค้า", 24], ["ขั้นตอน", 18], ["เครื่อง", 14],
+       ["คนเอาเข้า", 12], ["คนเอาออก", 12], ["วันเข้า", 12], ["วันออก", 12], ["จำนวนวัน", 10],
+       ["สถานะ", 14], ["ชิ้นดี", 9], ["ของเสีย", 9], ["ตรวจแล้ว", 11]],
+      cnc.map(function (x) {
+        return [x.lot, x.product_code, x.product, x.step, x.machine, x.put_in || "", x.took_out || "",
+          day(x.cnc_start), day(x.cnc_end), I(x.days), x.in_machine ? "ยังอยู่ในเครื่อง" : "ออกแล้ว",
+          x.in_machine ? "" : I(x.qty_good), x.in_machine ? "" : I(x.qty_bad), x.review];
+      }));
 
-    /* ---------- 9. ข้อมูลดิบ ---------- */
-    var sRaw = {
-      name: "ข้อมูลดิบ", freeze: 1,
-      cols: [{ w: 12 }, { w: 10 }, { w: 14 }, { w: 14 }, { w: 12 }, { w: 28 }, { w: 14 },
-             { w: 20 }, { w: 16 }, { w: 16 }, { w: 10 }, { w: 10 }, { w: 8 }, { w: 8 },
-             { w: 10 }, { w: 10 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 30 }, { w: 18 }, { w: 10 }],
-      rows: [[H("วันที่"), H("ประเภท"), H("ล็อต"), H("โครงการ RD"), H("รหัสสินค้า"),
-              H("สินค้า"), H("ชนิดหยก"), H("ขั้นตอน"), H("พนักงาน"), H("เครื่อง"),
-              H("ชิ้นดี"), H("ชิ้นเสีย"), H("เริ่ม"), H("เสร็จ"), H("นาที"), H("ชั่วโมง"),
-              H("เริ่ม CNC"), H("เสร็จ CNC"), H("สถานะตรวจ"), H("หมายเหตุ"), H("บันทึกเมื่อ"),
-              H("วัน CNC")]]
-    };
-    raw.forEach(function (x, i) {
-      var r = i + 2;
-      sRaw.rows.push([{ d: x.work_date }, x.category, x.lot, x.rd, x.product_code, x.product,
-        x.jade, x.step, x.employee, x.machine, I(x.qty_good), I(x.qty_bad),
-        x.t_start || "", x.t_end || "", x.minutes == null ? "" : I(x.minutes), N(x.hours),
-        x.cnc_start ? { d: x.cnc_start } : "", x.cnc_end ? { d: x.cnc_end } : "",
-        x.review, x.note, x.created_at,
-        x.cnc_start ? { f: "IF(R" + r + "=\"\",TODAY()-Q" + r + ",R" + r + "-Q" + r + ")", s: 7 } : ""]);
-    });
+    /* ---------- 9. เครื่องจักร ---------- */
+    var machines = d.machines || [];
+    var sMach = table("เครื่องจักร", "สรุปรายเครื่อง",
+      "ยืนยันแล้วเท่านั้น · วันอยู่ในเครื่อง = บวกทุกงานของเครื่องนั้น (ห้ามบวกข้ามเครื่อง เพราะเดินพร้อมกันได้)",
+      [["เครื่อง", 18], ["ชนิด", 12], ["รายการ", 9], ["ชิ้นดี", 10], ["ของเสีย", 10],
+       ["งานเข้าเครื่อง", 14], ["วันอยู่ในเครื่องรวม", 18]],
+      machines.map(function (x) {
+        return [x.name, x.kind || "", I(x.entries), I(x.good), I(x.bad), I(x.cnc_jobs), I(x.cnc_days)];
+      }));
 
-    /* ---------- งานซ่อม (JOB) ---------- */
+    /* ---------- 10. ต้นทุนรายเดือน ---------- */
+    var months = d.months || [];
+    var sMon = table("ต้นทุนรายเดือน", "ต้นทุนรายเดือน",
+      "ตัวเลขทั้งเดือน (อาจกว้างกว่าช่วงวันที่ที่เลือก) · ค่าแรงจ่ายจริง = ค่าแรงรายวัน × วันที่โรงงานเปิด · " +
+      "ส่วนที่เหลือเกลี่ยลงล็อตตามชั่วโมง",
+      [["เดือน", 12], ["ค่าแรงจ่ายจริง", 15], ["คน-วัน", 9], ["จำนวนคน", 10], ["วันโรงงานเปิด", 14],
+       ["ค่าแรงตามเวลาที่ลง", 18], ["ชม. ผลิต", 10], ["ค่าแรงส่วนที่เหลือ", 17], ["เกลี่ยต่อ ชม.", 13],
+       ["% ที่ลงเวลาครอบคลุม", 18], ["ชม. ฐานโสหุ้ย", 13], ["โสหุ้ยต่อ ชม.", 12]],
+      months.map(function (x) {
+        return [thMonth(x.ym), N(x.wage_paid), I(x.man_days), I(x.head_count), I(x.work_days),
+          N(x.wage_direct), N(x.prod_hours), N(x.wage_rest), N(x.spread_rate),
+          x.covered_pct == null ? "" : P(num(x.covered_pct) / 100), N(x.base_hours), N(x.overhead_rate)];
+      }));
+
+    /* ---------- 11–12. งานซ่อม ---------- */
     var reps = d.repairs || [], repPpl = d.repair_people || [], repLog = d.repair_log || [];
-    var sRep = {
-      name: "งานซ่อม", freeze: 1,
-      cols: [{ w: 14 }, { w: 13 }, { w: 30 }, { w: 14 }, { w: 26 }, { w: 11 }, { w: 12 },
-             { w: 12 }, { w: 12 }, { w: 12 }, { w: 14 }, { w: 8 }, { w: 9 }, { w: 14 }],
-      rows: [[H("JOB"), H("ประเภท"), H("งาน"), H("เครื่อง"), H("ของใคร / สินค้า"), H("สถานะ"),
-              H("วันเปิด"), H("วันปิด"), H("ชม. ในช่วงนี้"), H("ชม. ยืนยันแล้ว"),
-              H("นาทีในช่วงนี้"), H("คน"), H("ครั้ง"), H("ชม. รวมทั้ง JOB")]]
-    };
-    reps.forEach(function (x) {
-      sRep.rows.push([x.code, x.kind, x.title, x.machine, x.item, x.status,
-        x.opened ? { d: x.opened } : "", x.closed ? { d: x.closed } : "",
-        N(x.hours), N(x.hours_ok), I(x.minutes), I(x.people), I(x.entries), N(x.hours_all_time)]);
-    });
-    sRep.rows.push([]);
-    sRep.rows.push([H("JOB"), H("งาน"), H("พนักงาน"), H("ชม."), H("นาที"), H("ครั้ง"),
-                    H("วันแรก"), H("วันล่าสุด")]);
-    repPpl.forEach(function (x) {
-      sRep.rows.push([x.code, x.title, x.employee, N(x.hours), I(x.minutes), I(x.entries),
-        x.first_day ? { d: x.first_day } : "", x.last_day ? { d: x.last_day } : ""]);
-    });
-    var sRepLog = {
-      name: "งานซ่อม รายครั้ง", freeze: 1,
-      cols: [{ w: 12 }, { w: 14 }, { w: 28 }, { w: 14 }, { w: 9 }, { w: 9 }, { w: 9 },
-             { w: 9 }, { w: 12 }, { w: 30 }],
-      rows: [[H("วันที่"), H("JOB"), H("งาน"), H("พนักงาน"), H("เริ่ม"), H("เสร็จ"),
-              H("นาที"), H("ชม."), H("สถานะ"), H("หมายเหตุ")]]
-    };
-    repLog.forEach(function (x) {
-      sRepLog.rows.push([{ d: x.d }, x.code, x.title, x.employee, x.t_start || "", x.t_end || "",
-        I(x.minutes), N(x.hours), x.review, x.note]);
-    });
+    var sRep = table("งานซ่อม", "งานซ่อม (JOB)",
+      "JOB ที่มีการลงเวลาหรือเปิดในช่วงนี้ · ชม. ในช่วงนี้ไม่นับที่ตีกลับ · ไม่นับเข้ายอดผลิต",
+      [["JOB", 14], ["ประเภท", 13], ["งาน", 28], ["เครื่อง", 14], ["ของใคร / สินค้า", 24], ["สถานะ", 11],
+       ["วันเปิด", 12], ["วันปิด", 12], ["ชม. ในช่วงนี้", 13], ["ชม. ยืนยันแล้ว", 14],
+       ["คน", 6], ["ครั้ง", 7], ["ชม. รวมทั้ง JOB", 15]],
+      reps.map(function (x) {
+        return [x.code, x.kind, x.title, x.machine, x.item, x.status, day(x.opened), day(x.closed),
+          hrs(x.minutes), hrs(x.minutes_ok), I(x.people), I(x.entries), hrs(x.minutes_all_time)];
+      }));
+    if (repPpl.length) {
+      sRep.rows.push([], [B("แยกรายคน")], [H("JOB"), H("งาน"), H("พนักงาน"), H("ชม."), H("ครั้ง"),
+        H("วันแรก"), H("วันล่าสุด")]);
+      repPpl.forEach(function (x) {
+        sRep.rows.push([x.code, x.title, x.employee, hrs(x.minutes), I(x.entries), day(x.first_day), day(x.last_day)]);
+      });
+    }
+    var sRepLog = table("งานซ่อม รายครั้ง", "งานซ่อม รายครั้ง", "ทุกครั้งที่ลงเวลาซ่อม พร้อมสถานะตรวจ",
+      [["วันที่", 12], ["JOB", 14], ["งาน", 28], ["พนักงาน", 14], ["เริ่ม", 8], ["เสร็จ", 8],
+       ["ชม.", 8], ["สถานะ", 12], ["หมายเหตุ", 30]],
+      repLog.map(function (x) {
+        return [day(x.d), x.code, x.title, x.employee, x.t_start || "", x.t_end || "",
+          hrs(x.minutes), x.review, x.note];
+      }));
 
-    return X.build([dash, sDaily, sPeople, sSteps, sProd, sLots, sCnc, sMach, sMon, sRep, sRepLog, sRaw]);
+    /* ---------- 13. ข้อมูลดิบ ---------- */
+    var raw = d.raw || [], capped = num(d.raw_total) > raw.length;
+    var sRaw = table("ข้อมูลดิบ", "ข้อมูลดิบ (ทุกรายการ)",
+      (capped ? "⚠ ช่วงนี้มี " + J.nf.format(num(d.raw_total)) + " รายการ แสดงได้ " + J.nf.format(raw.length) +
+                " รายการแรก — เลือกช่วงวันที่ให้สั้นลง · " : "") +
+      "ทุกสถานะ (ยืนยันแล้ว / รอตรวจ / ตีกลับ / อยู่ในเครื่อง) — กรองช่อง \"สถานะตรวจ\" ก่อนรวมเอง · " +
+      "นาทีที่นับ = หักเวลาที่ลงซ้อนกันแล้ว",
+      [["วันที่", 12], ["สถานะตรวจ", 12], ["ประเภท", 10], ["ล็อต", 15], ["ล็อตแก้ไข", 10], ["โครงการ RD", 13],
+       ["รหัสสินค้า", 11], ["สินค้า", 24], ["ขั้นตอน", 18], ["พนักงาน", 13], ["เครื่อง", 12],
+       ["ชิ้นดี", 8], ["ของเสีย", 9], ["สาเหตุของเสีย", 34], ["งานแก้", 16], ["เริ่ม", 7], ["เสร็จ", 7],
+       ["นาทีตามนาฬิกา", 14], ["นาทีที่นับ", 11], ["เข้าเครื่อง", 12], ["ออกเครื่อง", 12],
+       ["หมายเหตุ", 30], ["บันทึกเมื่อ", 17]],
+      raw.map(function (x) {
+        return [day(x.work_date), x.review, x.category, x.lot, x.rework_lot ? "ใช่" : "", x.rd,
+          x.product_code, x.product, x.step, x.employee, x.machine, I(x.qty_good), I(x.qty_bad),
+          x.defects || (num(x.qty_bad) && x.lot ? "ยังไม่ระบุ" : ""), x.rework || "",
+          x.t_start || "", x.t_end || "",
+          x.minutes_raw == null ? "" : I(x.minutes_raw), x.minutes == null ? "" : I(x.minutes),
+          day(x.cnc_start), day(x.cnc_end), x.note, x.created_at];
+      }));
+
+    return X.build([dash, sDaily, sPeople, sSteps, sCause, sProd, sLots, sCnc, sMach, sMon, sRep, sRepLog, sRaw]);
   }
 
   /* ---------- รายงาน Word: ส่ง–รับของ / ไล่ของหาย ---------- */
@@ -1238,6 +1290,10 @@
         return J.rpc("sup_prod_export", { p_name: m.name, p_pin: m.pin, p_from: from, p_to: to });
       })
       .then(function (d) {
+        // ฐานข้อมูลรุ่นเก่าไม่มีตัวเลขชุดใหม่ — ห้ามออกไฟล์ที่ตัวเลขเป็น 0 ปลอม ๆ
+        if (!d || Number(d.version) < 2 || !d.kpi) {
+          throw new Error("ฐานข้อมูลยังเป็นรุ่นเก่า — ต้องรัน migration 45 ก่อนถึงจะโหลดไฟล์ได้");
+        }
         if (!(d.raw || []).length) { J.msg($("e-msg"), "ไม่มีข้อมูลในช่วงที่เลือก", "err"); return; }
         var nm = "IRJ-สรุปการผลิต-" + (d.to || J.today()) + ".xlsx";
         window.XLSXMini.save(buildProdBook(d), nm);
