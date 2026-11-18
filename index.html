@@ -9,6 +9,32 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Trirong:wght@400;500;600&family=Sarabun:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="app.css?v=48">
+<style>
+  /* ---------- สาเหตุของเสีย ---------- */
+  .dz{border:1px solid var(--alert-soft);border-radius:10px;padding:12px;margin:-2px 0 14px;background:var(--surface)}
+  .dz[hidden]{display:none}
+  .dz-h{font-size:12.5px;letter-spacing:.06em;color:var(--alert);margin-bottom:8px;font-weight:600}
+  .dz-item{border-top:1px solid var(--line);padding:9px 0}
+  .dz-item:first-of-type{border-top:0;padding-top:2px}
+  .dz .dz-chk{display:flex;align-items:center;gap:10px;font-size:15px;cursor:pointer;line-height:1.4;
+    color:inherit;margin:0;letter-spacing:0}
+  .dz .dz-chk input{width:22px;height:22px;flex:0 0 22px;margin:0;padding:0;accent-color:var(--jade)}
+  .dz-more{display:grid;grid-template-columns:90px 1fr;gap:8px 10px;margin:9px 0 2px 32px}
+  .dz-more[hidden]{display:none}
+  .dz-more label{display:block;font-size:11.5px;color:var(--ink-3);margin-bottom:3px}
+  .dz-more input,.dz-more select{width:100%;padding:8px 9px;border:1px solid var(--line);border-radius:6px;
+    background:var(--surface);color:inherit;font:inherit;font-size:15px;min-width:0}
+  .dz-more .dz-qty{text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+  .dz-more .full{grid-column:1 / -1}
+  .dz-sum{margin-top:8px;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--alert)}
+  .dz-sum.ok{color:var(--jade)}
+  .edt .dz{margin:10px 0 0}
+  /* กล่องแก้รายการขึ้นบรรทัดใหม่เต็มความกว้าง ไม่ไปเบียดข้อความข้าง ๆ */
+  #recent .row{flex-wrap:wrap}
+  #recent .row > .main{flex:1 1 0}
+  #recent .row > .edt{flex:1 0 100%}
+  .row .s.dz-line{color:var(--alert)}
+</style>
 </head>
 <body>
 
@@ -135,6 +161,8 @@
             <input id="f-bad" type="number" inputmode="numeric" min="0" step="1" value="">
           </div>
         </div>
+
+        <div class="dz" id="f-defects" hidden></div>
 
         <div class="field" id="wrap-date">
           <label for="f-date">วันที่ทำงาน</label>
@@ -451,6 +479,7 @@
 
     // เข้าเครื่องยังไม่นับจำนวน
     $("wrap-counts").hidden = into;
+    syncDefects(false);
     $("wrap-date").hidden = machine;
     $("wrap-shot").hidden = into;
     $("wrap-rework").hidden = machine;   // งานแก้ใช้กับงานลงปกติเท่านั้น
@@ -613,6 +642,116 @@
     }).then(function () { btn.disabled = false; });
   }
 
+  /* ---------- สาเหตุของเสีย ---------- */
+  // ติ๊กได้หลายสาเหตุ แต่ละอันใส่จำนวน รวมต้องเท่าจำนวนเสีย · ระบุได้ว่าใครทำเสีย (ไม่บังคับ)
+  // initial = [{cause_id, qty, who, note}] จากรายการเดิม (ตอนแก้)
+  function defectPicker(host, getBad, initial) {
+    var causes = (boot && boot.defect_causes) || [];
+    var emps = (boot && boot.employees) || [];
+    var have = {};
+    (initial || []).forEach(function (d) { have[d.cause_id] = d; });
+    var empOpts = function (sel) {
+      return '<option value="">— ไม่ระบุ —</option>' + emps.map(function (e) {
+        return '<option value="' + J.esc(e.name) + '"' + (e.name === sel ? " selected" : "") + ">" +
+          J.esc(e.name) + "</option>";
+      }).join("");
+    };
+    host.innerHTML = '<div class="dz-h">ของเสียเกิดจากอะไร — ติ๊กให้ครบทุกชิ้น</div>' +
+      causes.map(function (c) {
+        var d = have[c.id];
+        return '<div class="dz-item" data-id="' + J.esc(c.id) + '">' +
+          '<label class="dz-chk"><input type="checkbox"' + (d ? " checked" : "") + "><span>" +
+            J.esc(c.name) + "</span></label>" +
+          '<div class="dz-more"' + (d ? "" : " hidden") + ">" +
+            '<div><label>กี่ชิ้น</label><input class="dz-qty" type="number" inputmode="numeric" min="1" step="1" value="' +
+              (d ? d.qty : "") + '"></div>' +
+            (c.ask_who ? '<div><label>ใครทำเสีย (ถ้ารู้)</label><select class="dz-who">' + empOpts(d && d.who) + "</select></div>"
+                       : "<div></div>") +
+            (c.need_note ? '<div class="full"><label>เกิดอะไรขึ้น (ต้องเขียน)</label>' +
+              '<input class="dz-note" type="text" placeholder="เช่น สีหยกไม่ได้ตามแบบ" value="' +
+              J.esc((d && d.note) || "") + '"></div>' : "") +
+          "</div></div>";
+      }).join("") +
+      '<div class="dz-sum"></div>';
+
+    var items = function () { return Array.prototype.slice.call(host.querySelectorAll(".dz-item")); };
+    var picked = function () { return items().filter(function (it) { return it.querySelector("input[type=checkbox]").checked; }); };
+    var qtyOf = function (it) { return Number(it.querySelector(".dz-qty").value || 0); };
+    var sum = function () { return picked().reduce(function (a, it) { return a + qtyOf(it); }, 0); };
+
+    function refresh() {
+      var bad = getBad(), s = sum(), p = picked();
+      // ติ๊กไว้อันเดียว = ของเสียทั้งหมดเป็นสาเหตุนี้ ใส่ให้เลย
+      if (p.length === 1 && bad > 0) { p[0].querySelector(".dz-qty").value = bad; s = bad; }
+      var box = host.querySelector(".dz-sum");
+      var empty = p.filter(function (it) { return !(qtyOf(it) > 0); });
+      box.className = "dz-sum" + (s === bad && p.length && !empty.length ? " ok" : "");
+      box.textContent = !p.length ? "ยังไม่ได้ติ๊กสาเหตุ (เสีย " + J.nf.format(bad) + " ชิ้น)"
+        : empty.length ? "ใส่จำนวนของ \"" + empty[0].querySelector(".dz-chk span").textContent + "\" ด้วย"
+        : s === bad ? "ครบแล้ว " + J.nf.format(s) + " จาก " + J.nf.format(bad) + " ชิ้น"
+        : "ระบุแล้ว " + J.nf.format(s) + " จาก " + J.nf.format(bad) + " ชิ้น" +
+          (s < bad ? " — ขาดอีก " + J.nf.format(bad - s) : " — เกินมา " + J.nf.format(s - bad));
+    }
+
+    host.addEventListener("change", function (e) {
+      if (e.target.type !== "checkbox") return;
+      var it = e.target.closest(".dz-item"), more = it.querySelector(".dz-more");
+      more.hidden = !e.target.checked;
+      if (e.target.checked) {
+        var q = it.querySelector(".dz-qty");
+        if (!q.value) {
+          var left = getBad() - (sum() - qtyOf(it));
+          if (left > 0) q.value = left;
+        }
+      }
+      refresh();   // ติ๊กออกจนเหลืออันเดียว อันที่เหลือรับยอดทั้งหมดเอง
+    });
+    host.addEventListener("input", function (e) { if (e.target.classList.contains("dz-qty")) refresh(); });
+    refresh();
+
+    return {
+      refresh: refresh,
+      value: function () {
+        return picked().map(function (it) {
+          var w = it.querySelector(".dz-who"), n = it.querySelector(".dz-note");
+          return { cause: it.dataset.id, qty: qtyOf(it),
+                   who: (w && w.value) || null, note: (n && n.value.trim()) || null };
+        });
+      },
+      // คืนข้อความผิด หรือ null ถ้าครบ
+      check: function () {
+        var bad = getBad(), p = picked();
+        if (!(bad > 0)) return null;
+        if (!causes.length) return null;   // ยังไม่มีรายการสาเหตุในระบบ
+        if (!p.length) return "มีของเสีย " + J.nf.format(bad) + " ชิ้น — ติ๊กสาเหตุของเสียก่อนส่ง";
+        for (var i = 0; i < p.length; i++) {
+          var name = p[i].querySelector(".dz-chk span").textContent;
+          if (!(qtyOf(p[i]) > 0)) return "ใส่จำนวนของสาเหตุ \"" + name + "\"";
+          var n = p[i].querySelector(".dz-note");
+          if (n && !n.value.trim()) return "สาเหตุ \"" + name + "\" ต้องเขียนอธิบายด้วย";
+        }
+        var s = sum();
+        if (s !== bad) return "สาเหตุรวม " + J.nf.format(s) + " ชิ้น ไม่เท่ากับจำนวนเสีย " + J.nf.format(bad) + " ชิ้น";
+        return null;
+      }
+    };
+  }
+
+  // กล่องสาเหตุของฟอร์มหลัก — โผล่เมื่อใส่จำนวนเสีย
+  var mainDefects = null;
+  function badNow() { return Number($("f-bad").value || 0); }
+  function syncDefects(rebuild) {
+    var show = badNow() > 0 && !$("wrap-counts").hidden && ((boot && boot.defect_causes) || []).length > 0;
+    if (show && (rebuild || !mainDefects)) mainDefects = defectPicker($("f-defects"), badNow);
+    if (!show && rebuild) mainDefects = null;
+    $("f-defects").hidden = !show;
+    if (show && mainDefects) mainDefects.refresh();
+  }
+  function defectArgs() {
+    return badNow() > 0 && mainDefects ? mainDefects.value() : [];
+  }
+  $("f-bad").addEventListener("input", function () { syncDefects(false); });
+
   /* ---------- รูปหลักฐาน ---------- */
   // แท็บงานอื่นมีช่องบอกสถานะของตัวเอง ต้องอัปเดตทั้งคู่ ไม่งั้นฝั่งงานอื่นเงียบสนิท
   function shotHint(t) {
@@ -717,13 +856,17 @@
       var jid = $("f-job").value;
       if (!jid) { J.msg($("form-msg"), "เลือกงานที่จะเอาออกก่อน", "err"); return; }
       if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
+      var dzErr = mainDefects ? mainDefects.check() : null;
+      if (dzErr) { J.msg($("form-msg"), dzErr, "err"); $("f-defects").scrollIntoView({ block: "center" }); return; }
       send({
         p_name: m.name, p_pin: m.pin, p_id: jid,
         p_good: good, p_bad: bad,
         p_date: $("f-cend").value || J.today(),
-        p_note: $("f-note").value || null
+        p_note: $("f-note").value || null,
+        p_defects: defectArgs()
       }, $("submit-prod"), function (r) {
         $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
+        syncDefects(true);
         if (r && r.id) uploadShots(r.id);
         loadJobs();
       }, "app_cnc_out");
@@ -732,6 +875,9 @@
 
     if (!lot) { J.msg($("form-msg"), "เลือกล็อตงานก่อน", "err"); return; }
     if (!good && !bad) { J.msg($("form-msg"), "ใส่จำนวนดีหรือจำนวนเสียอย่างน้อยหนึ่งช่อง", "err"); return; }
+    var dzErr2 = mainDefects ? mainDefects.check() : null;
+    if (bad > 0 && !mainDefects && ((boot && boot.defect_causes) || []).length) dzErr2 = "มีของเสีย — ติ๊กสาเหตุของเสียก่อนส่ง";
+    if (dzErr2) { J.msg($("form-msg"), dzErr2, "err"); $("f-defects").scrollIntoView({ block: "center" }); return; }
     var s = stepInfo(step);
     var isCnc = false;
     var t1 = isCnc ? null : ($("f-tstart").value || null);
@@ -751,12 +897,14 @@
       p_cnc_end: (isCnc && $("f-cend").value) || null,
       p_note: $("f-note").value || null,
       p_time_start: t1, p_time_end: t2,
-      p_rework_of: $("f-rework").value || null
+      p_rework_of: $("f-rework").value || null,
+      p_defects: defectArgs()
     }, $("submit-prod"), function (r) {
       if (r && r.rework) {
         J.msg($("form-msg"), "บันทึกเป็นงานแก้แล้ว — ยอดของขั้นตอนไม่บวกซ้ำ แต่เวลาของคุณนับปกติ", "ok");
       }
       $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
+      syncDefects(true);
       $("f-rework").value = "";
       $("f-cstart").value = ""; $("f-cend").value = "";
       $("f-tstart").value = ""; $("f-tend").value = "";
@@ -874,6 +1022,7 @@
         '<div><label>จำนวนดี</label><input type="number" min="0" step="1" data-f="good" value="' + (r.qty_good || 0) + '"></div>' +
         '<div><label>จำนวนเสีย</label><input type="number" min="0" step="1" data-f="bad" value="' + (r.qty_bad || 0) + '"></div>' +
       "</div>" +
+      '<div class="dz" data-dz hidden></div>' +
       '<div style="margin-top:9px"><label>หมายเหตุ</label>' +
         '<input type="text" data-f="note" value="' + J.esc(r.note || "") + '"></div>' +
       '<div class="acts">' +
@@ -881,16 +1030,35 @@
         '<button class="btn btn-sm btn-ghost" data-cancel="1" type="button">ยกเลิก</button>' +
       "</div>";
     var f = function (n) { return box.querySelector('[data-f="' + n + '"]'); };
+    // สาเหตุของเสีย (เฉพาะงานผลิตที่ผูกล็อต)
+    var dzHost = box.querySelector("[data-dz]"), dz = null;
+    var eBad = function () { return Number(f("bad").value || 0); };
+    var withDz = !!r.lot && !r.repair && ((boot && boot.defect_causes) || []).length > 0;
+    var syncDz = function () {
+      var show = withDz && eBad() > 0;
+      if (show && !dz) dz = defectPicker(dzHost, eBad, r.defects);
+      dzHost.hidden = !show;
+      if (dz) dz.refresh();
+    };
+    f("bad").addEventListener("input", syncDz);
+    syncDz();
     box.querySelector("[data-cancel]").addEventListener("click", function () { box.hidden = true; });
     box.querySelector("[data-save]").addEventListener("click", function () {
       var m = J.me.get();
-      box.querySelector("[data-save]").disabled = true;
-      J.rpc("app_edit_entry", {
+      var args = {
         p_name: m.name, p_pin: m.pin, p_id: id,
-        p_good: Number(f("good").value || 0), p_bad: Number(f("bad").value || 0),
+        p_good: Number(f("good").value || 0), p_bad: eBad(),
         p_note: f("note").value,
         p_time_start: r.time_start || null, p_time_end: r.time_end || null
-      }).then(function () {
+      };
+      if (withDz) {
+        var bad2 = eBad();
+        var dzE = bad2 > 0 ? (dz ? dz.check() : "ติ๊กสาเหตุของเสียก่อนบันทึก") : null;
+        if (dzE) { J.msg($("form-msg"), dzE, "err"); dzHost.scrollIntoView({ block: "center" }); return; }
+        args.p_defects = bad2 > 0 ? dz.value() : [];
+      }
+      box.querySelector("[data-save]").disabled = true;
+      J.rpc("app_edit_entry", args).then(function () {
         J.msg($("form-msg"), "แก้ไขเรียบร้อย", "ok");
         loadRecent(); loadLots();
       }).catch(function (err) {
@@ -933,6 +1101,12 @@
         return '<div class="row"><span class="main"><span class="t">' + J.esc(title) +
           " " + chip +
           '</span><br><span class="s">' + J.esc(sub) + '</span>' +
+          (e.qty_bad && (e.defects || []).length
+            ? '<br><span class="s dz-line">เสียเพราะ: ' + e.defects.map(function (d) {
+                return J.esc(d.cause) + " " + J.nf.format(d.qty) +
+                  (d.who ? " (" + J.esc(d.who) + ")" : "") + (d.note ? " — " + J.esc(d.note) : "");
+              }).join(" · ") + "</span>"
+            : "") +
           (e.review_status === "rejected" && e.review_note
             ? '<br><span class="s" style="color:var(--alert)">ตีกลับเพราะ: ' +
               J.esc(e.review_note) + " — ลบทิ้งแล้วลงใหม่ได้เลย</span>"

@@ -250,6 +250,22 @@
       <div class="panel scroll"><table id="bystep"></table></div>
     </section>
 
+    <section>
+      <div class="sec-head">
+        <h2>สาเหตุของเสีย</h2>
+        <span class="hint" id="cause-sum">นับเฉพาะที่หัวหน้ายืนยันแล้ว</span>
+      </div>
+      <div class="panel scroll"><table id="bycause"></table></div>
+    </section>
+
+    <section id="sec-who" hidden>
+      <div class="sec-head">
+        <h2>ใครทำเสีย</h2>
+        <span class="hint">เฉพาะที่ระบุชื่อตอนลงของเสีย · หัวหน้าเห็นคนเดียว</span>
+      </div>
+      <div class="panel scroll"><table id="bywho"></table></div>
+    </section>
+
     <section id="sec-other">
       <div class="sec-head">
         <h2>งานอื่น / วันลา / งานซ่อม</h2>
@@ -468,7 +484,44 @@
     renderCnc(d.cnc_steps || []);
     renderByProd(d.by_product || [], one);
     renderByStep(d.by_step || [], one);
+    renderCauses(d);
     renderOther(d.other_work || []);
+  }
+
+  /* สาเหตุของเสีย + ใครทำเสีย (ส่วนหลังหัวหน้าเห็นคนเดียว ฐานข้อมูลส่ง null ให้พนักงาน) */
+  function renderCauses(d) {
+    var rows = d.defect_causes || [], miss = Number(d.defect_unlabeled) || 0;
+    var tot = rows.reduce(function (a, r) { return a + (Number(r.qty) || 0); }, 0) + miss;
+    $("cause-sum").textContent = "นับเฉพาะที่หัวหน้ายืนยันแล้ว" +
+      (miss ? " · ยังไม่ระบุสาเหตุ " + J.nf.format(miss) + " ชิ้น (รายการก่อนมีระบบนี้)" : "");
+    if (!tot) {
+      $("bycause").innerHTML = '<tr><td class="empty">ไม่พบของเสียในช่วงนี้</td></tr>';
+    } else {
+      var list = rows.map(function (r) { return { name: r.cause, qty: Number(r.qty) || 0, steps: r.steps || [] }; });
+      if (miss) list.push({ name: "ยังไม่ระบุสาเหตุ", qty: miss, steps: [], none: true });
+      var maxQ = Math.max.apply(null, list.map(function (x) { return x.qty; })) || 1;
+      $("bycause").innerHTML =
+        "<thead><tr><th>สาเหตุ</th><th class='num'>ชิ้น</th><th>สัดส่วน</th><th></th></tr></thead><tbody>" +
+        list.map(function (x) {
+          return "<tr><td>" + (x.none ? '<span class="chip idle">' + J.esc(x.name) + "</span>" : J.esc(x.name)) +
+            (x.steps.length ? '<br><span class="hint">ลงที่ขั้น ' + J.esc(x.steps.join(" · ")) + "</span>" : "") +
+            "</td><td class='num'>" + J.nf.format(x.qty) + "</td><td>" + pctTxt(x.qty, tot) + "</td>" +
+            '<td style="width:34%"><span class="htrack" style="height:12px">' +
+            '<span class="hfill" style="background:' + (x.none ? "var(--ink-3)" : "var(--alert)") + ";width:" +
+            (x.qty / maxQ * 100).toFixed(1) + '%"></span></span></td></tr>';
+        }).join("") + "</tbody>";
+    }
+
+    var who = d.defect_who;
+    $("sec-who").hidden = !Array.isArray(who);
+    if (!Array.isArray(who)) return;
+    if (!who.length) { $("bywho").innerHTML = '<tr><td class="empty">ยังไม่มีการระบุชื่อในช่วงนี้</td></tr>'; return; }
+    $("bywho").innerHTML =
+      "<thead><tr><th>ชื่อ</th><th>สาเหตุ</th><th class='num'>ชิ้น</th><th class='num'>ครั้ง</th></tr></thead><tbody>" +
+      who.map(function (x) {
+        return "<tr><td>" + J.esc(x.who) + "</td><td>" + J.esc(x.cause) + "</td><td class='num'>" +
+          J.nf.format(x.qty) + "</td><td class='num'>" + J.nf.format(x.entries) + "</td></tr>";
+      }).join("") + "</tbody>";
   }
 
   /* ชิ้น/ชม. ต้องคิดจาก "ชิ้นของรายการที่ลงเวลา" หารด้วย "ชั่วโมงของรายการเดียวกัน"

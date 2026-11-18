@@ -443,6 +443,21 @@
     var pend = rows.filter(function (r) { return r.review_status === "pending"; }).length;
     $("sum").textContent = "ทั้งหมด " + rows.length + " รายการ" + (pend ? " · รอตรวจ " + pend : "");
 
+    // สาเหตุของเสีย — รายการเก่าก่อนมีระบบนี้จะขึ้นว่า "ยังไม่ระบุสาเหตุ"
+    function defectLine(r) {
+      if (!r.qty_bad || r.repair || !r.lot) return "";
+      var ds = r.defects || [];
+      var got = ds.reduce(function (a, d) { return a + (Number(d.qty) || 0); }, 0);
+      return '<div class="s" style="color:var(--alert)">เสียเพราะ: ' +
+        (ds.length ? ds.map(function (d) {
+          return J.esc(d.cause) + " " + J.nf.format(d.qty) +
+            (d.who ? " (" + J.esc(d.who) + ")" : "") + (d.note ? " — " + J.esc(d.note) : "");
+        }).join(" · ") : "ยังไม่ระบุสาเหตุ") +
+        (ds.length && got !== Number(r.qty_bad)
+          ? ' <span class="chip warn">สาเหตุ ' + J.nf.format(got) + " / เสีย " + J.nf.format(r.qty_bad) + "</span>" : "") +
+        "</div>";
+    }
+
     $("list").innerHTML = rows.map(function (r) {
       var when = J.thDate(r.work_date) +
         (r.time_start && r.time_end ? " · " + r.time_start + "–" + r.time_end : "") +
@@ -472,6 +487,7 @@
               (over ? " — ทำเผื่อ " + J.nf.format(over) + " ชิ้น" : "") + "</div>"
             : "") +
           (r.is_rework ? reworkBox(r) : "") +
+          defectLine(r) +
           (r.review_status === "rejected" && r.review_note
             ? '<div class="why">ตีกลับ: ' + J.esc(r.review_note) + "</div>" : "") +
           (r.review_status === "approved" && r.reviewed_by

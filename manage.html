@@ -48,6 +48,9 @@
   .lightbox[hidden]{display:none!important}
   .modal-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
   .modal-actions .btn{flex:1 1 auto;min-width:140px}
+  /* แท็บเยอะ — ให้ขึ้นบรรทัดใหม่ ไม่ล้นจอมือถือ */
+  #app > .tabs{flex-wrap:wrap}
+  #app > .tabs .tab{flex:1 1 auto;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -99,6 +102,7 @@
       <button class="tab" id="tab-step" aria-selected="false" type="button">ขั้นตอน</button>
       <button class="tab" id="tab-place" aria-selected="false" type="button">จุดพัก</button>
       <button class="tab" id="tab-attr" aria-selected="false" type="button">รายการตัวเลือก</button>
+      <button class="tab" id="tab-cause" aria-selected="false" type="button">สาเหตุของเสีย</button>
       <button class="tab" id="tab-shot" aria-selected="false" type="button">รูปหลักฐาน</button>
     </div>
 
@@ -415,6 +419,57 @@
       </div>
     </div>
 
+    <!-- ---------- สาเหตุของเสีย ---------- -->
+    <div id="pane-cause" hidden>
+      <div class="card">
+        <h2 id="cause-title">เพิ่มสาเหตุของเสีย</h2>
+        <p class="hint" style="margin-bottom:12px">ตอนลงงานแล้วมีของเสีย พนักงานต้องติ๊กสาเหตุจากรายการนี้ให้ครบทุกชิ้นก่อนส่ง
+          — สาเหตุที่เคยใช้แล้วลบไม่ได้ ให้ปิดใช้แทน ข้อมูลเก่ายังอยู่ครบ</p>
+        <div class="msg" id="cause-msg" hidden></div>
+        <div class="field">
+          <label for="c-name">ชื่อสาเหตุ</label>
+          <input id="c-name" type="text" placeholder="เช่น สีหยกไม่ได้ตามแบบ">
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="c-who">ระบุคนที่ทำเสีย</label>
+            <select id="c-who">
+              <option value="1">ให้เลือกได้</option>
+              <option value="0">ไม่ต้องระบุ</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="c-note">ต้องเขียนอธิบาย</label>
+            <select id="c-note">
+              <option value="0">ไม่ต้อง</option>
+              <option value="1">ต้องเขียน (เช่น "อื่น ๆ")</option>
+            </select>
+          </div>
+        </div>
+        <div class="two">
+          <div class="field">
+            <label for="c-seq">ลำดับที่แสดง</label>
+            <input id="c-seq" type="number" min="1" step="1" placeholder="100">
+          </div>
+          <div class="field">
+            <label for="c-active">สถานะ</label>
+            <select id="c-active">
+              <option value="1">ใช้งานอยู่</option>
+              <option value="0">ปิดใช้ / เลิกใช้แล้ว</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="c-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+          <button class="btn btn-primary" id="c-save" type="button">บันทึก</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>สาเหตุทั้งหมด</h2>
+        <div id="cause-list"><p class="hint">กำลังโหลด…</p></div>
+      </div>
+    </div>
+
     <div id="pane-shot" hidden>
       <div class="card">
         <h2>ตรวจหลักฐานงาน</h2>
@@ -510,7 +565,7 @@
 
   /* ---------- แท็บ ---------- */
   function setTab(which) {
-    ["emp", "prod", "mach", "place", "step", "attr", "shot"].forEach(function (k) {
+    ["emp", "prod", "mach", "place", "step", "attr", "cause", "shot"].forEach(function (k) {
       $("tab-" + k).setAttribute("aria-selected", String(k === which));
       $("pane-" + k).hidden = k !== which;
     });
@@ -560,6 +615,7 @@
       .then(function () { $("pl-save").disabled = false; });
   });
   $("tab-attr").addEventListener("click", function () { setTab("attr"); loadAttrs(); });
+  $("tab-cause").addEventListener("click", function () { setTab("cause"); loadCauses(); });
   $("tab-shot").addEventListener("click", function () { setTab("shot"); });
 
   /* ---------- พนักงาน ---------- */
@@ -930,6 +986,64 @@
         });
       });
     }).catch(function (err) { $("attr-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
+  }
+
+  /* ---------- สาเหตุของเสีย ---------- */
+  var editCause = null;
+  function resetCauseForm() {
+    editCause = null;
+    $("cause-title").textContent = "เพิ่มสาเหตุของเสีย";
+    $("c-name").value = ""; $("c-seq").value = "";
+    $("c-who").value = "1"; $("c-note").value = "0"; $("c-active").value = "1";
+    $("c-cancel").hidden = true;
+  }
+  $("c-cancel").addEventListener("click", resetCauseForm);
+
+  $("c-save").addEventListener("click", function () {
+    var m = J.me.get(), name = ($("c-name").value || "").trim();
+    if (!name) { J.msg($("cause-msg"), "ใส่ชื่อสาเหตุ", "err"); return; }
+    $("c-save").disabled = true;
+    J.rpc("sup_save_defect_cause", {
+      p_name: m.name, p_pin: m.pin, p_id: editCause, p_cause: name,
+      p_seq: Number($("c-seq").value || 100),
+      p_ask_who: $("c-who").value === "1", p_need_note: $("c-note").value === "1",
+      p_active: $("c-active").value === "1"
+    }).then(function (r) {
+      J.msg($("cause-msg"), (r.created ? "เพิ่ม " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
+      resetCauseForm(); loadCauses();
+    }).catch(function (err) { J.msg($("cause-msg"), err.message, "err"); })
+      .then(function () { $("c-save").disabled = false; });
+  });
+
+  function loadCauses() {
+    var m = J.me.get();
+    J.rpc("sup_defect_causes", { p_name: m.name, p_pin: m.pin }).then(function (list) {
+      if (!list.length) { $("cause-list").innerHTML = '<p class="hint">ยังไม่มีสาเหตุ — เพิ่มด้านบน</p>'; return; }
+      $("cause-list").innerHTML = list.map(function (x) {
+        return '<div class="item' + (x.active ? "" : " off") + '">' +
+          '<span class="thumb ph">' + J.nf.format(x.seq) + "</span>" +
+          '<span class="main"><span class="t">' + J.esc(x.name) +
+          (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') + "</span><br>" +
+          '<span class="s">' + (x.ask_who ? "ระบุคนได้" : "ไม่ระบุคน") +
+          (x.need_note ? " · ต้องเขียนอธิบาย" : "") +
+          " · ใช้ไปแล้ว " + J.nf.format(x.used) + " ชิ้น</span></span>" +
+          '<span class="act"><button class="btn btn-sm" data-cause="' + J.esc(x.id) +
+          '" type="button">แก้ไข</button></span></div>';
+      }).join("");
+      Array.prototype.forEach.call($("cause-list").querySelectorAll("[data-cause]"), function (b) {
+        b.addEventListener("click", function () {
+          var x = list.filter(function (y) { return y.id === b.dataset.cause; })[0];
+          editCause = x.id;
+          $("cause-title").textContent = "แก้ไข: " + x.name;
+          $("c-name").value = x.name; $("c-seq").value = x.seq;
+          $("c-who").value = x.ask_who ? "1" : "0";
+          $("c-note").value = x.need_note ? "1" : "0";
+          $("c-active").value = x.active ? "1" : "0";
+          $("c-cancel").hidden = false;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+      });
+    }).catch(function (err) { $("cause-list").innerHTML = '<p class="hint">' + J.esc(err.message) + "</p>"; });
   }
 
   /* ---------- รูปหลักฐาน ---------- */
