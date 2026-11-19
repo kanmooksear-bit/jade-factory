@@ -477,6 +477,7 @@
             (r.is_rework
               ? ' <span class="chip warn">งานแก้ของ ' + J.esc(r.rework_of || "ไม่ระบุ") + "</span>"
               : "") +
+            (r.auto_note ? ' <span class="chip idle">' + J.esc(r.auto_note) + "</span>" : "") +
           '</span><span class="n">' + (r.repair ? "" : J.nf.format(r.qty_good)) +
             (r.qty_bad ? "<i>เสีย " + J.nf.format(r.qty_bad) + "</i>" : "") + "</span></div>" +
           '<div class="s">' + J.esc(when) + (r.note ? " · " + J.esc(r.note) : "") +

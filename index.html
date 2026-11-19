@@ -34,6 +34,28 @@
   #recent .row > .main{flex:1 1 0}
   #recent .row > .edt{flex:1 0 100%}
   .row .s.dz-line{color:var(--alert)}
+  /* ---------- CNC อัตโนมัติ ---------- */
+  .ac{border:1px solid var(--line);border-inline-start:3px solid var(--jade);border-radius:10px;
+      padding:12px;margin:-2px 0 14px;background:var(--surface)}
+  .ac[hidden]{display:none}
+  .ac-h{font-weight:600;font-size:14.5px;margin-bottom:4px}
+  .ac .hint{display:block;margin-bottom:8px}
+  .ac-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+  .ac-m{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);
+        border-radius:8px;padding:8px 10px;cursor:pointer;font-size:15px}
+  .ac-m input{width:20px;height:20px;margin:0 0 2px;accent-color:var(--jade)}
+  .ac-m small{font-size:11.5px;color:var(--ink-3);line-height:1.3}
+  .ac-m.busy small{color:var(--amber)}
+  .ac-m:has(input:checked){border-color:var(--jade);background:var(--jade-soft)}
+  .ac-job{display:grid;grid-template-columns:auto 1fr 90px;gap:8px;align-items:center;
+          padding:8px 0;border-top:1px solid var(--line)}
+  .ac-job:first-of-type{border-top:0}
+  .ac-job input[type=checkbox]{width:20px;height:20px;margin:0;accent-color:var(--jade)}
+  .ac-job input[type=number]{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;
+    background:var(--surface);color:inherit;font:inherit;text-align:center;font-weight:600}
+  .ac-job small{display:block;font-size:12px;color:var(--ink-3)}
+  .ac-sum{margin-top:8px;font-size:13px;font-weight:600;color:var(--alert)}
+  .ac-sum.ok{color:var(--jade)}
 </style>
 </head>
 <body>
@@ -163,6 +185,8 @@
         </div>
 
         <div class="dz" id="f-defects" hidden></div>
+
+        <div class="ac" id="f-autocnc" hidden></div>
 
         <div class="field" id="wrap-date">
           <label for="f-date">วันที่ทำงาน</label>
@@ -602,8 +626,121 @@
   $("tab-other").addEventListener("click", function () { setMode("other"); });
   $("tab-repair").addEventListener("click", function () { setMode("repair"); });
 
+  /* ---------- CNC อัตโนมัติ: แปะกาว = เอาเข้าเครื่อง · เป่าออก = เอาออก ---------- */
+  // ใช้กับเครื่องที่หัวหน้าตั้ง "ลงอัตโนมัติ" (เครื่องแดง) และสินค้าที่ไม่ใช่งานองค์ลอยเท่านั้น
+  var acKind = null, acJobs = [];
+  function autoKind() {
+    var s = stepInfo($("f-step").value), l = currentLot();
+    if (!s || !l || !l.auto_cnc_ok || isTwoStep()) return null;
+    return s.auto_cnc === "in" || s.auto_cnc === "out" ? s.auto_cnc : null;
+  }
+  function syncAutoCnc() {
+    var k = autoKind(), box = $("f-autocnc");
+    acKind = k; acJobs = [];
+    if (!k) { box.hidden = true; box.innerHTML = ""; return; }
+    box.hidden = false;
+    box.innerHTML = '<p class="hint">กำลังโหลดเครื่อง…</p>';
+    var m = J.me.get(), lot = $("f-lot").value;
+    J.rpc("app_cnc_open", { p_name: m.name, p_pin: m.pin }).then(function (rows) {
+      if (acKind !== k || $("f-lot").value !== lot) return;   // เปลี่ยนล็อต/ขั้นไปแล้ว
+      if (k === "in") renderAutoIn(rows || []); else renderAutoOut(rows || [], lot);
+    }).catch(function () {
+      box.innerHTML = '<p class="hint">โหลดรายชื่อเครื่องไม่ได้ (เน็ตไม่ติด) — ลง CNC เองที่ขั้น CNC ภายหลังได้</p>';
+      acKind = null;
+    });
+  }
+  function renderAutoIn(rows) {
+    var ms = ((boot && boot.machines) || []).filter(function (x) { return x.auto; });
+    if (!ms.length) { $("f-autocnc").hidden = true; acKind = null; return; }
+    $("f-autocnc").innerHTML =
+      '<div class="ac-h">แปะกาวเสร็จ = เอาเข้าเครื่อง CNC</div>' +
+      '<span class="hint">ติ๊กเครื่องที่เอาเข้า (ได้หลายเครื่อง) — ระบบลง CNC "เอาเข้า" ให้เอง ไม่ต้องไปกดซ้ำ</span>' +
+      '<div class="ac-grid">' + ms.map(function (x) {
+        var busy = rows.filter(function (j) { return j.machine === x.name; })
+          .map(function (j) { return j.lot; });
+        return '<label class="ac-m' + (busy.length ? " busy" : "") + '"><input type="checkbox" value="' + J.esc(x.name) + '">' +
+          "<span>" + J.esc(x.name) + "</span><small>" + (busy.length ? "มีงาน " + J.esc(busy.join(", ")) : "ว่าง") +
+          "</small></label>";
+      }).join("") + "</div>";
+  }
+  function renderAutoOut(rows, lot) {
+    acJobs = rows.filter(function (j) { return j.lot === lot && j.auto_ok; });
+    if (!acJobs.length) {
+      $("f-autocnc").innerHTML = '<div class="ac-h">เป่าออก = เอาออกจากเครื่อง CNC</div>' +
+        '<span class="hint" style="margin:0">ล็อตนี้ไม่มีงานค้างในเครื่องแดง — บันทึกเป่าออกได้ตามปกติ</span>';
+      return;
+    }
+    $("f-autocnc").innerHTML =
+      '<div class="ac-h">เป่าออก = เอาออกจากเครื่อง CNC</div>' +
+      '<span class="hint">ติ๊กเครื่องที่เอาออกรอบนี้ — ระบบลง CNC "เอาออก" ให้เอง · ของเสียลงที่เป่าออกพร้อมสาเหตุ</span>' +
+      acJobs.map(function (j) {
+        return '<div class="ac-job" data-job="' + J.esc(j.id) + '"><input type="checkbox" checked aria-label="เอาออก">' +
+          "<div><b>" + J.esc(j.machine) + "</b><small>เข้าเมื่อ " + J.esc(J.thDate(j.cnc_start)) +
+          " · " + J.nf.format(j.days) + " วัน · " + J.esc(j.in_by || "") + "</small></div>" +
+          '<input type="number" inputmode="numeric" min="1" step="1" placeholder="กี่ชิ้น" aria-label="จำนวนที่เอาออก"></div>';
+      }).join("") + '<div class="ac-sum"></div>';
+    refreshAutoOut();
+  }
+  function pickedJobs() {
+    return Array.prototype.slice.call($("f-autocnc").querySelectorAll(".ac-job"))
+      .filter(function (r) { return r.querySelector("input[type=checkbox]").checked; });
+  }
+  function refreshAutoOut() {
+    if (acKind !== "out" || !acJobs.length) return;
+    var total = Number($("f-good").value || 0) + Number($("f-bad").value || 0), p = pickedJobs();
+    Array.prototype.forEach.call($("f-autocnc").querySelectorAll(".ac-job"), function (r) {
+      var on = p.indexOf(r) >= 0, q = r.querySelector("input[type=number]");
+      q.hidden = !on || p.length === 1;           // เครื่องเดียว = จำนวนเท่าเป่าออกเลย
+      if (on && p.length === 1) q.value = total || "";
+    });
+    var s = p.reduce(function (a, r) { return a + Number(r.querySelector("input[type=number]").value || 0); }, 0);
+    var box = $("f-autocnc").querySelector(".ac-sum");
+    box.className = "ac-sum" + (!p.length || s === total ? " ok" : "");
+    box.textContent = !p.length ? "ไม่เอาออกจากเครื่องไหนรอบนี้ (งานยังอยู่ในเครื่อง)"
+      : s === total ? "เอาออก " + p.length + " เครื่อง รวม " + J.nf.format(s) + " ชิ้น ครบ"
+      : "เอาออกรวม " + J.nf.format(s) + " จาก " + J.nf.format(total) + " ชิ้น (ต้องเท่ากัน)";
+  }
+  $("f-autocnc").addEventListener("change", refreshAutoOut);
+  $("f-autocnc").addEventListener("input", refreshAutoOut);
+  $("f-good").addEventListener("input", refreshAutoOut);
+  $("f-bad").addEventListener("input", refreshAutoOut);
+
+  // คืน [ข้อความผิด, args เพิ่ม]
+  function autoArgs() {
+    if (acKind === "in") {
+      var ms = Array.prototype.slice.call($("f-autocnc").querySelectorAll(".ac-m input:checked"))
+        .map(function (x) { return x.value; });
+      if (!ms.length) return ["ติ๊กเครื่อง CNC ที่เอาเข้า (ได้หลายเครื่อง)", null];
+      return [null, { p_machines: ms }];
+    }
+    if (acKind === "out" && acJobs.length) {
+      refreshAutoOut();
+      var total = Number($("f-good").value || 0) + Number($("f-bad").value || 0);
+      var list = pickedJobs().map(function (r) {
+        return { id: r.dataset.job, qty: Number(r.querySelector("input[type=number]").value || 0) };
+      });
+      if (list.some(function (x) { return !(x.qty > 0); })) return ["ใส่จำนวนที่เอาออกจากแต่ละเครื่อง", null];
+      var s = list.reduce(function (a, x) { return a + x.qty; }, 0);
+      if (list.length && s !== total) {
+        return ["เอาออกจากเครื่องรวม " + J.nf.format(s) + " ชิ้น ไม่เท่ากับจำนวนเป่าออก " + J.nf.format(total) + " ชิ้น", null];
+      }
+      return [null, { p_cnc_out: list }];
+    }
+    if (acKind === "out") return [null, { p_cnc_out: [] }];
+    return [null, {}];
+  }
+  function autoMsg(r) {
+    var a = r && r.auto_cnc;
+    if (!a || !a.length) return "";
+    return r.auto_kind === "in"
+      ? " · ลงเข้าเครื่อง " + a.map(function (x) { return x.machine; }).join(", ") + " ให้แล้ว"
+      : " · ลงเอาออกจาก " + a.map(function (x) { return x.machine + " (" + x.days + " วัน)"; }).join(", ") + " ให้แล้ว";
+  }
+
   $("f-lot").addEventListener("change", showLotInfo);
+  $("f-lot").addEventListener("change", syncAutoCnc);
   $("f-step").addEventListener("change", onStepChange);
+  $("f-step").addEventListener("change", syncAutoCnc);
   $("f-tstart").addEventListener("timechange", updateDuration);
   $("f-tend").addEventListener("timechange", updateDuration);
 
@@ -878,6 +1015,8 @@
     var dzErr2 = mainDefects ? mainDefects.check() : null;
     if (bad > 0 && !mainDefects && ((boot && boot.defect_causes) || []).length) dzErr2 = "มีของเสีย — ติ๊กสาเหตุของเสียก่อนส่ง";
     if (dzErr2) { J.msg($("form-msg"), dzErr2, "err"); $("f-defects").scrollIntoView({ block: "center" }); return; }
+    var ac = autoArgs();
+    if (ac[0]) { J.msg($("form-msg"), ac[0], "err"); $("f-autocnc").scrollIntoView({ block: "center" }); return; }
     var s = stepInfo(step);
     var isCnc = false;
     var t1 = isCnc ? null : ($("f-tstart").value || null);
@@ -887,7 +1026,7 @@
       J.msg($("form-msg"), "ยังไม่ได้ใส่เวลาเริ่ม–เวลาเสร็จ ถ้าจำไม่ได้ กดส่งอีกครั้งเพื่อบันทึกโดยไม่มีเวลา", "warn");
       return;
     }
-    send({
+    var args = {
       p_name: m.name, p_pin: m.pin, p_category: "production",
       p_lot: lot, p_step: step,
       p_machine: isCnc ? ($("f-machine").value || null) : null,
@@ -899,12 +1038,17 @@
       p_time_start: t1, p_time_end: t2,
       p_rework_of: $("f-rework").value || null,
       p_defects: defectArgs()
-    }, $("submit-prod"), function (r) {
+    };
+    Object.keys(ac[1]).forEach(function (k) { args[k] = ac[1][k]; });   // CNC อัตโนมัติ
+    send(args, $("submit-prod"), function (r) {
       if (r && r.rework) {
-        J.msg($("form-msg"), "บันทึกเป็นงานแก้แล้ว — ยอดของขั้นตอนไม่บวกซ้ำ แต่เวลาของคุณนับปกติ", "ok");
+        J.msg($("form-msg"), "บันทึกเป็นงานแก้แล้ว — ยอดของขั้นตอนไม่บวกซ้ำ แต่เวลาของคุณนับปกติ" + autoMsg(r), "ok");
+      } else if (autoMsg(r)) {
+        J.msg($("form-msg"), "บันทึกเรียบร้อย" + autoMsg(r), "ok");
       }
       $("f-good").value = ""; $("f-bad").value = ""; $("f-note").value = "";
       syncDefects(true);
+      syncAutoCnc();
       $("f-rework").value = "";
       $("f-cstart").value = ""; $("f-cend").value = "";
       $("f-tstart").value = ""; $("f-tend").value = "";
@@ -1090,6 +1234,7 @@
                             (e.minutes % 60 ? (e.minutes % 60) + " น." : "")).trim() + ")" : "")
             : "") +
           (e.machine ? " · " + e.machine : "") +
+          (e.auto_note && e.auto_note !== e.note ? " · " + e.auto_note : "") +
           (e.photos ? " · " + e.photos + " รูป" : "") +
           (e.category === "production" && e.note ? " · " + e.note : "") +
           (e.repair ? (e.note ? " · " + e.note : "") + " · งานซ่อม"
@@ -1115,7 +1260,9 @@
             ? '<br><span class="s">ยืนยันแล้ว แก้หรือลบเองไม่ได้ ถ้าผิดให้แจ้งหัวหน้า</span>'
             : "") +
           (e.review_status === "inmachine"
-            ? '<br><span class="s">ยังไม่นับจำนวน — พอเอาออกจากเครื่องให้กดแท็บ “เอาออกจากเครื่อง” แล้วใส่จำนวน</span>'
+            ? '<br><span class="s">' + (e.auto_note
+                ? "อยู่ในเครื่อง — พอลง “เป่าออก” ของล็อตนี้ ระบบเอาออกจากเครื่องให้เอง"
+                : "ยังไม่นับจำนวน — พอเอาออกจากเครื่องให้กดแท็บ “เอาออกจากเครื่อง” แล้วใส่จำนวน") + "</span>"
             : "") +
           (e.lot_qty && e.step_total > e.lot_qty
             ? '<br><span class="s" style="color:var(--amber)">ขั้นตอนนี้ลงรวม ' +

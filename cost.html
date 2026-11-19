@@ -39,6 +39,18 @@
   .stack-bar i{display:block;height:100%}
   .legend-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--ink-2)}
   .swatch{width:11px;height:11px;border-radius:2px;display:inline-block;margin-inline-end:6px;vertical-align:-1px}
+  /* ---------- โครงสร้างค่าโสหุ้ย ---------- */
+  .oh-total{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;padding:8px 0}
+  .oh-h3{font-size:15px;margin:18px 0 8px}
+  .oh-chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .oh-chips button{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px dashed var(--line);
+    background:transparent;color:var(--ink-2);cursor:pointer}
+  .oh-items td.money{white-space:nowrap}
+  .oh-items tr.off td{color:var(--ink-3)}
+  .oh-bar{display:block;height:8px;border-radius:4px;background:var(--amber);min-width:2px}
+  .oh-break{margin:6px 0 0;padding:0;list-style:none;font-size:13px;color:var(--ink-2);line-height:1.8}
+  .oh-break li{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--line-2)}
+  .oh-break li b{font-weight:500;font-variant-numeric:tabular-nums;color:var(--ink)}
   .empty{padding:30px 10px;text-align:center;color:var(--ink-3);font-size:14px}
   td.money,th.money{text-align:end;font-variant-numeric:tabular-nums;white-space:nowrap}
 </style>
@@ -95,12 +107,16 @@
           <label for="s-hpd">ชั่วโมงทำงานต่อวัน (ของคน)</label>
           <input id="s-hpd" type="number" min="1" max="24" step="0.5">
         </div>
-        <div class="field">
+        <div class="field" id="ohm-wrap">
           <label for="s-ohm">ค่าโสหุ้ยต่อเดือน (บาท)</label>
           <input id="s-ohm" type="number" min="0" step="100">
         </div>
+        <div class="field" id="ohm-sum" hidden>
+          <label>ค่าโสหุ้ยต่อเดือน (รวมทุกหมวด)</label>
+          <div class="oh-total" id="ohm-total">—</div>
+        </div>
       </div>
-      <p class="hint" style="margin:-4px 0 12px">ค่าเช่า + ค่าไฟ + ค่าเสื่อมเครื่อง รวมทั้งเดือน ใส่ยอดเดียว — ระบบหารด้วยชั่วโมงที่โรงงานเดินจริงของเดือนนั้นให้เอง<br>ชั่วโมงเดินงาน = <b>เครื่อง CNC นับ 24 ชม./วัน</b> ตั้งแต่วันเข้าเครื่องถึงวันเอาออก + ชั่วโมงที่คนลงเวลาไว้ ล็อตไหนนอนในเครื่องนานก็แบกโสหุ้ยมากกว่า</p>
+      <p class="hint" style="margin:-4px 0 12px">ระบบหารค่าโสหุ้ยของแต่ละเดือนด้วยชั่วโมงที่โรงงานเดินจริงของเดือนนั้นให้เอง<br>ชั่วโมงเดินงาน = <b>เครื่อง CNC นับ 24 ชม./วัน</b> ตั้งแต่วันเข้าเครื่องถึงวันเอาออก + ชั่วโมงที่คนลงเวลาไว้ ล็อตไหนนอนในเครื่องนานก็แบกโสหุ้ยมากกว่า</p>
       <details style="margin-bottom:12px">
         <summary class="hint" style="cursor:pointer">กรอกเป็นต่อชั่วโมงเองแทน (ขั้นสูง)</summary>
         <div class="field" style="margin-top:10px">
@@ -113,6 +129,48 @@
       <button class="btn" id="s-save" type="button">บันทึกค่าตั้งต้น</button>
       <div id="oh-months" style="margin-top:14px"></div>
       <p class="hint" style="margin-top:10px">ค่าแรงรายวันของแต่ละคนตั้งที่หน้า ตั้งค่า → พนักงาน · ค่าหยกของแต่ละล็อตกรอกได้ในตารางข้างล่าง</p>
+    </div>
+
+    <!-- ---------- โครงสร้างค่าโสหุ้ย ---------- -->
+    <div class="card" style="margin-bottom:16px">
+      <h2>โครงสร้างค่าโสหุ้ย</h2>
+      <p class="hint" style="margin-bottom:12px">แยกค่าโสหุ้ยเป็นหมวด ใส่ "ยอดปกติต่อเดือน" ของแต่ละหมวด
+        ถ้าเดือนไหนจ่ายจริงไม่เท่ายอดปกติ (เช่น ค่าไฟ) กรอก "ยอดจริงของเดือน" ทับได้ —
+        ต้นทุนแต่ละล็อตจะบอกได้ว่าแบกหมวดไหนเท่าไหร่</p>
+      <div id="oh-items"><p class="hint">กำลังโหลด…</p></div>
+
+      <h3 class="oh-h3" id="oi-title">เพิ่มหมวด</h3>
+      <div class="oh-chips" id="oi-suggest"></div>
+      <div class="two">
+        <div class="field"><label for="oi-name">ชื่อหมวด</label>
+          <input id="oi-name" type="text" placeholder="เช่น ค่าไฟ"></div>
+        <div class="field"><label for="oi-monthly">ยอดปกติต่อเดือน (บาท)</label>
+          <input id="oi-monthly" type="number" min="0" step="100" placeholder="0"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="oi-note">หมายเหตุ (ถ้ามี)</label>
+          <input id="oi-note" type="text" placeholder="เช่น บิลการไฟฟ้า มิเตอร์โรงงาน"></div>
+        <div class="field"><label for="oi-active">สถานะ</label>
+          <select id="oi-active"><option value="1">ใช้อยู่</option><option value="0">เลิกใช้</option></select></div>
+      </div>
+      <div class="msg" id="oi-msg" hidden></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="oi-save" type="button">บันทึกหมวด</button>
+        <button class="btn btn-ghost" id="oi-cancel" type="button" hidden>ยกเลิกการแก้ไข</button>
+      </div>
+
+      <h3 class="oh-h3">ยอดจริงของเดือน</h3>
+      <p class="hint" style="margin-bottom:10px">เว้นว่าง = ใช้ยอดปกติ · ใส่ตัวเลข = เดือนนั้นจ่ายจริงเท่านี้</p>
+      <div class="two">
+        <div class="field"><label for="oa-ym">เดือน</label><select id="oa-ym"></select></div>
+        <div class="field"><label for="oa-item">หมวด</label><select id="oa-item"></select></div>
+      </div>
+      <div class="two">
+        <div class="field"><label for="oa-amount">ยอดจริง (บาท)</label>
+          <input id="oa-amount" type="number" min="0" step="1" placeholder="เว้นว่าง = ใช้ยอดปกติ"></div>
+        <div class="field" style="justify-content:flex-end"><button class="btn" id="oa-save" type="button">บันทึกยอดจริง</button></div>
+      </div>
+      <div class="msg" id="oa-msg" hidden></div>
     </div>
 
     <div class="range">
@@ -220,27 +278,156 @@
     return THMON[Number(p[1]) - 1] + " " + (Number(p[0]) + 543 - 2500);
   }
 
+  /* ---------- โครงสร้างค่าโสหุ้ย (หมวด) ---------- */
+  var ohData = null, editItem = null;
+  var SUGGEST = ["ค่าไฟ", "ค่าน้ำ", "ค่าเช่า / ผ่อนอาคาร", "ค่าเสื่อมเครื่องจักร", "ซ่อมบำรุงเครื่อง",
+                 "วัสดุสิ้นเปลือง (ดอกกัด กาว ผงขัด)", "เงินเดือนประจำ (ไม่ได้ลงงาน)", "ค่าขนส่ง", "ค่าอินเทอร์เน็ต / โทรศัพท์"];
+
+  function ymNow() { return J.today().slice(0, 8) + "01"; }
+
+  function renderItems(d) {
+    var items = d.items || [], act = items.filter(function (x) { return x.active; });
+    var tot = act.reduce(function (a, x) { return a + (Number(x.monthly) || 0); }, 0);
+    $("ohm-wrap").hidden = !!d.has_items;
+    $("ohm-sum").hidden = !d.has_items;
+    $("ohm-total").textContent = money(tot) + " บาท";
+    var names = items.map(function (x) { return x.name; });
+    $("oi-suggest").innerHTML = SUGGEST.filter(function (s) { return names.indexOf(s) < 0; }).map(function (s) {
+      return '<button type="button" data-sug="' + J.esc(s) + '">+ ' + J.esc(s) + "</button>";
+    }).join("");
+    if (!items.length) {
+      $("oh-items").innerHTML = '<p class="hint">ยังไม่ได้แยกหมวด — ระบบใช้ช่อง "ค่าโสหุ้ยต่อเดือน" ด้านบนเป็นก้อนเดียว ' +
+        "เพิ่มหมวดแรกแล้วระบบจะเปลี่ยนไปใช้ยอดรวมของหมวดแทน</p>";
+    } else {
+      $("oh-items").innerHTML = '<table class="oh-items" style="width:100%"><thead><tr><th>หมวด</th>' +
+        "<th class='money'>ยอดปกติ/เดือน</th><th></th></tr></thead><tbody>" +
+        items.map(function (x) {
+          var v = Number(x.monthly) || 0, share = x.active && tot ? v / tot : 0;
+          return '<tr class="' + (x.active ? "" : "off") + '"><td>' + J.esc(x.name) +
+            (x.active ? "" : ' <span class="chip idle">เลิกใช้</span>') +
+            (x.note ? '<br><span class="hint">' + J.esc(x.note) + "</span>" : "") +
+            (x.active ? '<span class="oh-bar" style="width:' + (share * 100).toFixed(1) + '%;margin-top:5px"></span>' : "") +
+            "</td>" +
+            '<td class="money">' + money(v) +
+              (x.active ? '<br><span class="hint">' + (share * 100).toFixed(1) + "%</span>" : "") + "</td>" +
+            '<td style="width:1%"><button class="btn btn-sm" data-oi="' + J.esc(x.id) + '" type="button">แก้</button></td></tr>';
+        }).join("") +
+        "<tr><td><b>รวมต่อเดือน</b></td><td class='money'><b>" + money(tot) + "</b></td><td></td></tr>" +
+        "</tbody></table>";
+    }
+    // ตัวเลือกยอดจริงรายเดือน: เดือนนี้ + เดือนที่มีชั่วโมงเดินงาน
+    var yms = [ymNow()];
+    (d.months || []).forEach(function (r) { var y = String(r.ym).slice(0, 10); if (yms.indexOf(y) < 0) yms.push(y); });
+    yms.sort().reverse();
+    var keepY = $("oa-ym").value, keepI = $("oa-item").value;
+    $("oa-ym").innerHTML = yms.map(function (y) { return '<option value="' + y + '">' + monthTxt(y) + "</option>"; }).join("");
+    $("oa-item").innerHTML = items.length
+      ? items.map(function (x) { return '<option value="' + J.esc(x.id) + '">' + J.esc(x.name) + "</option>"; }).join("")
+      : '<option value="">— เพิ่มหมวดก่อน —</option>';
+    if (keepY) $("oa-ym").value = keepY;
+    if (keepI) $("oa-item").value = keepI;
+    fillActual();
+  }
+
+  // ใส่ยอดจริงที่เคยกรอกไว้ของเดือน/หมวดที่เลือก
+  function fillActual() {
+    if (!ohData) return;
+    var y = $("oa-ym").value, id = $("oa-item").value;
+    var mo = (ohData.months || []).filter(function (r) { return String(r.ym).slice(0, 10) === y; })[0];
+    var it = mo && (mo.items || []).filter(function (x) { return x.id === id; })[0];
+    $("oa-amount").value = it && it.actual ? it.amount : "";
+    var base = (ohData.items || []).filter(function (x) { return x.id === id; })[0];
+    $("oa-amount").placeholder = base ? "เว้นว่าง = ใช้ยอดปกติ " + money(base.monthly) : "";
+  }
+  $("oa-ym").addEventListener("change", fillActual);
+  $("oa-item").addEventListener("change", fillActual);
+
+  function resetItemForm() {
+    editItem = null;
+    $("oi-title").textContent = "เพิ่มหมวด";
+    $("oi-name").value = ""; $("oi-monthly").value = ""; $("oi-note").value = ""; $("oi-active").value = "1";
+    $("oi-cancel").hidden = true;
+  }
+  $("oi-cancel").addEventListener("click", resetItemForm);
+  $("oi-suggest").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-sug]");
+    if (!b) return;
+    resetItemForm();
+    $("oi-name").value = b.dataset.sug;
+    $("oi-monthly").focus();
+  });
+  $("oh-items").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-oi]");
+    if (!b || !ohData) return;
+    var x = (ohData.items || []).filter(function (y) { return y.id === b.dataset.oi; })[0];
+    if (!x) return;
+    editItem = x;
+    $("oi-title").textContent = "แก้หมวด: " + x.name;
+    $("oi-name").value = x.name; $("oi-monthly").value = x.monthly;
+    $("oi-note").value = x.note || ""; $("oi-active").value = x.active ? "1" : "0";
+    $("oi-cancel").hidden = false;
+    $("oi-name").scrollIntoView({ block: "center" });
+  });
+  $("oi-save").addEventListener("click", function () {
+    var m = J.me.get(), name = ($("oi-name").value || "").trim(), v = $("oi-monthly").value;
+    if (!name) { J.msg($("oi-msg"), "ใส่ชื่อหมวด", "err"); return; }
+    if (v === "" || !(Number(v) >= 0)) { J.msg($("oi-msg"), "ใส่ยอดต่อเดือน (บาท)", "err"); return; }
+    $("oi-save").disabled = true;
+    J.rpc("sup_overhead_item_save", {
+      p_name: m.name, p_pin: m.pin, p_id: editItem ? editItem.id : null, p_item: name,
+      p_monthly: Number(v), p_seq: editItem ? editItem.seq : 100,
+      p_note: $("oi-note").value || null, p_active: $("oi-active").value === "1"
+    }).then(function (r) {
+      J.msg($("oi-msg"), (r.created ? "เพิ่ม " : "บันทึก ") + r.name + " แล้ว — ต้นทุนทุกล็อตคิดใหม่ให้แล้ว", "ok");
+      resetItemForm(); loadOverhead(); load();
+    }).catch(function (err) { J.msg($("oi-msg"), err.message, "err"); })
+      .then(function () { $("oi-save").disabled = false; });
+  });
+  $("oa-save").addEventListener("click", function () {
+    var m = J.me.get(), id = $("oa-item").value, v = $("oa-amount").value;
+    if (!id) { J.msg($("oa-msg"), "เพิ่มหมวดก่อน", "err"); return; }
+    if (v !== "" && !(Number(v) >= 0)) { J.msg($("oa-msg"), "ยอดต้องเป็นตัวเลขไม่ติดลบ", "err"); return; }
+    $("oa-save").disabled = true;
+    J.rpc("sup_overhead_actual_save", {
+      p_name: m.name, p_pin: m.pin, p_item: id, p_ym: $("oa-ym").value, p_amount: v === "" ? null : Number(v)
+    }).then(function (r) {
+      J.msg($("oa-msg"), (v === "" ? "กลับไปใช้ยอดปกติแล้ว" : "บันทึกยอดจริงแล้ว") +
+        " — โสหุ้ยรวมเดือน " + monthTxt($("oa-ym").value) + " = " + money(r.total) + " บาท", "ok");
+      loadOverhead(); load();
+    }).catch(function (err) { J.msg($("oa-msg"), err.message, "err"); })
+      .then(function () { $("oa-save").disabled = false; });
+  });
+
   function loadOverhead() {
     var m = J.me.get();
     J.rpc("sup_overhead", { p_name: m.name, p_pin: m.pin, p_months: 6 }).then(function (d) {
+      ohData = d;
+      renderItems(d);
       var box = $("oh-months"), list = d.months || [];
       if (!list.length) {
         box.innerHTML = '<p class="hint">ยังไม่มีชั่วโมงเดินงานให้คิด — พอมีงานเข้า-ออกเครื่องหรือมีการลงเวลา ตัวเลขต่อชั่วโมงจะขึ้นตรงนี้</p>';
         return;
       }
       var mode = d.mode === "month"
-        ? 'คิดจากค่าโสหุ้ยต่อเดือน ' + money(d.per_month) + ' บาท'
-        : 'ยังไม่ได้กรอกต่อเดือน — ใช้อัตราคงที่ ' + money(d.per_hour) + ' บาท/ชม.';
+        ? (d.has_items ? "คิดจากโครงสร้างค่าโสหุ้ย (รวมทุกหมวด) ยอดปกติ " : "คิดจากค่าโสหุ้ยต่อเดือน ") +
+          money(d.per_month) + " บาท"
+        : "ยังไม่ได้กรอกต่อเดือน — ใช้อัตราคงที่ " + money(d.per_hour) + " บาท/ชม.";
       box.innerHTML =
         '<p class="hint" style="margin-bottom:6px">' + J.esc(mode) + "</p>" +
         '<div class="scroll"><table><thead><tr><th>เดือน</th>' +
+        "<th class='money'>โสหุ้ยทั้งเดือน</th>" +
         "<th class='money'>ชม. เครื่อง</th><th class='money'>ชม. คน</th>" +
         "<th class='money'>รวม</th><th class='money'>โสหุ้ย/ชม.</th>" +
         "<th class='money'>ค่าแรงที่จ่าย</th><th class='money'>ลงตรงได้</th>" +
         "<th class='money'>เกลี่ยเพิ่ม/ชม.</th></tr></thead><tbody>" +
         list.map(function (r) {
           var cov = r.covered_pct == null ? null : Number(r.covered_pct);
+          var acts = (r.items || []).filter(function (x) { return x.actual; });
           return "<tr><td>" + J.esc(monthTxt(r.ym)) + "</td>" +
+            '<td class="money">' + (r.overhead_total == null ? "—" : money(r.overhead_total)) +
+              (acts.length ? '<br><span class="hint">ยอดจริง: ' + acts.map(function (x) {
+                return J.esc(x.name) + " " + money(x.amount);
+              }).join(", ") + "</span>" : "") + "</td>" +
             '<td class="money">' + (Number(r.machine_hours) || 0).toFixed(0) + "</td>" +
             '<td class="money">' + (Number(r.labour_hours) || 0).toFixed(1) + "</td>" +
             '<td class="money">' + (Number(r.base_hours) || 0).toFixed(1) + "</td>" +
@@ -271,6 +458,8 @@
     $("s-save").disabled = true;
     J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "hours_per_day", p_num: Number($("s-hpd").value) })
       .then(function () {
+        // แยกหมวดแล้ว ยอดต่อเดือนมาจากหมวด — ไม่บันทึกช่องเดิมทับ
+        if (ohData && ohData.has_items) return null;
         return J.rpc("sup_save_setting", { p_name: m.name, p_pin: m.pin, p_key: "overhead_per_month", p_num: Number($("s-ohm").value) });
       })
       .then(function () {
@@ -458,6 +647,15 @@
         (Number(d.machine_hours) || 0).toFixed(0) + " ชม. + ชั่วโมงคน " +
         (Number(d.labour_hours) || 0).toFixed(1) + " ชม. × " + money(d.overhead_rate) + " บาท/ชม." +
         (d.overhead_mode === "month" ? " (อัตราที่ได้จากค่าโสหุ้ยต่อเดือน)" : " (อัตราคงที่ที่กรอกไว้)") + "</p>";
+      var its = d.overhead_items || [];
+      if (its.length) {
+        html += '<p class="hint" style="margin-top:6px">โสหุ้ย ' + money(oh) + " บาท แยกตามหมวด:</p>" +
+          '<ul class="oh-break">' + its.map(function (x) {
+            return "<li><span>" + J.esc(x.name) + "</span><b>" + money(x.amount) + " บาท" +
+              (oh ? ' <span class="hint">(' + (Number(x.amount) / oh * 100).toFixed(1) + "%)</span>" : "") +
+              "</b></li>";
+          }).join("") + "</ul>";
+      }
     }
 
     html += '<div class="kpis" style="margin-top:16px">' + [

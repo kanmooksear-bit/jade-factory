@@ -229,6 +229,13 @@
             </select>
           </div>
         </div>
+        <div class="field">
+          <label for="p-free">การลง CNC</label>
+          <select id="p-free">
+            <option value="0">ลงอัตโนมัติ — แปะกาว = เข้าเครื่องแดง · เป่าออก = เอาออก</option>
+            <option value="1">งานองค์ลอย — ทำบนเครื่อง 4 แกน / ขาว ลง CNC เอง</option>
+          </select>
+        </div>
         <div class="two">
           <div class="field">
             <label for="p-cost">ต้นทุนมาตรฐาน (บาท) — ความลับ</label>
@@ -272,6 +279,13 @@
           <select id="m-active">
             <option value="1">ใช้งานอยู่</option>
             <option value="0">ปิดใช้ / ส่งซ่อม</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="m-auto">การลงงาน CNC</label>
+          <select id="m-auto">
+            <option value="0">ลงเอง — กดเอาเข้า/เอาออกที่ขั้น CNC (เช่น 4 แกน · ขาว)</option>
+            <option value="1">ลงอัตโนมัติ — แปะกาว = เอาเข้า · เป่าออก = เอาออก (เครื่อง 3 แกน XYZ)</option>
           </select>
         </div>
         <div class="modal-actions">
@@ -701,6 +715,7 @@
     ["p-code", "p-name", "p-jade", "p-color", "p-origin", "p-detail",
      "p-w", "p-l", "p-h", "p-cost", "p-price"].forEach(function (id) { $(id).value = ""; });
     $("p-active").value = "1";
+    $("p-free").value = "0";
     $("p-photo").value = "";
     $("p-photo-hint").textContent = "";
     setProdPreview(null);
@@ -714,6 +729,7 @@
     $("p-code").value = p.code; $("p-name").value = p.name;
     $("p-jade").value = p.jade || ""; $("p-color").value = p.color || "";
     $("p-origin").value = p.origin || ""; $("p-detail").value = p.detail || "";
+    $("p-free").value = p.free_standing ? "1" : "0";
     $("p-cost").value = p.cost == null ? "" : p.cost;
     $("p-price").value = p.price == null ? "" : p.price;
     $("p-w").value = p.w == null ? "" : p.w;
@@ -774,6 +790,11 @@
       p_detail: $("p-detail").value || null,
       p_cost: money("p-cost"), p_price: money("p-price")
     }).then(function (r) {
+      // งานองค์ลอย (ลง CNC เอง) แยกเก็บอีกฟังก์ชัน
+      return J.rpc("sup_set_product_free", { p_name: m.name, p_pin: m.pin, p_code: r.code,
+                                             p_free: $("p-free").value === "1" })
+        .then(function () { return r; });
+    }).then(function (r) {
       J.msg($("prod-msg"), (r.created ? "เพิ่มสินค้า " : "บันทึกสินค้า ") + r.code + " เรียบร้อย", "ok");
       resetProdForm();
       loadProducts();
@@ -791,7 +812,8 @@
             ? '<img class="thumb" data-photo="' + J.esc(p.code) + '" alt="' + J.esc(p.name) + '">'
             : '<span class="thumb ph">ไม่มีรูป</span>') +
           '<span class="main"><span class="t">' + J.esc(p.code) + " · " + J.esc(p.name) +
-          (p.active ? "" : ' <span class="chip idle">ซ่อน</span>') + "</span><br>" +
+          (p.active ? "" : ' <span class="chip idle">ซ่อน</span>') +
+          (p.free_standing ? ' <span class="chip warn">องค์ลอย · CNC ลงเอง</span>' : "") + "</span><br>" +
           '<span class="s">' +
           [p.color ? "สี" + p.color : "", p.jade ? "หยก" + p.jade : "", p.origin || "",
            size ? size + " ซม." : ""].filter(Boolean).map(J.esc).join(" · ") +
@@ -819,7 +841,7 @@
   function resetMachForm() {
     editMach = null;
     $("mach-title").textContent = "เพิ่มเครื่องใหม่";
-    $("m-name").value = ""; $("m-kind").value = ""; $("m-active").value = "1";
+    $("m-name").value = ""; $("m-kind").value = ""; $("m-active").value = "1"; $("m-auto").value = "0";
     $("m-cancel").hidden = true;
   }
   $("m-cancel").addEventListener("click", resetMachForm);
@@ -831,6 +853,10 @@
       p_name: m.name, p_pin: m.pin, p_target: editMach,
       p_new_name: $("m-name").value, p_kind: $("m-kind").value || null,
       p_active: $("m-active").value === "1"
+    }).then(function (r) {
+      return J.rpc("sup_set_machine_auto", { p_name: m.name, p_pin: m.pin, p_machine: r.name,
+                                             p_auto: $("m-auto").value === "1" })
+        .then(function () { return r; });
     }).then(function (r) {
       J.msg($("mach-msg"), (r.created ? "เพิ่มเครื่อง " : "บันทึก ") + r.name + " เรียบร้อย", "ok");
       resetMachForm(); loadMachines();
@@ -845,7 +871,8 @@
         return '<div class="item' + (x.active ? "" : " off") + '">' +
           '<span class="thumb ph">' + J.esc(x.kind || "—") + "</span>" +
           '<span class="main"><span class="t">' + J.esc(x.name) +
-          (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') + "</span><br>" +
+          (x.active ? "" : ' <span class="chip idle">ปิดใช้</span>') +
+          (x.auto_glue ? ' <span class="chip ok">ลงอัตโนมัติ</span>' : "") + "</span><br>" +
           '<span class="s">ใช้ลงงานไปแล้ว ' + J.nf.format(x.entries) + " รายการ</span></span>" +
           '<span class="act"><button class="btn btn-sm" data-mach="' + J.esc(x.name) + '" type="button">แก้ไข</button></span>' +
           "</div>";
@@ -857,6 +884,7 @@
           $("mach-title").textContent = "แก้ไข: " + x.name;
           $("m-name").value = x.name; $("m-kind").value = x.kind || "";
           $("m-active").value = x.active ? "1" : "0";
+          $("m-auto").value = x.auto_glue ? "1" : "0";
           $("m-cancel").hidden = false;
           window.scrollTo({ top: 0, behavior: "smooth" });
         });
